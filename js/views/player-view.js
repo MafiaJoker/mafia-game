@@ -32,11 +32,40 @@ export class PlayerView {
         const foulsCount = document.createElement('span');
         foulsCount.className = 'mx-1 fouls-count';
         foulsCount.textContent = player.fouls;
+	foulsCount.style.cursor = 'pointer';  // Добавляем курсор для указания кликабельности
+
+	if (player.fouls < MAX_FOULS.BEFORE_SILENCE || 
+	    (player.fouls === MAX_FOULS.BEFORE_SILENCE && (player.isSilent || player.silentNextRound)) || 
+	    player.fouls >= MAX_FOULS.BEFORE_ELIMINATION) {
+	    foulsCount.onclick = () => callbacks.onIncrementFoul(player.id);
+	}
         
         foulsContainer.appendChild(foulsCount);
         foulsEl.appendChild(foulsContainer);
         playerEl.appendChild(foulsEl);
-        
+
+	// Добавляем специальные действия для игрока с 4 фолами
+	if (player.fouls === MAX_FOULS.BEFORE_ELIMINATION && !player.isEliminated) {
+	    const actionsEl = document.createElement('div');
+	    actionsEl.className = 'col-12 mt-1';
+	    
+	    const resetFoulsBtn = this.createButton(
+		'Сбросить фолы',
+		'btn btn-sm btn-secondary me-2',
+		() => callbacks.onResetFouls(player.id)
+	    );
+	    
+	    const eliminateBtn = this.createButton(
+		localization.t('playerActions', 'eliminate'),
+		'btn btn-danger',
+		() => callbacks.onEliminate(player.id)
+	    );
+	    
+	    actionsEl.appendChild(resetFoulsBtn);
+	    actionsEl.appendChild(eliminateBtn);
+	    playerEl.appendChild(actionsEl);
+	}
+	
         // Role
         const roleEl = document.createElement('div');
         roleEl.className = 'col-2 text-center';
@@ -130,19 +159,19 @@ export class PlayerView {
             playerEl.appendChild(actionsEl);
         }
         
-        if (player.canBeEliminated() && !player.isEliminated) {
-            const actionsEl = document.createElement('div');
-            actionsEl.className = 'col-12 mt-1';
+        // if (player.canBeEliminated() && !player.isEliminated) {
+        //     const actionsEl = document.createElement('div');
+        //     actionsEl.className = 'col-12 mt-1';
             
-            const eliminateBtn = this.createButton(
-                localization.t('playerActions', 'eliminate'),
-                'btn btn-danger',
-                () => callbacks.onEliminate(player.id)
-            );
+        //     const eliminateBtn = this.createButton(
+        //         localization.t('playerActions', 'eliminate'),
+        //         'btn btn-danger',
+        //         () => callbacks.onEliminate(player.id)
+        //     );
             
-            actionsEl.appendChild(eliminateBtn);
-            playerEl.appendChild(actionsEl);
-        }
+        //     actionsEl.appendChild(eliminateBtn);
+        //     playerEl.appendChild(actionsEl);
+        // }
         
         return playerEl;
     }

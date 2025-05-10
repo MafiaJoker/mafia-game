@@ -61,10 +61,50 @@ export class GameView {
             cityWin: document.getElementById('cityWin'),
             
             // Список игроков
-            playersList: document.getElementById('playersList')
+            playersList: document.getElementById('playersList'),
+
+	    eliminatePlayerButton: document.getElementById('eliminatePlayerButton'),
+	    eliminatePlayerModal: document.getElementById('eliminatePlayerModal'),
+	    eliminatePlayerList: document.getElementById('eliminatePlayerList'),
+	    closeEliminateModal: document.getElementById('closeEliminateModal')
         };
     }
 
+    initModalHandlers() {
+	// Закрытие модального окна
+	this.elements.closeEliminateModal.addEventListener('click', () => {
+            this.elements.eliminatePlayerModal.classList.add('d-none');
+	});
+	
+	// Закрытие модального окна при клике вне его содержимого
+	this.elements.eliminatePlayerModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.eliminatePlayerModal) {
+		this.elements.eliminatePlayerModal.classList.add('d-none');
+            }
+	});
+    }
+
+    showEliminatePlayerModal(players) {
+	this.elements.eliminatePlayerList.innerHTML = '';
+	
+	players.forEach(player => {
+            if (player.isAlive && !player.isEliminated) {
+		const playerBtn = document.createElement('button');
+		playerBtn.className = 'btn btn-outline-danger m-1';
+		playerBtn.textContent = `${player.id}: ${player.name}`;
+		playerBtn.onclick = () => {
+                    if (window.gameController) {
+			window.gameController.eliminatePlayer(player.id);
+			this.elements.eliminatePlayerModal.classList.add('d-none');
+                    }
+		};
+		this.elements.eliminatePlayerList.appendChild(playerBtn);
+            }
+	});
+	
+	this.elements.eliminatePlayerModal.classList.remove('d-none');
+    }
+    
     updateRound(round) {
         this.elements.roundNumber.textContent = round;
     }
@@ -467,7 +507,8 @@ export class GameView {
         this.elements.startVoting.classList.add('d-none');
         this.elements.goToNight.classList.add('d-none');
         this.elements.ppkButton.classList.add('d-none');
-        this.elements.ppkControls.classList.add('d-none');   
+        this.elements.ppkControls.classList.add('d-none');
+	this.elements.eliminatePlayerButton.classList.add('d-none');
         this.elements.votingSection.classList.add('d-none');
         this.elements.votingControls.classList.add('d-none');
         this.elements.nightSection.classList.add('d-none');

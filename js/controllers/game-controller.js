@@ -4,7 +4,7 @@ import gameView from '../views/game-view.js';
 import timerService from '../utils/timer-service.js';
 import nightActionsService from '../services/night-actions-service.js';
 import votingService from '../services/voting-service.js';
-import { GAME_PHASES, NO_CANDIDATES_MAX_ROUNDS } from '../utils/constants.js';
+import { GAME_PHASES, NO_CANDIDATES_MAX_ROUNDS, MAX_FOULS } from '../utils/constants.js';
 import localization from '../utils/localization.js';
 
 export class GameController {
@@ -140,6 +140,7 @@ export class GameController {
         try {
             // Инициализация модели уже произошла в конструкторе
             this.setupEventListeners();
+	    gameView.initModalHandlers(); // Инициализируем обработчики модальных окон
             this.updatePlayers();
         } catch (error) {
             console.error('Ошибка инициализации игры:', error);
@@ -153,12 +154,36 @@ export class GameController {
             onSilentNow: (playerId) => this.setSilentNow(playerId),
             onSilentNext: (playerId) => this.setSilentNextRound(playerId),
             onEliminate: (playerId) => this.eliminatePlayer(playerId),
-	    onNominate: (nominatorId, nominatedId) => this.nominatePlayer(nominatorId, nominatedId)
+	    onNominate: (nominatorId, nominatedId) => this.nominatePlayer(nominatorId, nominatedId),
+	    onIncrementFoul: (playerId) => this.incrementFoul(playerId),
+            onResetFouls: (playerId) => this.resetFouls(playerId)
         };
         
         gameView.renderPlayers(gameModel.state.players, gameModel.state, callbacks);
     }
 
+    // Добавить новые методы для работы с фолами
+    incrementFoul(playerId) {
+	const player = gameModel.getPlayer(playerId);
+	if (player) {
+            // Проверяем, можно ли увеличить фолы
+            if (player.fouls < MAX_FOULS.BEFORE_SILENCE || 
+		(player.fouls === MAX_FOULS.BEFORE_SILENCE && (player.isSilent || player.silentNextRound)) ||
+		player.fouls >= MAX_FOULS.BEFORE_ELIMINATION) {
+		player.incrementFoul();
+		this.updatePlayers();
+            }
+	}
+    }
+
+    resetFouls(playerId) {
+	const player = gameModel.getPlayer(playerId);
+	if (player) {
+            player.fouls = 0;
+            this.updatePlayers();
+	}
+    }
+    
     setupEventListeners() {
         // Установка обработчиков событий для всех элементов UI
         gameView.elements.startDistribution.addEventListener('click', () => this.initDistribution());
@@ -180,10 +205,16 @@ export class GameController {
         gameView.elements.cancelPpk.addEventListener('click', () => gameView.hidePpkControls());
         gameView.elements.mafiaWin.addEventListener('click', () => this.declareMafiaWin());
         gameView.elements.cityWin.addEventListener('click', () => this.declareCityWin());
+
+	gameView.elements.eliminatePlayerButton.addEventListener('click', () => this.showEliminatePlayerModal());
         
         // Обработчик для переключения видимости ролей
         document.querySelector('.row.mb-2.fw-bold .col-2.text-center').
 	    addEventListener('click', () => gameModel.toggleRolesVisibility());
+    }
+
+    showEliminatePlayerModal() {
+	gameView.showEliminatePlayerModal(gameModel.state.players);
     }
 
     initDistribution() {
@@ -203,6 +234,7 @@ export class GameController {
         
         gameView.updateGamePhase(GAME_PHASES.DAY);
         gameView.elements.ppkButton.classList.remove('d-none');
+	gameView.elements.eliminatePlayerButton.classList.remove('d-none'); // Показываем кнопку удаления
         
         // Проверяем условия для начала голосования
         this.updateNominatedPlayers();
@@ -498,7 +530,10 @@ export class GameController {
         
         // Отключаем все игровые действия
         gameView.disableGameControls();
-        
+
+	gameView.elements.ppkButton.classList.add('d-none');
+	gameView.elements.eliminatePlayerButton.classList.add('d-none');
+	
         // Показываем все роли
         gameModel.state.players.forEach(p => {
             p.role = p.originalRole;
