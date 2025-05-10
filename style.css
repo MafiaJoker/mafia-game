@@ -20,6 +20,12 @@
     height: 40px;
 }
 
+.role-toggle {
+    text-decoration: underline;
+    cursor: pointer;
+    color: blue;
+}
+
 @media (max-width: 768px) {
     .table-responsive {
         font-size: 0.9rem;

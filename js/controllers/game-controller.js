@@ -182,8 +182,8 @@ export class GameController {
         gameView.elements.cityWin.addEventListener('click', () => this.declareCityWin());
         
         // Обработчик для переключения видимости ролей
-        document.querySelector('.row.mb-2.fw-bold .col-2.text-center').addEventListener('click', 
-            () => gameModel.toggleRolesVisibility());
+        document.querySelector('.row.mb-2.fw-bold .col-2.text-center').
+	    addEventListener('click', () => gameModel.toggleRolesVisibility());
     }
 
     initDistribution() {
@@ -214,6 +214,33 @@ export class GameController {
     }
 
     startVoting() {
+	// Если только одна кандидатура и это не нулевой круг - сразу автоматически выбываем
+	if (gameModel.state.nominatedPlayers.length === 1 && gameModel.state.round > 0) {
+            const eliminatedPlayerId = gameModel.state.nominatedPlayers[0];
+            const player = gameModel.getPlayer(eliminatedPlayerId);
+            
+            if (player) {
+		// Показываем статус, что игрок выбывает
+		gameView.showGameStatus(
+                    `Игрок ${player.id}: ${player.name} автоматически выбывает как единственная кандидатура`,
+                    'warning'
+		);
+		
+		// Выбываем игрока
+		this.eliminatePlayer(eliminatedPlayerId);
+		
+		// Очищаем номинации
+		gameModel.state.nominatedPlayers = [];
+		gameModel.state.players.forEach(p => { p.nominated = null; });
+		
+		// Показываем кнопку "В ночь"
+		gameView.elements.startVoting.classList.add('d-none');
+		gameView.elements.goToNight.classList.remove('d-none');
+		
+		return; // Выходим из функции, не начиная голосование
+            }
+	}
+	
         votingService.startVoting();
     }
 
@@ -234,7 +261,12 @@ export class GameController {
         gameModel.state.donTarget = null;
         gameModel.state.sheriffTarget = null;
         gameModel.state.nominatedPlayers = [];
-        
+
+	// Очистка всех номинаций
+	gameModel.state.players.forEach(p => {
+            p.nominated = null;
+	});
+	
         gameView.renderNightActions(gameModel.state.players);
     }
 
@@ -260,7 +292,11 @@ export class GameController {
     confirmNight() {
 	const nightResult = nightActionsService.applyNightActions();
 	gameView.updateGamePhase(GAME_PHASES.DAY);
-	
+
+	// Очистка результатов предыдущих ночных проверок
+	gameView.elements.donResult.classList.add('d-none');
+	gameView.elements.sheriffResult.classList.add('d-none');
+    	
 	// Здесь проверка на лучший ход, которая должна происходить перед обновлением игроков
 	this.checkForBestMove();
 	

@@ -167,7 +167,13 @@ export class PlayerView {
     // Рендеринг списка игроков
     renderPlayers(players, gameState, callbacks) {
         this.playersList.innerHTML = '';
-        
+	
+	// Подсветка кнопки переключения ролей
+	const roleToggleBtn = document.querySelector('.row.mb-2.fw-bold .col-2.text-center');
+	roleToggleBtn.style.textDecoration = 'underline';
+	roleToggleBtn.style.cursor = 'pointer';
+	roleToggleBtn.style.color = 'blue';
+	
         players.forEach((player) => {
             if (player.isEliminated) return;
             

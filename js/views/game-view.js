@@ -396,15 +396,13 @@ export class GameView {
         bestMoveChoicesEl.innerHTML = '';
         
         gameModel.state.players.forEach(p => {
-            if (p.id !== player.id) {
-                const playerBtn = document.createElement('button');
-                playerBtn.className = 'btn vote-btn btn-outline-primary';
-                playerBtn.textContent = `${p.id}`;
-                playerBtn.dataset.playerId = p.id;
-                playerBtn.onclick = () => this.onBestMoveTargetToggle(p.id, playerBtn);
-                
-                bestMoveChoicesEl.appendChild(playerBtn);
-            }
+            const playerBtn = document.createElement('button');
+            playerBtn.className = 'btn vote-btn btn-outline-primary';
+            playerBtn.textContent = `${p.id}`;
+            playerBtn.dataset.playerId = p.id;
+            playerBtn.onclick = () => this.onBestMoveTargetToggle(p.id, playerBtn);
+            
+            bestMoveChoicesEl.appendChild(playerBtn);
         });
         
         this.elements.bestMoveSelected.textContent = '0';
