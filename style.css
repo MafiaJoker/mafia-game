@@ -1,0 +1,42 @@
+.vote-btn {
+    min-width: 60px;
+    min-height: 60px;
+    font-size: 1.5rem;
+    margin: 5px;
+    padding: 10px;
+}
+
+.container {
+    max-width: 420px;
+}
+
+.role-img {
+    width: 25px;
+    height: 25px;
+}
+
+.role-btn {
+    width: 40px;
+    height: 40px;
+}
+
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+    
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    .col-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .col-actions .btn {
+        margin: 2px;
+    }
+}
