@@ -42,11 +42,25 @@ export class GameController {
             gameView.updateDonCheckResult(result);
         });
         
-        nightActionsService.on('nightActionsApplied', (result) => {
-            // Обработка завершения ночи
-            gameView.updateRound(result.round);
-            this.checkForBestMove();
-        });
+	nightActionsService.on('nightActionsApplied', (result) => {
+	    // Обработка завершения ночи
+	    gameView.updateGamePhase(GAME_PHASES.DAY);
+	    gameView.updateRound(result.round);
+	    
+	    // Проверяем логирование
+	    console.log("Ночные действия применены, round:", result.round);
+	    console.log("Убитые игроки:", gameModel.state.deadPlayers);
+	    console.log("Исключенные игроки:", gameModel.state.eliminatedPlayers);
+	    
+	    // Проверяем, нужно ли показать лучший ход
+	    const bestMoveShown = this.checkForBestMove();
+	    
+	    // Если лучший ход не показан, обновляем UI
+	    if (!bestMoveShown) {
+		this.updatePlayers();
+		this.updateNominatedPlayers();
+	    }
+	});
         
         // Обработчики голосования
         votingService.on('votingStarted', (nominatedPlayers) => {
@@ -138,7 +152,8 @@ export class GameController {
             onRoleChange: (playerId) => gameModel.changePlayerRole(playerId),
             onSilentNow: (playerId) => this.setSilentNow(playerId),
             onSilentNext: (playerId) => this.setSilentNextRound(playerId),
-            onEliminate: (playerId) => this.eliminatePlayer(playerId)
+            onEliminate: (playerId) => this.eliminatePlayer(playerId),
+	    onNominate: (nominatorId, nominatedId) => this.nominatePlayer(nominatorId, nominatedId)
         };
         
         gameView.renderPlayers(gameModel.state.players, gameModel.state, callbacks);
@@ -243,10 +258,17 @@ export class GameController {
     }
 
     confirmNight() {
-        nightActionsService.applyNightActions();
-        this.updatePlayers();
+	const nightResult = nightActionsService.applyNightActions();
+	gameView.updateGamePhase(GAME_PHASES.DAY);
+	
+	// Здесь проверка на лучший ход, которая должна происходить перед обновлением игроков
+	this.checkForBestMove();
+	
+	this.updatePlayers();
+	this.checkGameEnd();
+	this.updateNominatedPlayers();
     }
-
+    
     updateNominatedPlayers() {
         gameModel.state.nominatedPlayers = [];
         const nominations = gameModel.state.players
@@ -291,24 +313,32 @@ export class GameController {
     }
 
     checkForBestMove() {
-        // Проверка на первого убитого для лучшего хода
-        if (gameModel.state.deadPlayers.length === 1 && 
+	// Проверка на первого убитого для лучшего хода
+	if (gameModel.state.deadPlayers.length === 1 && 
             gameModel.state.eliminatedPlayers.length === 0 && 
-            gameModel.state.round === 1) {
+            gameModel.state.round === 1 &&
+            !gameModel.state.bestMoveUsed) {  // Добавим проверку, что лучший ход еще не использован
+            
             // Первый убитый (ПУ) имеет право на лучший ход
             this.showBestMove(gameModel.state.deadPlayers[0]);
-        } else {
+            return true; // Возвращаем true, если показываем лучший ход
+	} else {
             this.checkGameEnd();
             this.updateNominatedPlayers();
-        }
+            return false;
+	}
     }
-
+    
     showBestMove(playerId) {
-        const player = gameModel.getPlayer(playerId);
-        gameView.showBestMoveSection(player);
-        gameModel.state.bestMoveTargets = new Set();
+	const player = gameModel.getPlayer(playerId);
+	if (!player) return false;
+	
+	console.log("Показываем лучший ход для игрока:", player); // Добавим логирование
+	gameModel.state.bestMoveTargets = new Set();
+	gameView.showBestMoveSection(player);
+	return true;
     }
-
+    
     toggleBestMoveTarget(playerId, button) {
         if (gameModel.state.bestMoveTargets.has(playerId)) {
             gameModel.state.bestMoveTargets.delete(playerId);

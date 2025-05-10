@@ -64,9 +64,47 @@ export class PlayerView {
         // Nomination
         const nominationEl = document.createElement('div');
         nominationEl.className = 'col-5';
-        
-        // Логика номинаций игроков
-        // ...
+
+	if (player.isAlive && gameState.phase === 'day') {
+	    const selectEl = document.createElement('select');
+	    selectEl.className = 'form-select';
+	    selectEl.onchange = (e) => callbacks.onNominate(player.id, parseInt(e.target.value));
+	    
+	    const emptyOption = document.createElement('option');
+	    emptyOption.value = '';
+	    emptyOption.textContent = '';
+	    selectEl.appendChild(emptyOption);
+	    
+	    // Get list of already nominated players
+	    const nominatedPlayerIds = gameState.players
+		  .filter(p => p.isAlive && !p.isEliminated && p.nominated !== null)
+		  .map(p => p.nominated);
+	    
+	    gameState.players.forEach(p => {
+		// Show only alive, not eliminated, and not nominated by other players
+		// Or if this is the current nominated player
+		if ((p.isAlive && !p.isEliminated && 
+		     (!nominatedPlayerIds.includes(p.id) || p.id === player.nominated)) || 
+		    p.id === player.id) {
+		    const option = document.createElement('option');
+		    option.value = p.id;
+		    option.textContent = `${p.id}`;
+		    if (player.nominated === p.id) {
+			option.selected = true;
+		    }
+		    selectEl.appendChild(option);
+		}
+	    });
+	    
+	    nominationEl.appendChild(selectEl);
+	} else {
+	    if (player.nominated) {
+		const nominatedPlayer = gameState.players.find(p => p.id === player.nominated);
+		nominationEl.textContent = `${nominatedPlayer.id}: ${nominatedPlayer.name}`;
+	    } else {
+		nominationEl.textContent = '';
+	    }
+	}
         
         playerEl.appendChild(nominationEl);
         
