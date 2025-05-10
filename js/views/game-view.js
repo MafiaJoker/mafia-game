@@ -123,71 +123,91 @@ export class GameView {
     
     // Метод для отображения вариантов голосования
     renderVotingOptions(nominatedPlayers, votingResults) {
-        const nominatedPlayersEl = this.elements.nominatedPlayers;
-        nominatedPlayersEl.innerHTML = `<h5>${localization.t('ui', 'candidates')}</h5>`;
-        
-        // Получаем количество живых игроков
-        const alivePlayers = gameModel.state.players.filter(p => p.isAlive && !p.isEliminated).length;
-        const usedVotes = Object.values(votingResults).reduce((a, b) => a + b, 0);
-        const remainingTotalVotes = alivePlayers - usedVotes;
-        
-        nominatedPlayers.forEach(playerId => {
-            const player = gameModel.getPlayer(playerId);
-            const playerRow = document.createElement('div');
-            playerRow.className = 'row mb-2 align-items-center';
-            
-            const playerInfo = document.createElement('div');
-            playerInfo.className = 'col-md-4';
-            playerInfo.textContent = `${player.id}: ${player.name}`;
-            playerRow.appendChild(playerInfo);
-            
-            const votingOptions = document.createElement('div');
-            votingOptions.className = 'col-md-8';
-            
-            // Определяем, сколько голосов можно отдать за этого кандидата
-            let maxPossibleVotes = remainingTotalVotes;
-            if (votingResults[playerId] !== undefined) {
-                maxPossibleVotes += votingResults[playerId];
-            }
-            
-            // Создаем кнопки для возможных голосов
-            for (let i = 1; i <= maxPossibleVotes; i++) {
-                const voteBtn = document.createElement('button');
-                voteBtn.className = 'btn vote-sm ' + 
-                    (votingResults[playerId] === i ? 'btn-primary' : 'btn-outline-primary');
-                voteBtn.textContent = i;
-                voteBtn.onclick = () => this.onVoteClick(playerId, i);
-                votingOptions.appendChild(voteBtn);
-            }
-            
-            playerRow.appendChild(votingOptions);
-            nominatedPlayersEl.appendChild(playerRow);
-        });
-        
-        // Отображение результатов голосования
-        const votingResultsEl = this.elements.votingResults;
-        votingResultsEl.innerHTML = `<h5>${localization.t('ui', 'results')}</h5>`;
-        
-        if (Object.keys(votingResults).length > 0) {
-            const resultsList = document.createElement('ul');
-            resultsList.className = 'list-group';
-            
-            Object.entries(votingResults).forEach(([playerId, votes]) => {
-                const player = gameModel.getPlayer(parseInt(playerId));
-                const resultItem = document.createElement('li');
-                resultItem.className = 'list-group-item';
-                resultItem.textContent = `${player.id}: ${player.name} - ${votes} голосов`;
-                resultsList.appendChild(resultItem);
-            });
-            
-            // Добавляем информацию об оставшихся голосах
-            const remainingItem = document.createElement('li');
-            remainingItem.className = 'list-group-item';
-            remainingItem.textContent = localization.t('ui', 'votesLeft', remainingTotalVotes);
-            resultsList.appendChild(remainingItem);
-            
-            votingResultsEl.appendChild(resultsList);
-        }
+	const nominatedPlayersEl = this.elements.nominatedPlayers;
+	nominatedPlayersEl.innerHTML = `<h5>${localization.t('ui', 'candidates')}</h5>`;
+	
+	// Получаем количество живых игроков
+	const alivePlayers = gameModel.state.players.filter(p => p.isAlive && !p.isEliminated).length;
+	const usedVotes = Object.values(votingResults).reduce((a, b) => a + b, 0);
+	const remainingTotalVotes = alivePlayers - usedVotes;
+	
+	nominatedPlayers.forEach(playerId => {
+	    const player = gameModel.getPlayer(playerId);
+	    const playerRow = document.createElement('div');
+	    playerRow.className = 'row mb-2 align-items-center';
+	    
+	    const playerInfo = document.createElement('div');
+	    playerInfo.className = 'col-md-4';
+	    playerInfo.textContent = `${player.id}: ${player.name}`;
+	    playerRow.appendChild(playerInfo);
+	    
+	    const votingOptions = document.createElement('div');
+	    votingOptions.className = 'col-md-8';
+	    
+	    // Добавляем кнопку для снятия голосов (0 голосов)
+	    const zeroVoteBtn = document.createElement('button');
+	    zeroVoteBtn.className = 'btn vote-sm ' + 
+		(votingResults[playerId] === undefined ? 'btn-primary' : 'btn-outline-primary');
+	    zeroVoteBtn.textContent = '0';
+	    zeroVoteBtn.onclick = () => this.onVoteClick(playerId, 0);
+	    votingOptions.appendChild(zeroVoteBtn);
+	    
+	    // Определяем, сколько голосов можно отдать за этого кандидата
+	    let maxPossibleVotes = remainingTotalVotes;
+	    if (votingResults[playerId] !== undefined) {
+		maxPossibleVotes += votingResults[playerId];
+	    }
+	    
+	    // Создаем кнопки для возможных голосов
+	    for (let i = 1; i <= maxPossibleVotes; i++) {
+		const voteBtn = document.createElement('button');
+		voteBtn.className = 'btn vote-sm ' + 
+		    (votingResults[playerId] === i ? 'btn-primary' : 'btn-outline-primary');
+		voteBtn.textContent = i;
+		voteBtn.onclick = () => this.onVoteClick(playerId, i);
+		votingOptions.appendChild(voteBtn);
+	    }
+	    
+	    playerRow.appendChild(votingOptions);
+	    nominatedPlayersEl.appendChild(playerRow);
+	});
+	
+	// Отображение результатов голосования
+	const votingResultsEl = this.elements.votingResults;
+	votingResultsEl.innerHTML = `<h5>${localization.t('ui', 'results')}</h5>`;
+	
+	if (Object.keys(votingResults).length > 0) {
+	    const resultsList = document.createElement('ul');
+	    resultsList.className = 'list-group';
+	    
+	    let hasAnyVotes = false;
+	    
+	    // Фильтруем результаты, чтобы показывать только положительные голоса
+	    Object.entries(votingResults).forEach(([playerId, votes]) => {
+		if (votes > 0) {
+		    hasAnyVotes = true;
+		    const player = gameModel.getPlayer(parseInt(playerId));
+		    const resultItem = document.createElement('li');
+		    resultItem.className = 'list-group-item';
+		    resultItem.textContent = `${player.id}: ${player.name} - ${votes} голосов`;
+		    resultsList.appendChild(resultItem);
+		}
+	    });
+	    
+	    // Добавляем информацию об оставшихся голосах только если есть голоса
+	    if (hasAnyVotes) {
+		const remainingItem = document.createElement('li');
+		remainingItem.className = 'list-group-item';
+		remainingItem.textContent = localization.t('ui', 'votesLeft', remainingTotalVotes);
+		resultsList.appendChild(remainingItem);
+		
+		votingResultsEl.appendChild(resultsList);
+	    } else {
+		votingResultsEl.innerHTML += '<p>Нет голосов. Выберите количество голосов для кандидатов.</p>';
+	    }
+	} else {
+	    votingResultsEl.innerHTML += '<p>Нет голосов. Выберите количество голосов для кандидатов.</p>';
+	}
     }
     
     // Обработчик клика по кнопке голосования

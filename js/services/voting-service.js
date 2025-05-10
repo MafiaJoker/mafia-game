@@ -21,7 +21,11 @@ export class VotingService extends EventEmitter {
 
     // Регистрация голосов
     registerVotes(playerId, votes) {
-        gameModel.state.votingResults[playerId] = votes;
+	if (votes === 0) {
+            delete gameModel.state.votingResults[playerId];
+	} else {
+            gameModel.state.votingResults[playerId] = votes;
+	}
         
         this.emit('votesRegistered', {
             playerId: playerId,

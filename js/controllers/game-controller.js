@@ -266,6 +266,8 @@ export class GameController {
 	gameModel.state.players.forEach(p => {
             p.nominated = null;
 	});
+
+	this.updatePlayers();
 	
         gameView.renderNightActions(gameModel.state.players);
     }
