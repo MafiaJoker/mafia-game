@@ -16,20 +16,17 @@ Mafia Game Helper - это веб-приложение для проведени
 
 * Установка и запуск
 1. Клонируйте репозиторий
-   ```
-   git clone https://github.com/your-username/mafia-game-helper.git
-   ```
+#+begin_src bash
+git clone https://github.com/MafiaJoker/mafia-game
+cd mafia-game
+#+end_src
 
-2. Откройте файл game.html в вашем веб-браузере
-   ```
-   cd mafia-game-helper
-   ```
+2. Для локального запуска рекомендуется использовать простой HTTP-сервер, например:
+#+begin_src bash
+python -m http.server 8000
+#+end_src
 
-Для локального запуска рекомендуется использовать простой HTTP-сервер, например:
-```
-python -m http.server
-```
-Затем откройте браузер и перейдите по адресу http://localhost:8000/game.html
+3. Затем откройте браузер и перейдите по адресу http://localhost:8000/game.html
 
 * Использование
 1. Начните игру, нажав кнопку "Раздать роли"
