@@ -53,9 +53,19 @@ export class TableController {
                 saveTableBtn.removeAttribute('data-table-id');
             }
         }
+
+	// Определяем следующий номер стола
+        let placeholder = '';
+        if (!table) {
+            const event = eventModel.getEventById(eventId);
+            if (event) {
+                const nextNumber = event.tables.length + 1;
+                placeholder = `Стол ${nextNumber}`;
+            }
+        }
         
         // Настраиваем модальное окно
-        tableView.setupTableModal(!!table, table);
+        tableView.setupTableModal(!!table, table, placeholder);
         
         // Открываем модальное окно
         const tableModal = document.getElementById('tableModal');
@@ -67,34 +77,39 @@ export class TableController {
 
     // Сохранить стол
     saveTable() {
-        const saveTableBtn = document.getElementById('saveTable');
-        if (!saveTableBtn) return;
-        
-        const eventId = parseInt(saveTableBtn.dataset.eventId);
-        const tableId = saveTableBtn.hasAttribute('data-table-id') ? parseInt(saveTableBtn.dataset.tableId) : null;
-        
-        // Получаем данные формы
-        const tableData = tableView.getTableFormData();
-        
-        if (!tableData.name) {
-            alert('Пожалуйста, введите название стола');
-            return;
-        }
-        
-        if (tableId) {
+	const saveTableBtn = document.getElementById('saveTable');
+	if (!saveTableBtn) return;
+	
+	const eventId = parseInt(saveTableBtn.dataset.eventId);
+	const tableId = saveTableBtn.hasAttribute('data-table-id') ? parseInt(saveTableBtn.dataset.tableId) : null;
+	
+	// Получаем данные формы
+	const tableData = tableView.getTableFormData();
+	
+	// Получаем событие для определения следующего номера стола
+	const event = eventModel.getEventById(eventId);
+	if (!event) return;
+	
+	// Если имя не указано, автоматически генерируем его
+	if (!tableData.name) {
+            const nextNumber = event.tables.length + 1;
+            tableData.name = `Стол ${nextNumber}`;
+	}
+	
+	if (tableId) {
             // Обновляем существующий стол
             eventModel.updateTable(eventId, tableId, tableData);
-        } else {
+	} else {
             // Создаем новый стол
             eventModel.addTableToEvent(eventId, tableData);
-        }
-        
-        // Закрываем модальное окно
-        const tableModal = document.getElementById('tableModal');
-        if (tableModal) {
+	}
+	
+	// Закрываем модальное окно
+	const tableModal = document.getElementById('tableModal');
+	if (tableModal) {
             const modal = bootstrap.Modal.getInstance(tableModal);
             if (modal) modal.hide();
-        }
+	}
     }
 }
 

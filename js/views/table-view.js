@@ -69,7 +69,7 @@ export class TableView {
     }
 
     // Настройка модального окна для создания/редактирования стола
-    setupTableModal(isEditing, table = null) {
+    setupTableModal(isEditing, table = null, placeholder='') {
         if (isEditing) {
             this.elements.tableModalLabel.textContent = 'Редактировать стол';
             this.elements.tableName.value = table.name;
@@ -83,6 +83,9 @@ export class TableView {
         } else {
             this.elements.tableModalLabel.textContent = 'Новый стол';
             this.elements.tableForm.reset();
+	    if (placeholder) {
+                this.elements.tableName.value = placeholder;
+            }
         }
     }
 
