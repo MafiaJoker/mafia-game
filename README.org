@@ -41,26 +41,26 @@ python -m http.server 8000
 * Структура проекта
 Проект построен по архитектуре MVC:
 
-** **Модели**
+** Модели
   - ~models/game-model.js~ - модель игры
   - ~models/player-model.js~ - модель игрока
 
-** **Представления**
+** Представления
   - ~views/game-view.js~ - представление игры
   - ~views/player-view.js~ - представление игрока
 
-** **Контроллеры**
+** Контроллеры
   - ~controllers/game-controller.js~ - контроллер игры
 
-** **Сервисы**
+** Сервисы
   - ~services/voting-service.js~ - сервис голосования
   - ~services/night-actions-service.js~ - сервис ночных действий
 
-** **Утилиты**
+** Утилиты
   - ~utils/constants.js~ - константы игры
   - ~utils/event-emitter.js~ - система событий
   - ~utils/timer-service.js~ - сервис таймера
   - ~utils/localization.js~ - локализация интерфейса
 
-** **Точка входа**
+** Точка входа
   - ~app.js~ - инициализация приложения
