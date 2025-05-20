@@ -56,14 +56,19 @@ export class EventView {
 
     // Добавление мероприятия в основной список
     addEventToList(event) {
+	const languageDisplay = {
+            'ru': '<span class="badge bg-secondary">RU</span>',
+            'en': '<span class="badge bg-info">EN</span>',
+            'am': '<span class="badge bg-primary">AM</span>'
+	};
+	
 	const eventItem = document.createElement('a');
 	eventItem.href = '#';
 	eventItem.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
 	eventItem.innerHTML = `
         <div>
-            <h5 class="mb-1">${event.name}</h5>
+            <h5 class="mb-1">${event.name} ${languageDisplay[event.language] || ''}</h5>
             <p class="mb-1 text-muted small">${event.description}</p>
-            <span class="badge bg-info">${event.language === 'en' ? 'EN' : 'RU'}</span>
         </div>
         <div class="text-end">
             <span class="badge bg-primary rounded-pill">${event.tables.length} ${this.getNounForm(event.tables.length, 'стол', 'стола', 'столов')}</span>
@@ -76,37 +81,48 @@ export class EventView {
 
     // Добавление мероприятия в карточки недавних мероприятий
     addEventToRecentCards(event) {
+	const languageDisplay = {
+            'ru': '<span class="badge bg-secondary">RU</span>',
+            'en': '<span class="badge bg-info">EN</span>',
+            'am': '<span class="badge bg-primary">AM</span>'
+	};
+	
         const eventCard = document.createElement('div');
         eventCard.className = 'col-md-4';
-        eventCard.innerHTML = `
-            <div class="card event-card h-100 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <h5 class="card-title">${event.name}</h5>
-                        <span class="badge bg-dark">${this.formatDate(event.date)}</span>
-                    </div>
-                    <p class="card-text text-muted">${event.description}</p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="badge bg-light text-dark">
-                            ${event.tables.length} ${this.getNounForm(event.tables.length, 'стол', 'стола', 'столов')}
-                        </span>
-                        <div>
-                            <button class="btn btn-sm btn-outline-secondary view-event-btn" data-event-id="${event.id}">
-                                <i class="bi bi-eye"></i> Детали
-                            </button>
-                            <button class="btn btn-sm btn-dark join-event-btn" data-event-id="${event.id}">
-                                <i class="bi bi-box-arrow-in-right"></i> Войти
-                            </button>
-                        </div>
+	eventCard.innerHTML = `
+        <div class="card event-card h-100 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <h5 class="card-title">${event.name} ${languageDisplay[event.language] || ''}</h5>
+                    <span class="badge bg-dark">${this.formatDate(event.date)}</span>
+                </div>
+                <p class="card-text text-muted">${event.description}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge bg-light text-dark">
+                        ${event.tables.length} ${this.getNounForm(event.tables.length, 'стол', 'стола', 'столов')}
+                    </span>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary view-event-btn" data-event-id="${event.id}">
+                            <i class="bi bi-eye"></i> Детали
+                        </button>
+                        <button class="btn btn-sm btn-dark join-event-btn" data-event-id="${event.id}">
+                            <i class="bi bi-box-arrow-in-right"></i> Войти
+                        </button>
                     </div>
                 </div>
             </div>
-        `;
+        </div>
+    `;
         this.elements.recentEvents.appendChild(eventCard);
     }
 
     // Отображение деталей мероприятия
     renderEventDetails(event) {
+	const languageLabels = {
+            'ru': 'Русский',
+            'en': 'English',
+            'am': 'Հայերեն'
+	};
 	this.elements.eventDetailsModalLabel.textContent = event.name;
 	this.elements.joinEventBtn.href = `event.html?id=${event.id}`;
 	
@@ -122,10 +138,10 @@ export class EventView {
                     <div class="card-body">
                         <h6 class="card-title"><i class="bi bi-calendar-event"></i> Дата проведения</h6>
                         <p class="card-text">${this.formatDate(event.date)}</p>
+                        <h6 class="card-title mt-3"><i class="bi bi-translate"></i> Язык</h6>
+                        <p class="card-text">${languageLabels[event.language] || 'Русский'}</p>
                         <h6 class="card-title mt-3"><i class="bi bi-people"></i> Столы</h6>
                         <p class="card-text">${event.tables.length} ${this.getNounForm(event.tables.length, 'стол', 'стола', 'столов')}</p>
-                        <h6 class="card-title mt-3"><i class="bi bi-translate"></i> Язык</h6>
-                        <p class="card-text">${event.language === 'en' ? 'Английский' : 'Русский'}</p>
                     </div>
                 </div>
             </div>
