@@ -73,6 +73,13 @@
                   <label for="eventDescription" class="form-label">Описание</label>
                   <textarea class="form-control" id="eventDescription" rows="3"></textarea>
                 </div>
+		<div class="mb-3">
+		  <label for="eventLanguage" class="form-label">Язык мероприятия</label>
+		  <select class="form-control" id="eventLanguage">
+		    <option value="ru" selected>Русский</option>
+		    <option value="en">Английский</option>
+		  </select>
+		</div>
                 <div class="mb-3">
                   <label for="eventDate" class="form-label">Дата проведения</label>
                   <input type="date" class="form-control" id="eventDate">
@@ -169,6 +176,11 @@
                 <input type="number" class="form-control" id="tableCapacity" min="10" max="15" value="10">
                 <div class="form-text">Обычно от 10 до 15 игроков</div>
               </div>
+	      <div class="mb-3">
+		<label for="tableJudge" class="form-label">Судья</label>
+		<input type="text" class="form-control" id="tableJudge" placeholder="Имя судьи">
+		<div class="form-text">Укажите судью, который будет вести игры за этим столом</div>
+	      </div>
               <div class="mb-3">
                 <label class="form-label">Тип рассадки</label>
                 <div class="form-check">

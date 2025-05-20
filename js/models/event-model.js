@@ -21,18 +21,19 @@ export class EventModel extends EventEmitter {
     }
 
     createEvent(eventData) {
-        const newEvent = {
+	const newEvent = {
             id: Date.now(),
             name: eventData.name,
             description: eventData.description,
             date: eventData.date || new Date().toISOString().split('T')[0],
+            language: eventData.language || 'ru', // Добавляем выбор языка
             tables: []
-        };
+	};
 
-        this.events.push(newEvent);
-        this.saveEvents();
-        this.emit('eventCreated', newEvent);
-        return newEvent;
+	this.events.push(newEvent);
+	this.saveEvents();
+	this.emit('eventCreated', newEvent);
+	return newEvent;
     }
 
     getEventById(eventId) {
@@ -40,21 +41,22 @@ export class EventModel extends EventEmitter {
     }
 
     addTableToEvent(eventId, tableData) {
-        const event = this.getEventById(eventId);
-        if (!event) return null;
+	const event = this.getEventById(eventId);
+	if (!event) return null;
 
-        const newTable = {
+	const newTable = {
             id: Date.now(),
             name: tableData.name,
             capacity: parseInt(tableData.capacity),
             seatingType: tableData.seatingType,
+            judge: tableData.judge || '', // Добавляем поле судьи
             games: []
-        };
+	};
 
-        event.tables.push(newTable);
-        this.saveEvents();
-        this.emit('tableAdded', { event, table: newTable });
-        return newTable;
+	event.tables.push(newTable);
+	this.saveEvents();
+	this.emit('tableAdded', { event, table: newTable });
+	return newTable;
     }
 
     updateTable(eventId, tableId, tableData) {

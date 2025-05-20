@@ -36,7 +36,8 @@ export class EventController {
                 const eventData = {
                     name: document.getElementById('eventName').value,
                     description: document.getElementById('eventDescription').value,
-                    date: document.getElementById('eventDate').value
+                    date: document.getElementById('eventDate').value,
+		    language: document.getElementById('eventLanguage').value // Добавляем язык
                 };
                 
                 eventModel.createEvent(eventData);

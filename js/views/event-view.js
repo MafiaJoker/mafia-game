@@ -56,21 +56,22 @@ export class EventView {
 
     // Добавление мероприятия в основной список
     addEventToList(event) {
-        const eventItem = document.createElement('a');
-        eventItem.href = '#';
-        eventItem.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-        eventItem.innerHTML = `
-            <div>
-                <h5 class="mb-1">${event.name}</h5>
-                <p class="mb-1 text-muted small">${event.description}</p>
-            </div>
-            <div class="text-end">
-                <span class="badge bg-primary rounded-pill">${event.tables.length} ${this.getNounForm(event.tables.length, 'стол', 'стола', 'столов')}</span>
-                <div class="small text-muted">${this.formatDate(event.date)}</div>
-            </div>
-        `;
-        eventItem.dataset.eventId = event.id;
-        this.elements.eventsList.appendChild(eventItem);
+	const eventItem = document.createElement('a');
+	eventItem.href = '#';
+	eventItem.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+	eventItem.innerHTML = `
+        <div>
+            <h5 class="mb-1">${event.name}</h5>
+            <p class="mb-1 text-muted small">${event.description}</p>
+            <span class="badge bg-info">${event.language === 'en' ? 'EN' : 'RU'}</span>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-primary rounded-pill">${event.tables.length} ${this.getNounForm(event.tables.length, 'стол', 'стола', 'столов')}</span>
+            <div class="small text-muted">${this.formatDate(event.date)}</div>
+        </div>
+    `;
+	eventItem.dataset.eventId = event.id;
+	this.elements.eventsList.appendChild(eventItem);
     }
 
     // Добавление мероприятия в карточки недавних мероприятий
@@ -106,32 +107,34 @@ export class EventView {
 
     // Отображение деталей мероприятия
     renderEventDetails(event) {
-        this.elements.eventDetailsModalLabel.textContent = event.name;
-        this.elements.joinEventBtn.href = `event.html?id=${event.id}`;
-        
-        // Отображаем информацию о мероприятии
-        this.elements.eventInfo.innerHTML = `
-            <div class="row mb-4">
-                <div class="col-md-8">
-                    <h6 class="text-muted mb-3">Описание:</h6>
-                    <p>${event.description || 'Описание отсутствует'}</p>
-                </div>
-                <div class="col-md-4">
-                    <div class="card bg-light">
-                        <div class="card-body">
-                            <h6 class="card-title"><i class="bi bi-calendar-event"></i> Дата проведения</h6>
-                            <p class="card-text">${this.formatDate(event.date)}</p>
-                            <h6 class="card-title mt-3"><i class="bi bi-people"></i> Столы</h6>
-                            <p class="card-text">${event.tables.length} ${this.getNounForm(event.tables.length, 'стол', 'стола', 'столов')}</p>
-                        </div>
+	this.elements.eventDetailsModalLabel.textContent = event.name;
+	this.elements.joinEventBtn.href = `event.html?id=${event.id}`;
+	
+	// Отображаем информацию о мероприятии
+	this.elements.eventInfo.innerHTML = `
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h6 class="text-muted mb-3">Описание:</h6>
+                <p>${event.description || 'Описание отсутствует'}</p>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title"><i class="bi bi-calendar-event"></i> Дата проведения</h6>
+                        <p class="card-text">${this.formatDate(event.date)}</p>
+                        <h6 class="card-title mt-3"><i class="bi bi-people"></i> Столы</h6>
+                        <p class="card-text">${event.tables.length} ${this.getNounForm(event.tables.length, 'стол', 'стола', 'столов')}</p>
+                        <h6 class="card-title mt-3"><i class="bi bi-translate"></i> Язык</h6>
+                        <p class="card-text">${event.language === 'en' ? 'Английский' : 'Русский'}</p>
                     </div>
                 </div>
             </div>
-            <hr>
-        `;
-        
-        // Отображаем столы мероприятия
-        tableView.renderTables(event);
+        </div>
+        <hr>
+    `;
+	
+	// Отображаем столы мероприятия
+	tableView.renderTables(event);
     }
 
     // Склонение существительных
