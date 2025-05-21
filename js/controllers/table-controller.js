@@ -90,7 +90,7 @@ export class TableController {
     }
 
     // Сохранить стол
-    saveTable() {
+    async saveTable() {
 	const saveTableBtn = document.getElementById('saveTable');
 	if (!saveTableBtn) return;
 	
@@ -107,43 +107,51 @@ export class TableController {
 	// Получаем данные формы
 	const tableData = tableView.getTableFormData();
 	
-	// Получаем событие для определения следующего номера стола
-	if (!event) return;
-	
 	// Если имя не указано, автоматически генерируем его
 	if (!tableData.name) {
             const nextNumber = event.tables.length + 1;
             tableData.name = `Стол ${nextNumber}`;
 	}
 	
-	if (tableId) {
-            // Обновляем существующий стол
-            eventModel.updateTable(eventId, tableId, tableData);
-	} else {
-            // Создаем новый стол
-            eventModel.addTableToEvent(eventId, tableData);
-	}
-	
-	// Закрываем модальное окно
-	const tableModal = document.getElementById('tableModal');
-	if (tableModal) {
-            const modal = bootstrap.Modal.getInstance(tableModal);
-            if (modal) modal.hide();
-	}
+	try {
+            if (tableId) {
+		// Обновляем существующий стол
+		await eventModel.updateTable(eventId, tableId, tableData);
+            } else {
+		// Создаем новый стол
+		await eventModel.addTableToEvent(eventId, tableData);
+            }
+            
+            // Закрываем модальное окно
+            const tableModal = document.getElementById('tableModal');
+            if (tableModal) {
+		const modal = bootstrap.Modal.getInstance(tableModal);
+		if (modal) modal.hide();
+            }
 
-	// Обновляем интерфейс явно
-	if (event) {
-            eventView.renderEventDetails(event);
+            // Обновляем интерфейс ПОСЛЕ успешного добавления/изменения стола
+            const updatedEvent = eventModel.getEventById(eventId);
+            if (updatedEvent) {
+		eventView.renderEventDetails(updatedEvent);
+            }
+	} catch (error) {
+            console.error('Ошибка при сохранении стола:', error);
+            alert('Произошла ошибка при сохранении стола.');
 	}
     }
-
+    
     async deleteTable(eventId, tableId) {
 	if (confirm('Вы уверены, что хотите удалить этот стол?')) {
             try {
 		const result = await eventModel.deleteTableFromEvent(eventId, tableId);
 		if (result) {
                     console.log('Стол успешно удален');
-                    // Обновление UI произойдет через обработчик события tableDeleted
+                    
+                    // Обновляем интерфейс ПОСЛЕ успешного удаления стола
+                    const updatedEvent = eventModel.getEventById(eventId);
+                    if (updatedEvent) {
+			eventView.renderEventDetails(updatedEvent);
+                    }
 		} else {
                     alert('Не удалось удалить стол. Проверьте подключение к серверу.');
 		}
