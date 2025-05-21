@@ -94,21 +94,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 	});
 
 	// Функция для удаления игры
-	function deleteGame(eventId, tableId, gameId) {
-	    const event = eventModel.getEventById(eventId);
-	    if (!event) return;
-	    
-	    const table = event.tables.find(t => t.id === parseInt(tableId));
-	    if (!table || !table.games) return;
-	    
-	    // Фильтруем массив игр, удаляя игру с указанным ID
-	    table.games = table.games.filter(g => g.id !== gameId);
-	    
-	    // Сохраняем изменения
-	    eventModel.saveEvents();
-	    
-	    // Обновляем отображение
-	    showTableDetails(event, table);
+	async function deleteGame(eventId, tableId, gameId) {
+	    try {
+		// Вызываем метод API для удаления игры
+		await apiAdapter.deleteGame(eventId, parseInt(tableId), gameId);
+		
+		// Обновляем локальные данные
+		const event = eventModel.getEventById(eventId);
+		if (event) {
+		    const table = event.tables.find(t => t.id === parseInt(tableId));
+		    if (table && table.games) {
+			table.games = table.games.filter(g => g.id !== gameId);
+			
+			// Обновляем отображение
+			showTableDetails(event, table);
+			console.log('Игра успешно удалена');
+		    }
+		}
+	    } catch (error) {
+		console.error('Ошибка при удалении игры:', error);
+		alert('Не удалось удалить игру.');
+	    }
 	}
 	
 	// Добавим обработчик событий для всех кнопок удаления игр

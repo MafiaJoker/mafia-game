@@ -153,7 +153,12 @@ export class ApiAdapter {
             method: 'DELETE'
 	});
     }
-    
+
+    async deleteGame(eventId, tableId, gameId) {
+	return this.fetchApi(`/events/${eventId}/tables/${tableId}/games/${gameId}`, {
+            method: 'DELETE'
+	});
+    }
 }
 
 export default new ApiAdapter();
