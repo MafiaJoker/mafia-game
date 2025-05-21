@@ -106,7 +106,18 @@ export class EventController {
                 }
             });
         }
-        
+	
+        // Делегирование событий для кнопок удаления мероприятий
+	document.addEventListener('click', (e) => {
+	    const deleteBtn = e.target.closest('.delete-event-btn');
+	    if (deleteBtn) {
+		e.preventDefault();
+		e.stopPropagation();
+		const eventId = parseInt(deleteBtn.dataset.eventId);
+		this.deleteEvent(eventId);
+	    }
+	});
+	
         // Обработчик для добавления нового стола
         const addTableBtn = document.getElementById('addTableBtn');
         if (addTableBtn) {
@@ -133,6 +144,28 @@ export class EventController {
             const modal = new bootstrap.Modal(eventDetailsModal);
             modal.show();
         }
+    }
+
+    async deleteEvent(eventId) {
+	if (confirm('Вы уверены, что хотите удалить это мероприятие?')) {
+            const success = await eventModel.deleteEvent(eventId);
+            if (success) {
+		// Закрываем модальное окно, если оно открыто
+		const eventDetailsModal = document.getElementById('eventDetailsModal');
+		if (eventDetailsModal) {
+                    const modal = bootstrap.Modal.getInstance(eventDetailsModal);
+                    if (modal) modal.hide();
+		}
+		
+		// Обновляем список мероприятий
+		eventView.renderEventsList(eventModel.events);
+		
+		// Показываем уведомление
+		alert('Мероприятие успешно удалено!');
+            } else {
+		alert('Не удалось удалить мероприятие. Проверьте, что API-сервер запущен.');
+            }
+	}
     }
 }
 

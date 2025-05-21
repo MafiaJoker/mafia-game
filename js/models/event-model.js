@@ -88,6 +88,19 @@ export class EventModel extends EventEmitter {
 		(event.description && event.description.toLowerCase().includes(term))
         );
     }
+
+    async deleteEvent(eventId) {
+	try {
+            await apiAdapter.deleteEvent(eventId);
+            // Удаляем мероприятие из локального списка
+            this.events = this.events.filter(event => event.id !== eventId);
+            this.emit('eventDeleted', eventId);
+            return true;
+	} catch (error) {
+            console.error('Ошибка удаления мероприятия:', error);
+            return false;
+	}
+    }
 }
 
 export default new EventModel();

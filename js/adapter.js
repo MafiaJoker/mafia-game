@@ -59,6 +59,13 @@ export class ApiAdapter {
             body: JSON.stringify(eventData)
         });
     }
+    
+    // Удаление мероприятия
+    async deleteEvent(eventId) {
+	return this.fetchApi(`/events/${eventId}`, {
+            method: 'DELETE'
+	});
+    }
 
     // МЕТОДЫ ДЛЯ РАБОТЫ СО СТОЛАМИ
 
@@ -130,6 +137,7 @@ export class ApiAdapter {
             body: JSON.stringify(stateData)
         });
     }
+    
 }
 
 export default new ApiAdapter();

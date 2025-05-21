@@ -83,15 +83,20 @@ export class EventView {
 	eventItem.href = '#';
 	eventItem.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
 	eventItem.innerHTML = `
+    <div>
+        <h5 class="mb-1">${event.name} ${languageDisplay[event.language] || ''}</h5>
+        <p class="mb-1 text-muted small">${event.description}</p>
+    </div>
+    <div class="text-end d-flex align-items-center">
+        <button class="btn btn-sm btn-outline-danger delete-event-btn me-2" data-event-id="${event.id}">
+            <i class="bi bi-trash"></i>
+        </button>
         <div>
-            <h5 class="mb-1">${event.name} ${languageDisplay[event.language] || ''}</h5>
-            <p class="mb-1 text-muted small">${event.description}</p>
-        </div>
-        <div class="text-end">
             <span class="badge bg-primary rounded-pill">${event.tables.length} ${this.getNounForm(event.tables.length, 'стол', 'стола', 'столов')}</span>
             <div class="small text-muted">${this.formatDate(event.date)}</div>
         </div>
-    `;
+    </div>
+`;
 	eventItem.dataset.eventId = event.id;
 	this.elements.eventsList.appendChild(eventItem);
     }
@@ -131,6 +136,16 @@ export class EventView {
         </div>
     `;
         this.elements.recentEvents.appendChild(eventCard);
+
+	// В блок с кнопками добавим кнопку удаления
+	const buttonsDiv = eventCard.querySelector('.card-body > div:last-child > div');
+	if (buttonsDiv) {
+	    const deleteBtn = document.createElement('button');
+	    deleteBtn.className = 'btn btn-sm btn-outline-danger delete-event-btn me-1';
+	    deleteBtn.dataset.eventId = event.id;
+	    deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+	    buttonsDiv.prepend(deleteBtn);
+	}
     }
 
     // Отображение деталей мероприятия
@@ -142,6 +157,12 @@ export class EventView {
 	};
 	this.elements.eventDetailsModalLabel.textContent = event.name;
 	this.elements.joinEventBtn.href = `event.html?id=${event.id}`;
+
+	const deleteBtn = document.createElement('button');
+	deleteBtn.className = 'btn btn-danger delete-event-btn ms-2';
+	deleteBtn.dataset.eventId = event.id;
+	deleteBtn.innerHTML = '<i class="bi bi-trash"></i> Удалить мероприятие';
+	this.elements.joinEventBtn.parentElement.appendChild(deleteBtn);
 	
 	// Отображаем информацию о мероприятии
 	this.elements.eventInfo.innerHTML = `

@@ -9,7 +9,7 @@ import apiAdapter from './adapter.js';
 window.apiAdapter = apiAdapter;
 
 // Функция для установки текущей даты по умолчанию
-function setCurrentDateAsDefault() {
+window.setCurrentDateAsDefault = function() {
     const eventDateField = document.getElementById('eventDate');
     if (eventDateField) {
         const today = new Date();
