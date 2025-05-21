@@ -2,11 +2,23 @@
 import { EventEmitter } from '../utils/event-emitter.js';
 import apiAdapter from '../adapter.js';
 
+export const EVENT_STATUSES = {
+    PLANNED: 'planned',
+    ACTIVE: 'active',
+    COMPLETED: 'completed'
+};
+
+export const EVENT_CATEGORIES = {
+    FUNKY: 'funky',
+    MINICAP: 'minicap',
+    TOURNAMENT: 'tournament',
+    CHARITY: 'charity_tournament'
+};
+
 export class EventModel extends EventEmitter {
     constructor() {
         super();
         this.events = [];
-        // this.loadEvents();
     }
 
     async loadEvents() {
@@ -27,7 +39,7 @@ export class EventModel extends EventEmitter {
         try {
             const newEvent = await apiAdapter.saveEvent(eventData);
             this.events.push(newEvent);
-            this.emit('eventCreated', newEvent);
+            this.emit('eventPlanned', newEvent);
             return newEvent;
         } catch (error) {
             console.error('Ошибка создания мероприятия:', error);
@@ -58,6 +70,110 @@ export class EventModel extends EventEmitter {
         }
     }
 
+    // Добавляем метод для изменения статуса мероприятия
+    async updateEventStatus(eventId, status) {
+        if (!Object.values(EVENT_STATUSES).includes(status)) {
+            console.error('Некорректный статус мероприятия:', status);
+            return false;
+        }
+
+        try {
+            const event = this.getEventById(eventId);
+            if (!event) {
+                console.error('Мероприятие не найдено:', eventId);
+                return false;
+            }
+
+            // Отправляем запрос на обновление статуса мероприятия
+            const updatedEvent = await apiAdapter.updateEvent(eventId, {
+                ...event,
+                status: status
+            });
+
+            // Обновляем локальный объект мероприятия
+            if (updatedEvent) {
+                const index = this.events.findIndex(e => e.id === eventId);
+                if (index !== -1) {
+                    this.events[index] = updatedEvent;
+                    this.emit('eventUpdated', updatedEvent);
+                    return true;
+                }
+            }
+            return false;
+        } catch (error) {
+            console.error('Ошибка обновления статуса мероприятия:', error);
+            return false;
+        }
+    }
+
+    // Проверка возможности добавления стола и игры в зависимости от статуса
+    canAddTable(eventId) {
+        const event = this.getEventById(eventId);
+        return event && event.status !== EVENT_STATUSES.COMPLETED;
+    }
+
+    canAddGame(eventId) {
+        const event = this.getEventById(eventId);
+        return event && event.status !== EVENT_STATUSES.COMPLETED;
+    }
+
+    // Переопределим метод добавления стола для проверки статуса
+    async addTableToEvent(eventId, tableData) {
+        if (!this.canAddTable(eventId)) {
+            console.error('Невозможно добавить стол к завершенному мероприятию');
+            return null;
+        }
+        
+        // Существующий код метода...
+        try {
+            const newTable = await apiAdapter.saveTable(eventId, tableData);
+            
+            // Обновляем локальный объект мероприятия
+            const event = this.getEventById(eventId);
+            if (event) {
+                if (!event.tables) event.tables = [];
+                event.tables.push(newTable);
+                this.emit('tableAdded', { event, table: newTable });
+            }
+            
+            return newTable;
+        } catch (error) {
+            console.error('Ошибка добавления стола:', error);
+            return null;
+        }
+    }
+
+    // Получение категорий мероприятий
+    getCategories() {
+        return Object.entries(EVENT_CATEGORIES).map(([key, value]) => ({ id: value, name: this.getCategoryName(value) }));
+    }
+
+    // Получение статусов мероприятий
+    getStatuses() {
+        return Object.entries(EVENT_STATUSES).map(([key, value]) => ({ id: value, name: this.getStatusName(value) }));
+    }
+
+    // Получение названия категории
+    getCategoryName(category) {
+        switch (category) {
+        case EVENT_CATEGORIES.FUNKY: return 'Фанки';
+        case EVENT_CATEGORIES.MINICAP: return 'Миникап';
+        case EVENT_CATEGORIES.TOURNAMENT: return 'Турнир';
+        case EVENT_CATEGORIES.CHARITY: return 'Благотворительный турнир';
+        default: return 'Неизвестная категория';
+        }
+    }
+
+    // Получение названия статуса
+    getStatusName(status) {
+        switch (status) {
+        case EVENT_STATUSES.PLANNED: return 'В планах';
+        case EVENT_STATUSES.ACTIVE: return 'Активно';
+        case EVENT_STATUSES.COMPLETED: return 'Завершено';
+        default: return 'Неизвестный статус';
+        }
+    }
+    
     async updateTable(eventId, tableId, tableData) {
         try {
             const updatedTable = await apiAdapter.updateTable(eventId, tableId, tableData);

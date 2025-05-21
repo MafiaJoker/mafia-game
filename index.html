@@ -87,6 +87,25 @@
                 </div>
 
 		<div class="mb-3">
+		  <label for="eventCategory" class="form-label">Категория мероприятия</label>
+		  <select class="form-control" id="eventCategory">
+		    <option value="funky" selected>Фанки</option>
+		    <option value="minicap">Миникап</option>
+		    <option value="tournament">Турнир</option>
+		    <option value="charity_tournament">Благотворительный турнир</option>
+		  </select>
+		</div>
+
+		<div class="mb-3">
+		  <label for="eventStatus" class="form-label">Статус мероприятия</label>
+		  <select class="form-control" id="eventStatus">
+		    <option value="planned" selected>Создано</option>
+		    <option value="active">Активно</option>
+		    <option value="completed">Завершено</option>
+		  </select>
+		</div>
+		
+		<div class="mb-3">
 		  <label for="judgeSelector" class="form-label">Ведущий</label>
 		  <select class="form-select" id="judgeSelector">
 		    <option value="" selected disabled>Загрузка списка ведущих...</option>

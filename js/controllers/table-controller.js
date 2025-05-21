@@ -43,6 +43,13 @@ export class TableController {
 
     // Открыть модальное окно для создания/редактирования стола
     async openTableModal(eventId, table = null) {
+	// Проверяем статус мероприятия
+	const event = eventModel.getEventById(eventId);
+	if (event && event.status === 'completed') {
+            alert('Невозможно добавить стол к завершенному мероприятию');
+            return;
+	}
+	
         // Сохраняем id мероприятия и стола для последующего сохранения
         const saveTableBtn = document.getElementById('saveTable');
         if (saveTableBtn) {
@@ -82,12 +89,18 @@ export class TableController {
 	
 	const eventId = parseInt(saveTableBtn.dataset.eventId);
 	const tableId = saveTableBtn.hasAttribute('data-table-id') ? parseInt(saveTableBtn.dataset.tableId) : null;
+
+	// Проверяем статус мероприятия
+	const event = eventModel.getEventById(eventId);
+	if (event && event.status === 'completed') {
+            alert('Невозможно добавить стол к завершенному мероприятию');
+            return;
+	}
 	
 	// Получаем данные формы
 	const tableData = tableView.getTableFormData();
 	
 	// Получаем событие для определения следующего номера стола
-	const event = eventModel.getEventById(eventId);
 	if (!event) return;
 	
 	// Если имя не указано, автоматически генерируем его

@@ -1,6 +1,7 @@
 // views/event-view.js
 import localization from '../utils/localization.js';
 import tableView from './table-view.js';
+import eventModel, { EVENT_STATUSES, EVENT_CATEGORIES } from '../models/event-model.js';
 
 export class EventView {
     constructor() {
@@ -78,13 +79,28 @@ export class EventView {
             'en': '<span class="badge bg-info">EN</span>',
             'am': '<span class="badge bg-primary">AM</span>'
 	};
+
+	// Определяем стиль для статуса мероприятия
+	const statusStyle = {
+            'planned': 'bg-secondary',
+            'active': 'bg-success',
+            'completed': 'bg-danger'
+	};
+
+	// Получаем названия статуса и категории
+	const statusName = eventModel.getStatusName(event.status || 'planned');
+	const categoryName = eventModel.getCategoryName(event.category || 'funky');
 	
 	const eventItem = document.createElement('a');
 	eventItem.href = '#';
 	eventItem.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
 	eventItem.innerHTML = `
     <div>
-        <h5 class="mb-1">${event.name} ${languageDisplay[event.language] || ''}</h5>
+        <h5 class="mb-1">
+            ${event.name} ${languageDisplay[event.language] || ''}
+            <span class="badge ${statusStyle[event.status || 'planned']}">${statusName}</span>
+            <span class="badge bg-info">${categoryName}</span>
+        </h5>
         <p class="mb-1 text-muted small">${event.description}</p>
     </div>
     <div class="text-end d-flex align-items-center">
@@ -105,6 +121,17 @@ export class EventView {
             'en': '<span class="badge bg-info">EN</span>',
             'am': '<span class="badge bg-primary">AM</span>'
 	};
+
+	// Определяем стиль для статуса мероприятия
+	const statusStyle = {
+            'planned': 'bg-secondary',
+            'active': 'bg-success',
+            'completed': 'bg-danger'
+	};
+
+	// Получаем названия статуса и категории
+	const statusName = eventModel.getStatusName(event.status || 'planned');
+	const categoryName = eventModel.getCategoryName(event.category || 'funky');
 	
         const eventCard = document.createElement('div');
         eventCard.className = 'col-md-4';
@@ -134,14 +161,37 @@ export class EventView {
     `;
         this.elements.recentEvents.appendChild(eventCard);
 
-	// В блок с кнопками добавим кнопку удаления
+	// Добавим кнопку удаления и кнопки изменения статуса
 	const buttonsDiv = eventCard.querySelector('.card-body > div:last-child > div');
 	if (buttonsDiv) {
-	    const deleteBtn = document.createElement('button');
-	    deleteBtn.className = 'btn btn-sm btn-outline-danger delete-event-btn me-1';
-	    deleteBtn.dataset.eventId = event.id;
-	    deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
-	    buttonsDiv.prepend(deleteBtn);
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-sm btn-outline-danger delete-event-btn me-1';
+            deleteBtn.dataset.eventId = event.id;
+            deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+            buttonsDiv.prepend(deleteBtn);
+            
+            // Добавляем кнопки изменения статуса, если мероприятие не завершено
+            if (event.status !== 'completed') {
+		// Кнопка установки статуса "Активно"
+		if (event.status !== 'active') {
+                    const activateBtn = document.createElement('button');
+                    activateBtn.className = 'btn btn-sm btn-outline-success change-status-btn me-1';
+                    activateBtn.dataset.eventId = event.id;
+                    activateBtn.dataset.status = 'active';
+                    activateBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
+                    activateBtn.title = 'Активировать';
+                    buttonsDiv.prepend(activateBtn);
+		}
+		
+		// Кнопка установки статуса "Завершено"
+		const completeBtn = document.createElement('button');
+		completeBtn.className = 'btn btn-sm btn-outline-danger change-status-btn me-1';
+		completeBtn.dataset.eventId = event.id;
+		completeBtn.dataset.status = 'completed';
+		completeBtn.innerHTML = '<i class="bi bi-check-circle"></i>';
+		completeBtn.title = 'Завершить';
+		buttonsDiv.prepend(completeBtn);
+            }
 	}
     }
 
@@ -166,10 +216,24 @@ export class EventView {
 	deleteBtn.innerHTML = '<i class="bi bi-trash"></i> Удалить мероприятие';
 	this.elements.joinEventBtn.parentElement.appendChild(deleteBtn);
 	
+	const statusName = eventModel.getStatusName(event.status || 'planned');
+	const categoryName = eventModel.getCategoryName(event.category || 'funky');
+	
+	// Определяем стиль для статуса мероприятия
+	const statusStyle = {
+            'planned': 'bg-secondary',
+            'active': 'bg-success',
+            'completed': 'bg-danger'
+	};
+	
 	// Отображаем информацию о мероприятии
 	this.elements.eventInfo.innerHTML = `
         <div class="row mb-4">
             <div class="col-md-8">
+                <div class="d-flex gap-2 mb-3">
+                    <span class="badge ${statusStyle[event.status || 'planned']}">${statusName}</span>
+                    <span class="badge bg-info">${categoryName}</span>
+                </div>
                 <h6 class="text-muted mb-3">Описание:</h6>
                 <p>${event.description || 'Описание отсутствует'}</p>
             </div>
@@ -188,6 +252,32 @@ export class EventView {
         </div>
         <hr>
     `;
+	
+	// Кнопки управления статусом в модальном окне
+	const statusControlsContainer = document.createElement('div');
+	statusControlsContainer.className = 'mb-3 d-flex gap-2';
+	statusControlsContainer.innerHTML = `<h6 class="mb-0 me-2 align-self-center">Статус мероприятия:</h6>`;
+	
+	// Создаем кнопки для изменения статуса
+	Object.entries(EVENT_STATUSES).forEach(([key, value]) => {
+            const statusBtn = document.createElement('button');
+            statusBtn.className = `btn btn-sm ${event.status === value ? 'btn-primary' : 'btn-outline-secondary'} change-status-btn`;
+            statusBtn.textContent = eventModel.getStatusName(value);
+            statusBtn.dataset.eventId = event.id;
+            statusBtn.dataset.status = value;
+                        
+            statusControlsContainer.appendChild(statusBtn);
+	});
+	
+	// Добавляем кнопки управления статусом перед списком столов
+	this.elements.eventInfo.appendChild(statusControlsContainer);
+	
+	// Если мероприятие завершено, скрываем кнопку добавления стола
+	if (event.status === 'completed') {
+            this.elements.addTableBtn.style.display = 'none';
+	} else {
+            this.elements.addTableBtn.style.display = 'block';
+	}
 	
 	// Отображаем столы мероприятия
 	tableView.renderTables(event);

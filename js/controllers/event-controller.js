@@ -8,6 +8,9 @@ export class EventController {
 	// Сначала подписываемся на события модели, потом инициализируем UI
 	this.initEventListeners();
         this.setupEventListeners();
+	
+	// Привязываем методы к контексту класса
+        this.changeEventStatus = this.changeEventStatus.bind(this);
     }
 
     initEventListeners() {
@@ -42,7 +45,9 @@ export class EventController {
                     name: document.getElementById('eventName').value,
                     description: document.getElementById('eventDescription').value,
                     date: document.getElementById('eventDate').value,
-		    language: document.getElementById('eventLanguage').value // Добавляем язык
+		    language: document.getElementById('eventLanguage').value,
+		    category: document.getElementById('eventCategory').value,
+                    status: document.getElementById('eventStatus').value
                 };
                 
 		const newEvent = await eventModel.createEvent(eventData);
@@ -60,6 +65,20 @@ export class EventController {
 		}
             });
         }
+
+	// Делегирование событий для кнопок изменения статуса
+	document.addEventListener('click', (e) => {
+            const changeStatusBtn = e.target.closest('.change-status-btn');
+            if (changeStatusBtn) {
+		e.preventDefault();
+		e.stopPropagation();
+		
+		const eventId = parseInt(changeStatusBtn.dataset.eventId);
+		const newStatus = changeStatusBtn.dataset.status;
+		
+		this.changeEventStatus(eventId, newStatus);
+            }
+	});
         
         // Обработчик поиска мероприятий
         const eventSearch = document.getElementById('eventSearch');
@@ -154,6 +173,38 @@ export class EventController {
         }
     }
 
+    // Новый метод для изменения статуса мероприятия
+    async changeEventStatus(eventId, newStatus) {
+	const event = eventModel.getEventById(eventId);
+	if (!event) return;
+	
+	// Запрашиваем подтверждение при завершении мероприятия
+	if (newStatus === 'completed' && !confirm('Вы уверены, что хотите завершить мероприятие? После завершения нельзя будет добавлять столы и игры.')) {
+            return;
+	}
+	
+	const success = await eventModel.updateEventStatus(eventId, newStatus);
+	
+	if (success) {
+            // Обновляем UI
+            eventView.renderEventsList(eventModel.events);
+            
+            // Если открыто модальное окно с деталями мероприятия, обновляем и его
+            const eventDetailsModal = document.getElementById('eventDetailsModal');
+            const isModalVisible = eventDetailsModal && eventDetailsModal.classList.contains('show');
+            
+            if (isModalVisible) {
+		const updatedEvent = eventModel.getEventById(eventId);
+		eventView.renderEventDetails(updatedEvent);
+            }
+            
+            // Показываем сообщение об успешном изменении статуса
+            alert(`Статус мероприятия изменен на "${eventModel.getStatusName(newStatus)}"`);
+	} else {
+            alert('Ошибка изменения статуса мероприятия');
+	}
+    }
+    
     async deleteEvent(eventId) {
 	if (confirm('Вы уверены, что хотите удалить это мероприятие?')) {
             const success = await eventModel.deleteEvent(eventId);
