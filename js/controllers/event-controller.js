@@ -79,6 +79,26 @@ export class EventController {
             });
         }
 
+	const archivedEvents = document.getElementById('archivedEvents');
+	if (archivedEvents) {
+	    archivedEvents.addEventListener('click', (e) => {
+		const viewBtn = e.target.closest('.view-event-btn');
+		const deleteBtn = e.target.closest('.delete-event-btn');
+		
+		if (viewBtn) {
+		    const eventId = parseInt(viewBtn.dataset.eventId);
+		    const event = eventModel.getEventById(eventId);
+		    if (event) {
+			this.showEventDetails(event);
+		    }
+		} else if (deleteBtn) {
+		    const eventId = parseInt(deleteBtn.dataset.eventId);
+		    this.deleteEvent(eventId);
+		    e.stopPropagation();
+		}
+	    });
+	}
+	
 	// Делегирование событий для кнопок изменения статуса
 	document.addEventListener('click', (e) => {
             const changeStatusBtn = e.target.closest('.change-status-btn');
@@ -94,15 +114,25 @@ export class EventController {
 	});
         
         // Обработчик поиска мероприятий
-        const eventSearch = document.getElementById('eventSearch');
-        if (eventSearch) {
-            eventSearch.addEventListener('input', (e) => {
-                const searchTerm = e.target.value;
-                const filteredEvents = eventModel.searchEvents(searchTerm);
-                eventView.renderEventsList(filteredEvents);
-            });
-        }
-        
+	const eventSearch = document.getElementById('eventSearch');
+	if (eventSearch) {
+	    eventSearch.addEventListener('input', (e) => {
+		const searchTerm = e.target.value;
+		const activeEvents = eventModel.getActiveEvents(searchTerm);
+		const archivedEvents = eventModel.getArchivedEvents(searchTerm);
+		
+		// Обновляем списки с учетом поиска
+		if (this.elements && this.elements.eventsList) {
+		    this.elements.eventsList.innerHTML = '';
+		    activeEvents.forEach(event => this.addEventToList(event));
+		}
+		
+		if (this.elements && this.elements.archivedEvents) {
+		    this.elements.archivedEvents.innerHTML = '';
+		    archivedEvents.forEach(event => this.addEventToArchivedList(event));
+		}
+	    });
+	}        
         // Делегирование событий для списка мероприятий
         const eventsList = document.getElementById('eventsList');
         if (eventsList) {

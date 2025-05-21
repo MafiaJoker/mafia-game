@@ -154,6 +154,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Явно загружаем данные и обновляем интерфейс
     await eventModel.loadEvents();
+
+    // Используем обновленную логику отображения
+    const activeEvents = eventModel.getActiveEvents();
+    const archivedEvents = eventModel.getArchivedEvents();
+    
     eventView.renderEventsList(eventModel.events);
 });
 

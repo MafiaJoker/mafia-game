@@ -7,7 +7,7 @@ export class EventView {
     constructor() {
         this.elements = {
             eventsList: document.getElementById('eventsList'),
-            recentEvents: document.getElementById('recentEvents'),
+	    archivedEvents: document.getElementById('archivedEvents'),
             createEventForm: document.getElementById('createEventForm'),
             eventSearch: document.getElementById('eventSearch'),
             eventInfo: document.getElementById('eventInfo'),
@@ -20,56 +20,90 @@ export class EventView {
 
     // Отображение списка всех мероприятий
     renderEventsList(events) {
-	if (!this.elements.eventsList && !this.elements.recentEvents) {
-            console.log('Элементы DOM для списка мероприятий не найдены');
-            return;
+	if (!this.elements.eventsList) {
+	    console.log('Элемент DOM для списка мероприятий не найден');
+	    return;
 	}
 	
-	console.log('Отрисовка списка мероприятий, количество:', events.length);
+	console.log('Отрисовка списка активных мероприятий, количество:', events.length);
 	
-	if (events.length === 0) {
-            if (this.elements.eventsList) {
-		this.elements.eventsList.innerHTML = `
-                <div class="text-center py-5 text-muted">
-                    <i class="bi bi-calendar-x" style="font-size: 2rem;"></i>
-                    <p class="mt-3">Нет доступных мероприятий</p>
-                </div>
-            `;
-            }
-            
-            if (this.elements.recentEvents) {
-		this.elements.recentEvents.innerHTML = `
-                <div class="col-12 text-center py-4 text-muted">
-                    <p>Нет недавних мероприятий</p>
-                </div>
-            `;
-            }
-            return;
-	}
+	// Получаем активные и архивные мероприятия
+	const activeEvents = eventModel.getActiveEvents();
+	const archivedEvents = eventModel.getArchivedEvents();
 	
-	// Очищаем списки если они существуют
-	if (this.elements.eventsList) {
-            this.elements.eventsList.innerHTML = '';
-	}
-	
-	if (this.elements.recentEvents) {
-            this.elements.recentEvents.innerHTML = '';
-	}
-	
-	// Сортируем мероприятия по дате (от ближайших к отдаленным)
-	const sortedEvents = [...events].sort((a, b) => new Date(a.date) - new Date(b.date));
-	
-	// Заполняем список мероприятий
-	sortedEvents.forEach(event => {
-            if (this.elements.eventsList) {
+	// Отрисовка активных мероприятий
+	if (activeEvents.length === 0) {
+	    this.elements.eventsList.innerHTML = `
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-calendar-x" style="font-size: 2rem;"></i>
+          <p class="mt-3">Нет активных мероприятий</p>
+        </div>
+      `;
+	} else {
+	    this.elements.eventsList.innerHTML = '';
+	    activeEvents.forEach(event => {
 		this.addEventToList(event);
-            }
-            
-            // Создаем карточку для недавних мероприятий (только для 3-х ближайших)
-            if (this.elements.recentEvents && this.elements.recentEvents.children.length < 3) {
-		this.addEventToRecentCards(event);
-            }
-	});
+	    });
+	}
+	
+	// Отрисовка архивных мероприятий
+	if (!this.elements.archivedEvents) return;
+	
+	if (archivedEvents.length === 0) {
+	    this.elements.archivedEvents.innerHTML = `
+        <div class="col-12 text-center py-4 text-muted">
+          <p>Нет архивных мероприятий</p>
+        </div>
+      `;
+	} else {
+	    this.elements.archivedEvents.innerHTML = '';
+	    archivedEvents.forEach(event => {
+		this.addEventToArchivedList(event);
+	    });
+	}
+    }
+
+    addEventToArchivedList(event) {
+	const languageDisplay = {
+	    'ru': '<span class="badge bg-secondary">RU</span>',
+	    'en': '<span class="badge bg-info">EN</span>',
+	    'am': '<span class="badge bg-primary">AM</span>'
+	};
+	
+	const categoryName = eventModel.getCategoryName(event.category || 'funky');
+	
+	const eventCard = document.createElement('div');
+	eventCard.className = 'col-md-4';
+	eventCard.innerHTML = `
+      <div class="card event-card h-100 shadow-sm bg-light">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <h5 class="card-title">${event.name} ${languageDisplay[event.language] || ''}</h5>
+            <span class="badge bg-dark">${this.formatDate(event.date)}</span>
+          </div>
+          <p class="card-text text-muted">${event.description}</p>
+          <div class="mt-2">
+            <span class="badge bg-danger mb-2">Завершено</span>
+            <span class="badge bg-info">${categoryName}</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mt-2">
+            <span class="badge bg-light text-dark">
+              ${event.tables.length} ${this.getNounForm(event.tables.length, 'стол', 'стола', 'столов')}
+            </span>
+            <div>
+              <button class="btn btn-sm btn-outline-secondary view-event-btn" data-event-id="${event.id}">
+                <i class="bi bi-eye"></i> Детали
+              </button>
+              <button class="btn btn-sm btn-outline-danger delete-event-btn" data-event-id="${event.id}">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+	
+	this.elements.archivedEvents.appendChild(eventCard);
     }
 
     // Добавление мероприятия в основной список

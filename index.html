@@ -56,13 +56,14 @@
 	  <div></div> <!-- пустой div для выравнивания -->
 	  <h1 class="display-4 mb-0">Мероприятия Мафии</h1>
 	  <div class="judge-selector" style="width: 200px;">
+	    Текущий ведущий
 	    <select class="form-select form-select-sm" id="headerJudgeSelector">
               <option value="" selected disabled>Выберите ведущего</option>
               <!-- Опции будут загружены динамически -->
 	    </select>
 	  </div>
 	</div>
-	<p class="lead text-muted">Создавайте мероприятия и управляйте игровыми столами</p>
+	<!-- <p class="lead text-muted">Создавайте мероприятия и управляйте игровыми столами</p> -->
       </header>
       
       <div class="row g-4">
@@ -132,7 +133,7 @@
         <div class="col-lg-7">
           <div class="card shadow-sm h-100">
             <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
-              <h2 class="h4 mb-0">Существующие мероприятия</h2>
+              <h2 class="h4 mb-0">Активные мероприятия</h2>
               <div class="input-group" style="max-width: 250px;">
                 <input type="text" class="form-control" id="eventSearch" placeholder="Поиск...">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
@@ -153,8 +154,8 @@
 
       <!-- Секция последних мероприятий -->
       <div class="mt-5">
-        <h3 class="mb-4 border-bottom pb-2">Недавние мероприятия</h3>
-        <div class="row g-4" id="recentEvents">
+        <h3 class="mb-4 border-bottom pb-2">Архив мероприятий</h3>
+        <div class="row g-4" id="archivedEvents">
           <!-- Здесь будут карточки недавних мероприятий -->
         </div>
       </div>

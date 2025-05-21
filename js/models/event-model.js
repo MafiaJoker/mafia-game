@@ -15,6 +15,13 @@ export const EVENT_CATEGORIES = {
     CHARITY: 'charity_tournament'
 };
 
+export const CATEGORY_PRIORITIES = {
+  'tournament': 1,        // Турнир (высший приоритет)
+  'minicap': 2,           // Миникап
+  'charity_tournament': 3, // Благотворительный вечер
+  'funky': 4               // Фанки (низший приоритет)
+};
+
 export class EventModel extends EventEmitter {
     constructor() {
         super();
@@ -226,6 +233,41 @@ export class EventModel extends EventEmitter {
             console.error('Ошибка удаления мероприятия:', error);
             return false;
         }
+    }
+    
+    // Получить активные и запланированные мероприятия с сортировкой по приоритетам
+    getActiveEvents(searchTerm) {
+	const events = this.searchEvents(searchTerm).filter(
+	    event => event.status !== EVENT_STATUSES.COMPLETED
+	);
+	
+	return this.sortEventsByPriority(events);
+    }
+
+    // Получить архивные (завершенные) мероприятия
+    getArchivedEvents(searchTerm) {
+	return this.searchEvents(searchTerm).filter(
+	    event => event.status === EVENT_STATUSES.COMPLETED
+	);
+    }
+
+    // Сортировка мероприятий по приоритетам
+    sortEventsByPriority(events) {
+	return [...events].sort((a, b) => {
+	    // Сначала сортируем по статусу (активные выше запланированных)
+	    if (a.status === EVENT_STATUSES.ACTIVE && b.status !== EVENT_STATUSES.ACTIVE) {
+		return -1;
+	    }
+	    if (a.status !== EVENT_STATUSES.ACTIVE && b.status === EVENT_STATUSES.ACTIVE) {
+		return 1;
+	    }
+	    
+	    // Если статусы одинаковые, сортируем по приоритету категории
+	    const priorityA = CATEGORY_PRIORITIES[a.category] || 999;
+	    const priorityB = CATEGORY_PRIORITIES[b.category] || 999;
+	    
+	    return priorityA - priorityB;
+	});
     }
 }
 
