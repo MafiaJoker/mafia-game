@@ -85,6 +85,15 @@
                   <label for="eventDate" class="form-label">Дата проведения</label>
                   <input type="date" class="form-control" id="eventDate">
                 </div>
+
+		<div class="mb-3">
+		  <label for="judgeSelector" class="form-label">Ведущий</label>
+		  <select class="form-select" id="judgeSelector">
+		    <option value="" selected disabled>Загрузка списка ведущих...</option>
+		  </select>
+		  <div class="form-text">Выбранный ведущий будет автоматически указан при создании столов</div>
+		</div>
+		
                 <button type="submit" class="btn btn-dark w-100 py-2">Создать мероприятие</button>
               </form>
             </div>

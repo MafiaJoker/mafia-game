@@ -42,7 +42,7 @@ export class TableController {
     }
 
     // Открыть модальное окно для создания/редактирования стола
-    openTableModal(eventId, table = null) {
+    async openTableModal(eventId, table = null) {
         // Сохраняем id мероприятия и стола для последующего сохранения
         const saveTableBtn = document.getElementById('saveTable');
         if (saveTableBtn) {
@@ -65,7 +65,7 @@ export class TableController {
         }
         
         // Настраиваем модальное окно
-        tableView.setupTableModal(!!table, table, placeholder);
+        await tableView.setupTableModal(!!table, table, placeholder);
         
         // Открываем модальное окно
         const tableModal = document.getElementById('tableModal');

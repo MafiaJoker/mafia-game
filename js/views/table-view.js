@@ -72,7 +72,7 @@ export class TableView {
     }
 
     // Настройка модального окна для создания/редактирования стола
-    setupTableModal(isEditing, table = null, placeholder='') {
+    async setupTableModal(isEditing, table = null, placeholder='') {
 	if (isEditing) {
             this.elements.tableModalLabel.textContent = 'Редактировать стол';
             this.elements.tableName.value = table.name;
@@ -89,6 +89,19 @@ export class TableView {
             this.elements.tableForm.reset();
             if (placeholder) {
 		this.elements.tableName.value = placeholder;
+            }
+
+	    // Получаем ведущего по умолчанию из API
+            try {
+		const defaultJudgeId = localStorage.getItem('defaultJudgeId');
+		if (defaultJudgeId) {
+                    const judge = await window.apiAdapter.getJudge(defaultJudgeId);
+                    if (judge && judge.name) {
+			this.elements.tableJudge.value = judge.name;
+                    }
+		}
+            } catch (error) {
+		console.error('Ошибка при получении информации о ведущем:', error);
             }
 	}
     }

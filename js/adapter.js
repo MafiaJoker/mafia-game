@@ -2,7 +2,7 @@
 export class ApiAdapter {
     constructor() {
         // Базовый URL API сервера
-        this.baseUrl = 'https://dev.api.jokermafia.am/mockapi/api';
+        this.baseUrl = 'http://localhost:3000/api';
         console.log('ApiAdapter инициализирован для работы с API');
     }
 
@@ -136,6 +136,16 @@ export class ApiAdapter {
             method: 'PUT',
             body: JSON.stringify(stateData)
         });
+    }
+
+    // Получение списка всех ведущих
+    async loadJudges() {
+	return this.fetchApi('/judges');
+    }
+
+    // Получение ведущего по ID
+    async getJudge(judgeId) {
+	return this.fetchApi(`/judges/${judgeId}`);
     }
     
 }

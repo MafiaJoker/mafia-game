@@ -20,11 +20,70 @@ window.setCurrentDateAsDefault = function() {
     }
 }
 
+// Загрузка списка ведущих в выпадающий список
+async function loadJudgesIntoSelector() {
+    const judgeSelector = document.getElementById('judgeSelector');
+    if (!judgeSelector) return;
+    
+    try {
+        // Загружаем список ведущих с API
+        const judges = await apiAdapter.loadJudges();
+        
+        // Очищаем список
+        judgeSelector.innerHTML = '';
+        
+        // Добавляем пустой элемент для возможности не выбирать ведущего
+        const emptyOption = document.createElement('option');
+        emptyOption.value = "";
+        emptyOption.textContent = "Выберите ведущего";
+        emptyOption.disabled = true;
+        emptyOption.selected = true;
+        judgeSelector.appendChild(emptyOption);
+        
+        // Если ведущих нет, добавляем подсказку
+        if (judges.length === 0) {
+            const option = document.createElement('option');
+            option.value = "";
+            option.textContent = "Нет доступных ведущих";
+            option.disabled = true;
+            judgeSelector.appendChild(option);
+        } else {
+            // Добавляем ведущих в список
+            judges.forEach(judge => {
+                const option = document.createElement('option');
+                option.value = judge.id;
+                option.textContent = judge.name;
+                judgeSelector.appendChild(option);
+            });
+            
+            // Выбираем ведущего по умолчанию из localStorage
+            const defaultJudgeId = localStorage.getItem('defaultJudgeId');
+            if (defaultJudgeId && judges.some(judge => judge.id == defaultJudgeId)) {
+                judgeSelector.value = defaultJudgeId;
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка при загрузке списка ведущих:', error);
+        judgeSelector.innerHTML = '<option value="" disabled selected>Ошибка загрузки списка ведущих</option>';
+    }
+}
+
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', async () => {
     // Установка текущей даты по умолчанию
     setCurrentDateAsDefault();
 
+    // Загружаем список ведущих
+    await loadJudgesIntoSelector();
+
+    // Настраиваем обработчик для выбора ведущего
+    const judgeSelector = document.getElementById('judgeSelector');
+    if (judgeSelector) {
+        judgeSelector.addEventListener('change', () => {
+            localStorage.setItem('defaultJudgeId', judgeSelector.value);
+        });
+    }
+    
     // Сначала убедимся, что контроллер инициализирован
     console.log('Инициализация контроллера:', eventController);
     
