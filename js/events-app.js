@@ -34,7 +34,7 @@ window.setDefaultEventValues = async function() {
             event.category === 'funky');
         
         // Устанавливаем следующий номер
-        eventNameField.value = `Фановая игра #${funkyGames.length + 1}`;
+        eventNameField.value = `Игровой вечер #${funkyGames.length + 1}`;
     }
     
     // Заполнение описания
@@ -67,7 +67,8 @@ window.setDefaultEventValues = async function() {
         ];
         
         // Составляем описание
-        eventDescField.value = `${gameNumber}-я фановая игра вечера за ${monthNames[currentMonth]} ${currentYear} года.`;
+        eventDescField.value = `Игровой вечер #${gameNumber} за ${monthNames[currentMonth]} ${currentYear} года.`
+	;
     }
 }
 
@@ -167,6 +168,159 @@ async function loadJudgesIntoHeaderSelector() {
     }
 }
 
+// Функция для поиска и отображения активных игр текущего ведущего
+async function showCurrentJudgeActiveGames() {
+    const judgeId = localStorage.getItem('defaultJudgeId');
+    
+    // Проверяем, существует ли контейнер для активных игр
+    let currentJudgeGamesSection = document.getElementById('currentJudgeGamesSection');
+    
+    // Если секция еще не существует, создаем её
+    if (!currentJudgeGamesSection) {
+        const container = document.querySelector('.main-container');
+        if (!container) return; // Если нет главного контейнера, выходим
+        
+        // Создаем новую секцию для активных игр
+        currentJudgeGamesSection = document.createElement('div');
+        currentJudgeGamesSection.className = 'mt-5';
+        currentJudgeGamesSection.id = 'currentJudgeGamesSection';
+        
+        // Добавляем заголовок
+        const heading = document.createElement('h3');
+        heading.className = 'mb-4 border-bottom pb-2';
+        heading.innerHTML = '<i class="bi bi-controller"></i> Ваши активные игры';
+        
+        // Добавляем предупреждение, если ведущий не выбран
+        const warning = document.createElement('small');
+        warning.className = 'text-muted ms-2';
+        warning.id = 'noJudgeSelectedWarning';
+        warning.textContent = '(выберите ведущего)';
+        warning.style.display = judgeId ? 'none' : 'inline';
+        heading.appendChild(warning);
+        
+        currentJudgeGamesSection.appendChild(heading);
+        
+        // Создаем контейнер для карточек игр
+        const gamesContainer = document.createElement('div');
+        gamesContainer.className = 'row';
+        gamesContainer.id = 'currentJudgeGames';
+        currentJudgeGamesSection.appendChild(gamesContainer);
+        
+        // Вставляем секцию перед архивом мероприятий
+        const archiveSection = document.querySelector('.main-container .mt-5');
+        if (archiveSection) {
+            container.insertBefore(currentJudgeGamesSection, archiveSection);
+        } else {
+            container.appendChild(currentJudgeGamesSection);
+        }
+    }
+    
+    // Получаем или создаем контейнер для игр
+    let currentJudgeGames = document.getElementById('currentJudgeGames');
+    if (!currentJudgeGames) {
+        currentJudgeGames = document.createElement('div');
+        currentJudgeGames.className = 'row';
+        currentJudgeGames.id = 'currentJudgeGames';
+        currentJudgeGamesSection.appendChild(currentJudgeGames);
+    }
+    
+    // Сбрасываем содержимое контейнера
+    currentJudgeGames.innerHTML = '';
+    
+    // Если ведущий не выбран, показываем сообщение и выходим
+    if (!judgeId) {
+        const noJudgeWarning = document.getElementById('noJudgeSelectedWarning');
+        if (noJudgeWarning) noJudgeWarning.style.display = 'inline';
+        
+        const emptyMessage = document.createElement('div');
+        emptyMessage.className = 'col-12 text-center py-4 text-muted';
+        emptyMessage.innerHTML = '<p>Выберите ведущего, чтобы увидеть его активные игры</p>';
+        currentJudgeGames.appendChild(emptyMessage);
+        return;
+    }
+    
+    try {
+        // Получаем данные о ведущем
+        const judge = await apiAdapter.getJudge(judgeId);
+        if (!judge) throw new Error('Ведущий не найден');
+        
+        // Обновляем отображение предупреждения
+        const noJudgeWarning = document.getElementById('noJudgeSelectedWarning');
+        if (noJudgeWarning) noJudgeWarning.style.display = 'none';
+        
+        // Загружаем все мероприятия, если они еще не загружены
+        if (eventModel.events.length === 0) {
+            await eventModel.loadEvents();
+        }
+        
+        // Ищем все активные игры, где этот ведущий является ведущим
+        let activeGames = [];
+        
+        eventModel.events.forEach(event => {
+            event.tables.forEach(table => {
+                // Проверяем, является ли выбранный ведущий ведущим стола
+                if (table.judge && table.judge.includes(judge.name)) {
+                    table.games.forEach(game => {
+                        if (game.status === 'in_progress') {
+                            activeGames.push({
+                                eventId: event.id,
+                                eventName: event.name,
+                                tableId: table.id,
+                                tableName: table.name,
+                                gameId: game.id,
+                                gameName: game.name,
+                                round: game.currentRound || 0
+                            });
+                        }
+                    });
+                }
+            });
+        });
+        
+        // Отображаем найденные игры
+        if (activeGames.length === 0) {
+            const emptyMessage = document.createElement('div');
+            emptyMessage.className = 'col-12 text-center py-4 text-muted';
+            emptyMessage.innerHTML = '<p>У выбранного ведущего нет активных игр</p>';
+            currentJudgeGames.appendChild(emptyMessage);
+        } else {
+            activeGames.forEach(game => {
+                const gameCard = document.createElement('div');
+                gameCard.className = 'col-md-4 mb-3';
+                gameCard.innerHTML = `
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">${game.gameName}</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">
+                                <strong>Мероприятие:</strong> ${game.eventName}<br>
+                                <strong>Стол:</strong> ${game.tableName}<br>
+                                <strong>Текущий круг:</strong> ${game.round}
+                            </p>
+                        </div>
+                        <div class="card-footer">
+                            <a href="game.html?eventId=${game.eventId}&tableId=${game.tableId}&gameId=${game.gameId}" 
+                               class="btn btn-sm btn-primary w-100">
+                                <i class="bi bi-play-fill"></i> Продолжить игру
+                            </a>
+                        </div>
+                    </div>
+                `;
+                
+                currentJudgeGames.appendChild(gameCard);
+            });
+        }
+    } catch (error) {
+        console.error('Ошибка при загрузке активных игр ведущего:', error);
+        currentJudgeGames.innerHTML = `
+            <div class="col-12 text-center py-4 text-danger">
+                <p><i class="bi bi-exclamation-triangle"></i> Ошибка при загрузке активных игр: ${error.message}</p>
+            </div>
+        `;
+    }
+}
+
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', async () => {
     // Установка текущей даты по умолчанию
@@ -180,6 +334,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Устанавливаем значения по умолчанию для полей формы
     await setDefaultEventValues();
+
+    // Добавляем вызов функции после загрузки данных
+    await showCurrentJudgeActiveGames();
     
     // Настраиваем обработчик для выбора ведущего
     const judgeSelector = document.getElementById('judgeSelector');
@@ -192,7 +349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Настраиваем обработчик для выбора ведущего в шапке
     const headerJudgeSelector = document.getElementById('headerJudgeSelector');
     if (headerJudgeSelector) {
-        headerJudgeSelector.addEventListener('change', () => {
+        headerJudgeSelector.addEventListener('change', async () => {
             localStorage.setItem('defaultJudgeId', headerJudgeSelector.value);
             
             // Синхронизируем выбор с основным селектором
@@ -200,6 +357,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (judgeSelector) {
                 judgeSelector.value = headerJudgeSelector.value;
             }
+	    
+	    await showCurrentJudgeActiveGames();
         });
     }
     
