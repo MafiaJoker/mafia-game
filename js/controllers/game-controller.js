@@ -137,9 +137,11 @@ export class GameController {
         });
     }
 
-    initGame() {
-        try {
-	    // Получаем параметры из URL
+    async initGame() {
+	try {
+            console.log('Инициализация игры...');
+            
+            // Получаем параметры из URL
             const urlParams = new URLSearchParams(window.location.search);
             const eventId = parseInt(urlParams.get('eventId'));
             const tableId = parseInt(urlParams.get('tableId'));
@@ -147,31 +149,59 @@ export class GameController {
             
             // Если есть ID игры, пытаемся загрузить существующую игру
             if (eventId && tableId && gameId) {
-		const event = eventModel.getEventById(eventId);
+		console.log(`Найдены параметры игры: eventId=${eventId}, tableId=${tableId}, gameId=${gameId}`);
+		
+		// Устанавливаем сразу, чтобы последующие вызовы имели доступ к этой информации
+		gameModel.currentGameInfo = {
+                    eventId,
+                    tableId,
+                    gameId
+		};
+		
+		// Проверяем, загружены ли мероприятия
+		await eventModel.loadEvents();
+		let event = await eventModel.getEventById(eventId);
+		console.log(event);
+		if (!event) {
+                    console.log('Мероприятие не найдено, загружаем данные...');
+                    await eventModel.loadEvents();
+                    event = eventModel.getEventById(eventId);
+		}
+		
 		if (event) {
                     const table = event.tables.find(t => t.id === tableId);
                     if (table && table.games) {
 			const game = table.games.find(g => g.id === gameId);
 			if (game) {
-                            this.loadExistingGame(game, event, table);
+                            await this.loadExistingGame(game, event, table);
                             return;
+			} else {
+                            console.error('Игра не найдена в указанном столе');
 			}
+                    } else {
+			console.error('Стол не найден в указанном мероприятии');
                     }
+		} else {
+                    console.error('Мероприятие не найдено');
 		}
+            } else {
+		console.log('Параметры игры не указаны, инициализация новой игры');
             }
-	    
-            // Инициализация модели уже произошла в конструкторе
+            
+            // Если не удалось загрузить игру, инициализируем новую
             this.setupEventListeners();
-	    gameView.initModalHandlers(); // Инициализируем обработчики модальных окон
+            gameView.initModalHandlers();
             this.updatePlayers();
-        } catch (error) {
+	} catch (error) {
             console.error('Ошибка инициализации игры:', error);
             gameView.showGameStatus('Не удалось инициализировать игру. Пожалуйста, обновите страницу.', 'danger');
-        }
+	}
     }
 
     // Добавим метод для загрузки существующей игры
     async loadExistingGame(game, event, table) {
+	console.log('Загрузка существующей игры:', game.id);
+	
 	// Сохраняем информацию о текущей игре
 	gameModel.currentGameInfo = {
             eventId: event.id,
@@ -182,14 +212,62 @@ export class GameController {
 	// Пробуем загрузить состояние игры с сервера
 	const stateLoaded = await gameModel.loadGameState();
 	
-	// Если состояние не загружено, инициализируем стандартное состояние
-	if (!stateLoaded) {
+	if (stateLoaded) {
+            console.log('Состояние игры успешно загружено с сервера');
+            
+            // Обновление интерфейса в соответствии с загруженным состоянием
+            gameView.updateGamePhase(gameModel.state.phase);
+            gameView.updateRound(gameModel.state.round);
+            
+            // Проверяем, начата ли игра
+            if (gameModel.state.isGameStarted) {
+		gameView.elements.ppkButton.classList.remove('d-none');
+		gameView.elements.eliminatePlayerButton.classList.remove('d-none');
+		
+		// Показываем элементы управления в зависимости от фазы
+		if (gameModel.state.phase === GAME_PHASES.DAY) {
+                    gameView.elements.startVoting.classList.remove('d-none');
+                    gameView.elements.goToNight.classList.remove('d-none');
+		} else if (gameModel.state.phase === GAME_PHASES.VOTING) {
+                    // Восстанавливаем состояние голосования
+                    votingService.startVoting();
+		} else if (gameModel.state.phase === GAME_PHASES.NIGHT) {
+                    // Восстанавливаем состояние ночи
+                    gameView.renderNightActions(gameModel.state.players);
+		}
+            } else {
+		// Если игра не начата, переходим к фазе распределения
+		gameModel.state.phase = GAME_PHASES.DISTRIBUTION;
+		gameView.updateGamePhase(GAME_PHASES.DISTRIBUTION);
+            }
+            
+            // Если игра завершена, отключаем элементы управления
+            if (game.status === "finished") {
+		gameView.disableGameControls();
+		
+		// Показываем результат игры
+		let message = "";
+		if (game.result === "city_win") {
+                    message = localization.t('gameStatus', 'cityWin');
+                    gameView.showGameStatus(message, 'success');
+		} else if (game.result === "mafia_win") {
+                    message = localization.t('gameStatus', 'mafiaWin');
+                    gameView.showGameStatus(message, 'danger');
+		} else if (game.result === "draw") {
+                    message = localization.t('gameStatus', 'draw');
+                    gameView.showGameStatus(message, 'warning');
+		}
+            }
+	} else {
+            console.warn('Не удалось загрузить состояние игры, используем дефолтное состояние');
+            
+            // Устанавливаем базовое состояние на основе данных игры
             if (game.status === "in_progress" || game.status === "finished") {
 		gameModel.state.round = game.currentRound || 0;
 		gameModel.state.phase = game.status === "finished" ? "end" : "day";
 		gameModel.state.isGameStarted = true;
 		
-		// Настраиваем интерфейс в соответствии с состоянием игры
+		// Настраиваем интерфейс
 		gameView.updateGamePhase(gameModel.state.phase);
 		gameView.updateRound(gameModel.state.round);
 		gameView.elements.ppkButton.classList.remove('d-none');
@@ -216,25 +294,20 @@ export class GameController {
 		gameModel.state.phase = GAME_PHASES.DISTRIBUTION;
 		gameView.updateGamePhase(GAME_PHASES.DISTRIBUTION);
             }
-	} else {
-            // Если состояние успешно загружено, обновляем интерфейс
-            gameView.updateGamePhase(gameModel.state.phase);
-            gameView.updateRound(gameModel.state.round);
             
-            if (gameModel.state.isGameStarted) {
-		gameView.elements.ppkButton.classList.remove('d-none');
-		gameView.elements.eliminatePlayerButton.classList.remove('d-none');
-            }
-            
-            if (game.status === "finished") {
-		gameView.disableGameControls();
-            }
+            // Сохраняем начальное состояние на сервер
+            await gameModel.saveGameState();
 	}
 	
+	// Инициализируем обработчики событий и обновляем интерфейс
 	this.setupEventListeners();
 	gameView.initModalHandlers();
 	this.updatePlayers();
 	
+	// Обновляем номинированных игроков, если в фазе дня
+	if (gameModel.state.phase === GAME_PHASES.DAY) {
+            this.updateNominatedPlayers();
+	}
     }
 
     updatePlayers() {
@@ -313,28 +386,35 @@ export class GameController {
     }
 
     startGame() {
-        if (!gameModel.canStartGame()) {
+	if (!gameModel.canStartGame()) {
             alert('Необходимо распределить 2 мафии, 1 дона и 1 шерифа!');
             return;
-        }
-        
-        gameModel.state.isGameStarted = true;
-        gameModel.state.phase = GAME_PHASES.DAY;
-        
-        gameView.updateGamePhase(GAME_PHASES.DAY);
-        gameView.elements.ppkButton.classList.remove('d-none');
-	gameView.elements.eliminatePlayerButton.classList.remove('d-none'); // Показываем кнопку удаления
+	}
+	
+	gameModel.state.isGameStarted = true;
+	gameModel.state.phase = GAME_PHASES.DAY;
+	
+	gameView.updateGamePhase(GAME_PHASES.DAY);
+	gameView.elements.ppkButton.classList.remove('d-none');
+	gameView.elements.eliminatePlayerButton.classList.remove('d-none');
 
 	// Обновляем статус игры в хранилище
 	this.updateGameStatus("in_progress");
 	
-        // Проверяем условия для начала голосования
-        this.updateNominatedPlayers();
-        
-        // Запускаем таймер
-        timerService.reset();
-        
-        this.updatePlayers();
+	// Синхронизируем состояние с сервером после раздачи карт
+	gameModel.saveGameState().then(() => {
+            console.log('Состояние игры синхронизировано с сервером после раздачи карт');
+	}).catch(err => {
+            console.error('Ошибка синхронизации состояния с сервером:', err);
+	});
+	
+	// Проверяем условия для начала голосования
+	this.updateNominatedPlayers();
+	
+	// Запускаем таймер
+	timerService.reset();
+	
+	this.updatePlayers();
     }
 
     startVoting() {
@@ -422,10 +502,17 @@ export class GameController {
 	// Обновляем состояние игры при изменении круга
 	this.updateGameStatus("in_progress");
 	
+	// Синхронизируем состояние с сервером в начале нового круга
+	gameModel.saveGameState().then(() => {
+            console.log('Состояние игры синхронизировано с сервером при начале круга', gameModel.state.round);
+	}).catch(err => {
+            console.error('Ошибка синхронизации состояния с сервером:', err);
+	});
+	
 	// Очистка результатов предыдущих ночных проверок
 	gameView.elements.donResult.classList.add('d-none');
 	gameView.elements.sheriffResult.classList.add('d-none');
-    	
+        
 	// Здесь проверка на лучший ход, которая должна происходить перед обновлением игроков
 	this.checkForBestMove();
 	

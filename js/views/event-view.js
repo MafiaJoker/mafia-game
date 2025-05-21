@@ -259,7 +259,7 @@ export class EventView {
             'active': 'bg-success',
             'completed': 'bg-danger'
 	};
-	
+	// await eventModel.loadEvents();
 	// Отображаем информацию о мероприятии
 	this.elements.eventInfo.innerHTML = `
         <div class="row mb-4">

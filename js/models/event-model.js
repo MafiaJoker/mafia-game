@@ -54,7 +54,7 @@ export class EventModel extends EventEmitter {
         }
     }
 
-    getEventById(eventId) {
+    async getEventById(eventId) {
         return this.events.find(event => event.id === eventId);
     }
 
