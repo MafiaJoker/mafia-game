@@ -1,6 +1,7 @@
 // event-page.js
 import eventModel from './models/event-model.js';
 import tableController from './controllers/table-controller.js';
+import apiAdapter from './adapter.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -243,39 +244,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 	}
 	
 	// Сохранить новую игру
-	function saveNewGame(event, tableId) {
-            const gameName = document.getElementById('gameName').value;
-            
-            if (!gameName) {
+	async function saveNewGame(event, tableId) {
+	    const gameName = document.getElementById('gameName').value;
+	    
+	    if (!gameName) {
 		alert('Введите название игры');
 		return;
-            }
-            
-            // Находим нужный стол
-            const table = event.tables.find(t => t.id === parseInt(tableId));
-            if (!table) return;
-            
-            // Добавляем новую игру
-            if (!table.games) table.games = [];
-            
-	    const newGame = {
-		id: Date.now(),
-		name: gameName,
-		created: new Date().toISOString(),
-		status: "not_started", // "not_started", "in_progress", "finished"
-		players: [],
-		currentRound: 0,
-		result: null // "city_win", "mafia_win", "draw" для завершенных игр
-	    };
-            
-            table.games.push(newGame);
-            
-            // Сохраняем изменения
-            eventModel.saveEvents();
-            
-            // Закрываем модальное окно и обновляем отображение
-            bootstrap.Modal.getInstance(document.getElementById('gameModal')).hide();
-            showTableDetails(event, table);
+	    }
+	    
+	    try {
+		// Создаем данные для новой игры
+		const gameData = {
+		    name: gameName
+		    // API автоматически добавит остальные поля по умолчанию
+		};
+		
+		// Сохраняем игру через API
+		const newGame = await apiAdapter.saveGame(event.id, parseInt(tableId), gameData);
+		
+		// Находим нужный стол для обновления UI
+		const table = event.tables.find(t => t.id === parseInt(tableId));
+		if (table) {
+		    if (!table.games) table.games = [];
+		    table.games.push(newGame);
+		    
+		    // Закрываем модальное окно и обновляем отображение
+		    bootstrap.Modal.getInstance(document.getElementById('gameModal')).hide();
+		    showTableDetails(event, table);
+		}
+	    } catch (error) {
+		console.error('Ошибка создания игры:', error);
+		alert('Не удалось создать игру. Проверьте, запущен ли API-сервер.');
+	    }
 	}
 	
 	// Вспомогательная функция для форматирования даты

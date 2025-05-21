@@ -6,6 +6,7 @@ import nightActionsService from '../services/night-actions-service.js';
 import votingService from '../services/voting-service.js';
 import { GAME_PHASES, NO_CANDIDATES_MAX_ROUNDS, MAX_FOULS } from '../utils/constants.js';
 import localization from '../utils/localization.js';
+import eventModel from '../models/event-model.js'; // Добавить эту строку
 
 export class GameController {
     constructor() {
@@ -170,7 +171,7 @@ export class GameController {
     }
 
     // Добавим метод для загрузки существующей игры
-    loadExistingGame(game, event, table) {
+    async loadExistingGame(game, event, table) {
 	// Сохраняем информацию о текущей игре
 	gameModel.currentGameInfo = {
             eventId: event.id,
@@ -525,7 +526,7 @@ export class GameController {
         this.updateNominatedPlayers();
     }
 
-    eliminatePlayer(playerId) {
+    async eliminatePlayer(playerId) {
         const player = gameModel.getPlayer(playerId);
         if (player) {
             player.eliminate();
