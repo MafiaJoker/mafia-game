@@ -107,14 +107,22 @@ export class EventController {
             });
         }
 	
-        // Делегирование событий для кнопок удаления мероприятий
+	// Делегирование событий для кнопок удаления мероприятий
 	document.addEventListener('click', (e) => {
 	    const deleteBtn = e.target.closest('.delete-event-btn');
 	    if (deleteBtn) {
+		// Важно предотвратить всплытие события (bubbling)
 		e.preventDefault();
 		e.stopPropagation();
+		
+		// Предотвращаем дальнейшую обработку события кликом
+		if (e.stopImmediatePropagation) {
+		    e.stopImmediatePropagation();
+		}
+		
 		const eventId = parseInt(deleteBtn.dataset.eventId);
 		this.deleteEvent(eventId);
+		return false; // Ещё один способ прервать обработку события
 	    }
 	});
 	
@@ -150,11 +158,29 @@ export class EventController {
 	if (confirm('Вы уверены, что хотите удалить это мероприятие?')) {
             const success = await eventModel.deleteEvent(eventId);
             if (success) {
-		// Закрываем модальное окно, если оно открыто
+		// Закрываем модальное окно с деталями мероприятия
 		const eventDetailsModal = document.getElementById('eventDetailsModal');
 		if (eventDetailsModal) {
-                    const modal = bootstrap.Modal.getInstance(eventDetailsModal);
-                    if (modal) modal.hide();
+                    // Правильное получение и закрытие модального окна через Bootstrap API
+                    const modalInstance = bootstrap.Modal.getInstance(eventDetailsModal);
+                    if (modalInstance) {
+			modalInstance.hide();
+                    } else {
+			// Альтернативный способ закрытия, если экземпляр модального окна не найден
+			eventDetailsModal.classList.remove('show');
+			eventDetailsModal.style.display = 'none';
+			
+			// Удаляем модальный backdrop если он существует
+			const backdrop = document.querySelector('.modal-backdrop');
+			if (backdrop) {
+                            backdrop.remove();
+			}
+			
+			// Убираем класс modal-open с body
+			document.body.classList.remove('modal-open');
+			document.body.style.overflow = '';
+			document.body.style.paddingRight = '';
+                    }
 		}
 		
 		// Обновляем список мероприятий

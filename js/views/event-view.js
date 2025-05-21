@@ -88,9 +88,6 @@ export class EventView {
         <p class="mb-1 text-muted small">${event.description}</p>
     </div>
     <div class="text-end d-flex align-items-center">
-        <button class="btn btn-sm btn-outline-danger delete-event-btn me-2" data-event-id="${event.id}">
-            <i class="bi bi-trash"></i>
-        </button>
         <div>
             <span class="badge bg-primary rounded-pill">${event.tables.length} ${this.getNounForm(event.tables.length, 'стол', 'стола', 'столов')}</span>
             <div class="small text-muted">${this.formatDate(event.date)}</div>

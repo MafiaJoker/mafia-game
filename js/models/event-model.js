@@ -90,16 +90,26 @@ export class EventModel extends EventEmitter {
     }
 
     async deleteEvent(eventId) {
-	try {
-            await apiAdapter.deleteEvent(eventId);
+        try {
+            console.log('Запуск удаления мероприятия:', eventId);
+            
+            // Проверяем, инициализирован ли адаптер
+            if (!apiAdapter || typeof apiAdapter.deleteEvent !== 'function') {
+                console.error('API адаптер не инициализирован или не имеет метода deleteEvent');
+                return false;
+            }
+            
+            const result = await apiAdapter.deleteEvent(eventId);
+            console.log('Результат удаления:', result);
+            
             // Удаляем мероприятие из локального списка
             this.events = this.events.filter(event => event.id !== eventId);
             this.emit('eventDeleted', eventId);
             return true;
-	} catch (error) {
+        } catch (error) {
             console.error('Ошибка удаления мероприятия:', error);
             return false;
-	}
+        }
     }
 }
 
