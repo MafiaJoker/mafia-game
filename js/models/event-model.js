@@ -1,5 +1,6 @@
-// models/event-model.js
+// js/models/event-model.js
 import { EventEmitter } from '../utils/event-emitter.js';
+import apiAdapter from '../adapter.js';
 
 export class EventModel extends EventEmitter {
     constructor() {
@@ -8,68 +9,74 @@ export class EventModel extends EventEmitter {
         this.loadEvents();
     }
 
-    loadEvents() {
-        const savedEvents = localStorage.getItem('mafiaEvents');
-        if (savedEvents) {
-            this.events = JSON.parse(savedEvents);
+    async loadEvents() {
+        try {
+            this.events = await apiAdapter.loadEvents();
+            console.log('Загружено мероприятий:', this.events.length);
             this.emit('eventsLoaded', this.events);
+            return this.events;
+        } catch (error) {
+            console.error('Ошибка загрузки мероприятий:', error);
+            this.events = [];
+            this.emit('eventsLoaded', this.events);
+            return [];
         }
     }
 
-    saveEvents() {
-        localStorage.setItem('mafiaEvents', JSON.stringify(this.events));
-    }
-
-    createEvent(eventData) {
-	const newEvent = {
-            id: Date.now(),
-            name: eventData.name,
-            description: eventData.description,
-            date: eventData.date || new Date().toISOString().split('T')[0],
-            language: eventData.language || 'ru', // Добавляем выбор языка
-            tables: []
-	};
-
-	this.events.push(newEvent);
-	this.saveEvents();
-	this.emit('eventCreated', newEvent);
-	return newEvent;
+    async createEvent(eventData) {
+        try {
+            const newEvent = await apiAdapter.saveEvent(eventData);
+            this.events.push(newEvent);
+            this.emit('eventCreated', newEvent);
+            return newEvent;
+        } catch (error) {
+            console.error('Ошибка создания мероприятия:', error);
+            return null;
+        }
     }
 
     getEventById(eventId) {
         return this.events.find(event => event.id === eventId);
     }
 
-    addTableToEvent(eventId, tableData) {
-	const event = this.getEventById(eventId);
-	if (!event) return null;
-
-	const newTable = {
-            id: Date.now(),
-            name: tableData.name,
-            capacity: parseInt(tableData.capacity),
-            seatingType: tableData.seatingType,
-            judge: tableData.judge || '', // Добавляем поле судьи
-            games: []
-	};
-
-	event.tables.push(newTable);
-	this.saveEvents();
-	this.emit('tableAdded', { event, table: newTable });
-	return newTable;
+    async addTableToEvent(eventId, tableData) {
+        try {
+            const newTable = await apiAdapter.saveTable(eventId, tableData);
+            
+            // Обновляем локальный объект мероприятия
+            const event = this.getEventById(eventId);
+            if (event) {
+                if (!event.tables) event.tables = [];
+                event.tables.push(newTable);
+                this.emit('tableAdded', { event, table: newTable });
+            }
+            
+            return newTable;
+        } catch (error) {
+            console.error('Ошибка добавления стола:', error);
+            return null;
+        }
     }
 
-    updateTable(eventId, tableId, tableData) {
-        const event = this.getEventById(eventId);
-        if (!event) return false;
-
-        const table = event.tables.find(table => table.id === tableId);
-        if (!table) return false;
-
-        Object.assign(table, tableData);
-        this.saveEvents();
-        this.emit('tableUpdated', { event, table });
-        return true;
+    async updateTable(eventId, tableId, tableData) {
+        try {
+            const updatedTable = await apiAdapter.updateTable(eventId, tableId, tableData);
+            
+            // Обновляем локальный объект мероприятия
+            const event = this.getEventById(eventId);
+            if (event) {
+                const tableIndex = event.tables.findIndex(t => t.id === tableId);
+                if (tableIndex !== -1) {
+                    event.tables[tableIndex] = updatedTable;
+                    this.emit('tableUpdated', { event, table: updatedTable });
+                }
+            }
+            
+            return updatedTable;
+        } catch (error) {
+            console.error('Ошибка обновления стола:', error);
+            return false;
+        }
     }
 
     searchEvents(searchTerm) {
@@ -78,7 +85,7 @@ export class EventModel extends EventEmitter {
         const term = searchTerm.toLowerCase();
         return this.events.filter(event => 
             event.name.toLowerCase().includes(term) || 
-		event.description.toLowerCase().includes(term)
+		(event.description && event.description.toLowerCase().includes(term))
         );
     }
 }

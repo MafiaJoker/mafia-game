@@ -19,39 +19,56 @@ export class EventView {
 
     // Отображение списка всех мероприятий
     renderEventsList(events) {
-        if (!this.elements.eventsList) return;
-        
-        if (events.length === 0) {
-            this.elements.eventsList.innerHTML = `
+	if (!this.elements.eventsList && !this.elements.recentEvents) {
+            console.log('Элементы DOM для списка мероприятий не найдены');
+            return;
+	}
+	
+	console.log('Отрисовка списка мероприятий, количество:', events.length);
+	
+	if (events.length === 0) {
+            if (this.elements.eventsList) {
+		this.elements.eventsList.innerHTML = `
                 <div class="text-center py-5 text-muted">
                     <i class="bi bi-calendar-x" style="font-size: 2rem;"></i>
                     <p class="mt-3">Нет доступных мероприятий</p>
                 </div>
             `;
-            this.elements.recentEvents.innerHTML = `
+            }
+            
+            if (this.elements.recentEvents) {
+		this.elements.recentEvents.innerHTML = `
                 <div class="col-12 text-center py-4 text-muted">
                     <p>Нет недавних мероприятий</p>
                 </div>
             `;
+            }
             return;
-        }
-        
-        // Очищаем списки
-        this.elements.eventsList.innerHTML = '';
-        this.elements.recentEvents.innerHTML = '';
-        
-        // Сортируем мероприятия по дате (от ближайших к отдаленным)
-        const sortedEvents = [...events].sort((a, b) => new Date(a.date) - new Date(b.date));
-        
-        // Заполняем список мероприятий
-        sortedEvents.forEach(event => {
-            this.addEventToList(event);
+	}
+	
+	// Очищаем списки если они существуют
+	if (this.elements.eventsList) {
+            this.elements.eventsList.innerHTML = '';
+	}
+	
+	if (this.elements.recentEvents) {
+            this.elements.recentEvents.innerHTML = '';
+	}
+	
+	// Сортируем мероприятия по дате (от ближайших к отдаленным)
+	const sortedEvents = [...events].sort((a, b) => new Date(a.date) - new Date(b.date));
+	
+	// Заполняем список мероприятий
+	sortedEvents.forEach(event => {
+            if (this.elements.eventsList) {
+		this.addEventToList(event);
+            }
             
             // Создаем карточку для недавних мероприятий (только для 3-х ближайших)
-            if (this.elements.recentEvents.children.length < 3) {
-                this.addEventToRecentCards(event);
+            if (this.elements.recentEvents && this.elements.recentEvents.children.length < 3) {
+		this.addEventToRecentCards(event);
             }
-        });
+	});
     }
 
     // Добавление мероприятия в основной список

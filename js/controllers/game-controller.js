@@ -171,50 +171,69 @@ export class GameController {
 
     // Добавим метод для загрузки существующей игры
     loadExistingGame(game, event, table) {
-	// Инициализируем модель с данными из существующей игры
-	if (game.status === "in_progress" || game.status === "finished") {
-            gameModel.state.round = game.currentRound || 0;
-            gameModel.state.phase = game.status === "finished" ? "end" : "day";
-            gameModel.state.isGameStarted = true;
-            
-            // Настраиваем интерфейс в соответствии с состоянием игры
-            gameView.updateGamePhase(gameModel.state.phase);
-            gameView.updateRound(gameModel.state.round);
-            gameView.elements.ppkButton.classList.remove('d-none');
-            gameView.elements.eliminatePlayerButton.classList.remove('d-none');
-            
-            // Если игра завершена, показываем результат
-            if (game.status === "finished") {
-		let message = "";
-		if (game.result === "city_win") {
-                    message = localization.t('gameStatus', 'cityWin');
-                    gameView.showGameStatus(message, 'success');
-		} else if (game.result === "mafia_win") {
-                    message = localization.t('gameStatus', 'mafiaWin');
-                    gameView.showGameStatus(message, 'danger');
-		} else if (game.result === "draw") {
-                    message = localization.t('gameStatus', 'draw');
-                    gameView.showGameStatus(message, 'warning');
-		}
+	// Сохраняем информацию о текущей игре
+	gameModel.currentGameInfo = {
+            eventId: event.id,
+            tableId: table.id,
+            gameId: game.id
+	};
+	
+	// Пробуем загрузить состояние игры с сервера
+	const stateLoaded = await gameModel.loadGameState();
+	
+	// Если состояние не загружено, инициализируем стандартное состояние
+	if (!stateLoaded) {
+            if (game.status === "in_progress" || game.status === "finished") {
+		gameModel.state.round = game.currentRound || 0;
+		gameModel.state.phase = game.status === "finished" ? "end" : "day";
+		gameModel.state.isGameStarted = true;
 		
-		gameView.disableGameControls();
+		// Настраиваем интерфейс в соответствии с состоянием игры
+		gameView.updateGamePhase(gameModel.state.phase);
+		gameView.updateRound(gameModel.state.round);
+		gameView.elements.ppkButton.classList.remove('d-none');
+		gameView.elements.eliminatePlayerButton.classList.remove('d-none');
+		
+		// Если игра завершена, показываем результат
+		if (game.status === "finished") {
+                    let message = "";
+                    if (game.result === "city_win") {
+			message = localization.t('gameStatus', 'cityWin');
+			gameView.showGameStatus(message, 'success');
+                    } else if (game.result === "mafia_win") {
+			message = localization.t('gameStatus', 'mafiaWin');
+			gameView.showGameStatus(message, 'danger');
+                    } else if (game.result === "draw") {
+			message = localization.t('gameStatus', 'draw');
+			gameView.showGameStatus(message, 'warning');
+                    }
+                    
+                    gameView.disableGameControls();
+		}
+            } else {
+		// Для игры в статусе "Не начата"
+		gameModel.state.phase = GAME_PHASES.DISTRIBUTION;
+		gameView.updateGamePhase(GAME_PHASES.DISTRIBUTION);
             }
 	} else {
-            // Для игры в статусе "Не начата"
-            gameModel.state.phase = GAME_PHASES.DISTRIBUTION;
-            gameView.updateGamePhase(GAME_PHASES.DISTRIBUTION);
+            // Если состояние успешно загружено, обновляем интерфейс
+            gameView.updateGamePhase(gameModel.state.phase);
+            gameView.updateRound(gameModel.state.round);
+            
+            if (gameModel.state.isGameStarted) {
+		gameView.elements.ppkButton.classList.remove('d-none');
+		gameView.elements.eliminatePlayerButton.classList.remove('d-none');
+            }
+            
+            if (game.status === "finished") {
+		gameView.disableGameControls();
+            }
 	}
 	
 	this.setupEventListeners();
 	gameView.initModalHandlers();
 	this.updatePlayers();
 	
-	// Сохраняем информацию о текущей игре для последующего сохранения
-	gameModel.currentGameInfo = {
-            eventId: event.id,
-            tableId: table.id,
-            gameId: game.id
-	};
     }
 
     updatePlayers() {
@@ -521,6 +540,9 @@ export class GameController {
             
             this.updatePlayers();
             this.checkGameEnd();
+
+	    // Сохраняем состояние игры
+            await gameModel.saveGameState();
         }
     }
 

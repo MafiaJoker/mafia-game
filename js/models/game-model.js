@@ -2,6 +2,7 @@
 import { Player } from './player-model.js';
 import { GAME_PHASES, DEFAULT_PLAYERS_COUNT, NO_CANDIDATES_MAX_ROUNDS } from '../utils/constants.js';
 import EventEmitter from '../utils/event-emitter.js';
+import apiAdapter from '../adapter.js';
 
 export class GameModel extends EventEmitter {
     constructor() {
@@ -72,6 +73,128 @@ export class GameModel extends EventEmitter {
                this.state.players.filter(p => p.role === 'Шериф').length === 1;
     }
 
+    // Новые методы для работы с API
+
+    // Загрузка состояния игры с сервера
+    async loadGameState() {
+	if (!this.currentGameInfo) return false;
+	
+	try {
+            const { gameId } = this.currentGameInfo;
+            const gameState = await apiAdapter.getGameState(gameId);
+            
+            if (gameState) {
+		// Преобразуем полученное состояние в формат, понятный для модели
+		this.state = {
+                    ...this.state,
+                    ...gameState,
+                    // Удаляем id игры из состояния, так как оно уже хранится в currentGameInfo
+                    gameId: undefined
+		};
+		
+		// Если есть игроки, создаем экземпляры класса Player
+		if (gameState.players && Array.isArray(gameState.players)) {
+                    this.state.players = gameState.players.map(p => {
+			const player = new Player(p.id);
+			Object.assign(player, p);
+			return player;
+                    });
+		}
+		
+		// Преобразуем bestMoveTargets из массива в Set
+		if (gameState.bestMoveTargets && Array.isArray(gameState.bestMoveTargets)) {
+                    this.state.bestMoveTargets = new Set(gameState.bestMoveTargets);
+		}
+		
+		this.emit('gameStateLoaded', this.state);
+		return true;
+            }
+	} catch (error) {
+            console.error('Ошибка загрузки состояния игры:', error);
+	}
+	
+	return false;
+    }
+
+    // Сохранение состояния игры на сервер
+    async saveGameState() {
+	if (!this.currentGameInfo) return false;
+	
+	try {
+            const { gameId } = this.currentGameInfo;
+            
+            // Преобразуем Set bestMoveTargets в массив для сохранения
+            const bestMoveTargetsArray = Array.from(this.state.bestMoveTargets);
+            
+            const stateToSave = {
+		...this.state,
+		bestMoveTargets: bestMoveTargetsArray
+            };
+            
+            await apiAdapter.saveGameState(gameId, stateToSave);
+            return true;
+	} catch (error) {
+            console.error('Ошибка сохранения состояния игры:', error);
+            return false;
+	}
+    }
+
+    // Обновление информации об игре
+    async updateGameStatus(status, result = null) {
+	if (!this.currentGameInfo) return false;
+	
+	try {
+            const { eventId, tableId, gameId } = this.currentGameInfo;
+            
+            const gameData = {
+		status: status,
+		currentRound: this.state.round
+            };
+            
+            if (result) {
+		gameData.result = result;
+            }
+            
+            await apiAdapter.updateGame(eventId, tableId, gameId, gameData);
+            
+            // Сохраняем обновленное состояние игры
+            await this.saveGameState();
+            
+            return true;
+	} catch (error) {
+            console.error('Ошибка обновления статуса игры:', error);
+            return false;
+	}
+    }
+
+    // Обновление информации об игре
+    async updateGameStatus(status, result = null) {
+        if (!this.currentGameInfo) return false;
+        
+        try {
+            const { eventId, tableId, gameId } = this.currentGameInfo;
+            
+            const gameData = {
+                status: status,
+                currentRound: this.state.round
+            };
+            
+            if (result) {
+                gameData.result = result;
+            }
+            
+            await apiAdapter.updateGame(eventId, tableId, gameId, gameData);
+            
+            // Сохраняем обновленное состояние игры
+            await this.saveGameState();
+            
+            return true;
+        } catch (error) {
+            console.error('Ошибка обновления статуса игры:', error);
+            return false;
+        }
+    }
+    
     // Здесь будут остальные методы модели
     // ...
 }

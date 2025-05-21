@@ -1,6 +1,12 @@
-// events-app.js
+// js/events-app.js
 import eventController from './controllers/event-controller.js';
 import tableController from './controllers/table-controller.js';
+import eventModel from './models/event-model.js';
+import eventView from './views/event-view.js';
+import apiAdapter from './adapter.js';
+
+// Делаем адаптер доступным глобально
+window.apiAdapter = apiAdapter;
 
 // Функция для установки текущей даты по умолчанию
 function setCurrentDateAsDefault() {
@@ -15,10 +21,13 @@ function setCurrentDateAsDefault() {
 }
 
 // Инициализация при загрузке страницы
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Установка текущей даты по умолчанию
     setCurrentDateAsDefault();
+    
+    // Явно загружаем данные и обновляем интерфейс
+    await eventModel.loadEvents();
+    eventView.renderEventsList(eventModel.events);
 });
 
-// Готово! Контроллеры уже инициализируются в своих файлах
 console.log('События мафии инициализированы');

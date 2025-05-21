@@ -5,27 +5,32 @@ import tableController from './table-controller.js';
 
 export class EventController {
     constructor() {
+	// Сначала подписываемся на события модели, потом инициализируем UI
+	this.initEventListeners();
         this.setupEventListeners();
-        
-        // Подписываемся на события модели
-        eventModel.on('eventsLoaded', (events) => {
-            eventView.renderEventsList(events);
-        });
-        
-        eventModel.on('eventCreated', (event) => {
-            eventView.renderEventsList(eventModel.events);
-            this.showEventDetails(event);
-        });
-        
-        eventModel.on('tableAdded', ({ event }) => {
-            eventView.renderEventDetails(event);
-        });
-        
-        eventModel.on('tableUpdated', ({ event }) => {
-            eventView.renderEventDetails(event);
-        });
     }
 
+    initEventListeners() {
+	// Подписываемся на события модели
+	eventModel.on('eventsLoaded', (events) => {
+            console.log('Получено событие eventsLoaded, количество мероприятий:', events.length);
+            eventView.renderEventsList(events);
+	});
+	
+	eventModel.on('eventCreated', (event) => {
+            eventView.renderEventsList(eventModel.events);
+            this.showEventDetails(event);
+	});
+	
+	eventModel.on('tableAdded', ({ event }) => {
+            eventView.renderEventDetails(event);
+	});
+	
+	eventModel.on('tableUpdated', ({ event }) => {
+            eventView.renderEventDetails(event);
+	});
+    }
+    
     setupEventListeners() {
         // Обработчик создания нового мероприятия
         const createEventForm = document.getElementById('createEventForm');
