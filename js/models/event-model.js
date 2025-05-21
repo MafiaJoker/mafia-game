@@ -6,7 +6,7 @@ export class EventModel extends EventEmitter {
     constructor() {
         super();
         this.events = [];
-        this.loadEvents();
+        // this.loadEvents();
     }
 
     async loadEvents() {

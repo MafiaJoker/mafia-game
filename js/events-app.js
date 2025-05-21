@@ -24,6 +24,9 @@ function setCurrentDateAsDefault() {
 document.addEventListener('DOMContentLoaded', async () => {
     // Установка текущей даты по умолчанию
     setCurrentDateAsDefault();
+
+    // Сначала убедимся, что контроллер инициализирован
+    console.log('Инициализация контроллера:', eventController);
     
     // Явно загружаем данные и обновляем интерфейс
     await eventModel.loadEvents();

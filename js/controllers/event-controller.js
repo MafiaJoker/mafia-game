@@ -35,7 +35,7 @@ export class EventController {
         // Обработчик создания нового мероприятия
         const createEventForm = document.getElementById('createEventForm');
         if (createEventForm) {
-            createEventForm.addEventListener('submit', (e) => {
+            createEventForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
                 const eventData = {
@@ -45,11 +45,19 @@ export class EventController {
 		    language: document.getElementById('eventLanguage').value // Добавляем язык
                 };
                 
-                eventModel.createEvent(eventData);
-                createEventForm.reset();
-                
-                // Показываем уведомление
-                alert('Мероприятие успешно создано!');
+		const newEvent = await eventModel.createEvent(eventData);
+		
+		if (newEvent) {
+                    // Принудительно обновляем список мероприятий
+                    eventView.renderEventsList(eventModel.events);
+                    
+                    // Показываем уведомление
+                    alert('Мероприятие успешно создано!');
+                    
+                    // Сбрасываем форму
+                    createEventForm.reset();
+                    setCurrentDateAsDefault(); // Необходимо определить эту функцию
+		}
             });
         }
         
