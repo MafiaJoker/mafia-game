@@ -19,6 +19,10 @@ export class EventController {
             console.log('Получено событие eventsLoaded, количество мероприятий:', events.length);
             eventView.renderEventsList(events);
 	});
+
+	eventModel.on('tableDeleted', ({ event }) => {
+	    eventView.renderEventDetails(event);
+	});
 	
 	eventModel.on('eventCreated', (event) => {
             eventView.renderEventsList(eventModel.events);

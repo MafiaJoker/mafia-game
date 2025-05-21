@@ -147,6 +147,12 @@ export class ApiAdapter {
     async getJudge(judgeId) {
 	return this.fetchApi(`/judges/${judgeId}`);
     }
+
+    async deleteTable(eventId, tableId) {
+	return this.fetchApi(`/events/${eventId}/tables/${tableId}`, {
+            method: 'DELETE'
+	});
+    }
     
 }
 

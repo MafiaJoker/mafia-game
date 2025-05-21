@@ -1,6 +1,7 @@
 // controllers/table-controller.js
 import eventModel from '../models/event-model.js';
 import tableView from '../views/table-view.js';
+import eventView from '../views/event-view.js';
 
 export class TableController {
     constructor() {
@@ -10,27 +11,33 @@ export class TableController {
     setupEventListeners() {
         // Делегирование событий для списка столов
         const tablesContainer = document.getElementById('tablesContainer');
-        if (tablesContainer) {
+	if (tablesContainer) {
             tablesContainer.addEventListener('click', (e) => {
-                const editBtn = e.target.closest('.edit-table-btn');
-                const openBtn = e.target.closest('.open-table-btn');
-                
-                if (editBtn) {
+		const editBtn = e.target.closest('.edit-table-btn');
+		const openBtn = e.target.closest('.open-table-btn');
+		const deleteBtn = e.target.closest('.delete-table-btn');
+		
+		if (editBtn) {
                     const eventId = parseInt(editBtn.dataset.eventId);
                     const tableId = parseInt(editBtn.dataset.tableId);
                     const event = eventModel.getEventById(eventId);
                     const table = event?.tables.find(t => t.id === tableId);
                     
                     if (event && table) {
-                        this.openTableModal(eventId, table);
+			this.openTableModal(eventId, table);
                     }
-                } else if (openBtn) {
+		} else if (openBtn) {
                     const eventId = parseInt(openBtn.dataset.eventId);
                     const tableId = parseInt(openBtn.dataset.tableId);
                     window.location.href = `game.html?eventId=${eventId}&tableId=${tableId}`;
-                }
+		} else if (deleteBtn) {
+                    const eventId = parseInt(deleteBtn.dataset.eventId);
+                    const tableId = parseInt(deleteBtn.dataset.tableId);
+                    this.deleteTable(eventId, tableId);
+                    e.stopPropagation();
+		}
             });
-        }
+	}
         
         // Обработчик сохранения стола
         const saveTableBtn = document.getElementById('saveTable');
@@ -122,6 +129,28 @@ export class TableController {
 	if (tableModal) {
             const modal = bootstrap.Modal.getInstance(tableModal);
             if (modal) modal.hide();
+	}
+
+	// Обновляем интерфейс явно
+	if (event) {
+            eventView.renderEventDetails(event);
+	}
+    }
+
+    async deleteTable(eventId, tableId) {
+	if (confirm('Вы уверены, что хотите удалить этот стол?')) {
+            try {
+		const result = await eventModel.deleteTableFromEvent(eventId, tableId);
+		if (result) {
+                    console.log('Стол успешно удален');
+                    // Обновление UI произойдет через обработчик события tableDeleted
+		} else {
+                    alert('Не удалось удалить стол. Проверьте подключение к серверу.');
+		}
+            } catch (error) {
+		console.error('Ошибка удаления стола:', error);
+		alert('Произошла ошибка при удалении стола.');
+            }
 	}
     }
 }

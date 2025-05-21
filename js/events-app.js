@@ -7,6 +7,7 @@ import apiAdapter from './adapter.js';
 
 // Делаем адаптер доступным глобально
 window.apiAdapter = apiAdapter;
+window.tableController = tableController;
 
 // Функция для установки текущей даты по умолчанию
 window.setCurrentDateAsDefault = function() {

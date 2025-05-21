@@ -59,6 +59,9 @@ export class TableView {
                     : 'Нет игр'}
             </span>
             <div>
+                <button class="btn btn-sm btn-outline-danger delete-table-btn" data-event-id="${event.id}" data-table-id="${table.id}">
+                    <i class="bi bi-trash"></i>
+                </button>
                 <button class="btn btn-sm btn-outline-secondary edit-table-btn" data-event-id="${event.id}" data-table-id="${table.id}">
                     <i class="bi bi-pencil"></i>
                 </button>

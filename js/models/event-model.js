@@ -212,6 +212,24 @@ export class EventModel extends EventEmitter {
         );
     }
 
+    async deleteTableFromEvent(eventId, tableId) {
+	try {
+            await apiAdapter.deleteTable(eventId, tableId);
+            
+            // Обновляем локальный объект мероприятия
+            const event = this.getEventById(eventId);
+            if (event && event.tables) {
+		event.tables = event.tables.filter(t => t.id !== tableId);
+		this.emit('tableDeleted', { event, tableId });
+            }
+            
+            return true;
+	} catch (error) {
+            console.error('Ошибка удаления стола:', error);
+            return false;
+	}
+    }
+    
     async deleteEvent(eventId) {
         try {
             console.log('Запуск удаления мероприятия:', eventId);
