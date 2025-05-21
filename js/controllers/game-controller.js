@@ -138,6 +138,27 @@ export class GameController {
 
     initGame() {
         try {
+	    // Получаем параметры из URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const eventId = parseInt(urlParams.get('eventId'));
+            const tableId = parseInt(urlParams.get('tableId'));
+            const gameId = parseInt(urlParams.get('gameId'));
+            
+            // Если есть ID игры, пытаемся загрузить существующую игру
+            if (eventId && tableId && gameId) {
+		const event = eventModel.getEventById(eventId);
+		if (event) {
+                    const table = event.tables.find(t => t.id === tableId);
+                    if (table && table.games) {
+			const game = table.games.find(g => g.id === gameId);
+			if (game) {
+                            this.loadExistingGame(game, event, table);
+                            return;
+			}
+                    }
+		}
+            }
+	    
             // Инициализация модели уже произошла в конструкторе
             this.setupEventListeners();
 	    gameView.initModalHandlers(); // Инициализируем обработчики модальных окон
@@ -146,6 +167,54 @@ export class GameController {
             console.error('Ошибка инициализации игры:', error);
             gameView.showGameStatus('Не удалось инициализировать игру. Пожалуйста, обновите страницу.', 'danger');
         }
+    }
+
+    // Добавим метод для загрузки существующей игры
+    loadExistingGame(game, event, table) {
+	// Инициализируем модель с данными из существующей игры
+	if (game.status === "in_progress" || game.status === "finished") {
+            gameModel.state.round = game.currentRound || 0;
+            gameModel.state.phase = game.status === "finished" ? "end" : "day";
+            gameModel.state.isGameStarted = true;
+            
+            // Настраиваем интерфейс в соответствии с состоянием игры
+            gameView.updateGamePhase(gameModel.state.phase);
+            gameView.updateRound(gameModel.state.round);
+            gameView.elements.ppkButton.classList.remove('d-none');
+            gameView.elements.eliminatePlayerButton.classList.remove('d-none');
+            
+            // Если игра завершена, показываем результат
+            if (game.status === "finished") {
+		let message = "";
+		if (game.result === "city_win") {
+                    message = localization.t('gameStatus', 'cityWin');
+                    gameView.showGameStatus(message, 'success');
+		} else if (game.result === "mafia_win") {
+                    message = localization.t('gameStatus', 'mafiaWin');
+                    gameView.showGameStatus(message, 'danger');
+		} else if (game.result === "draw") {
+                    message = localization.t('gameStatus', 'draw');
+                    gameView.showGameStatus(message, 'warning');
+		}
+		
+		gameView.disableGameControls();
+            }
+	} else {
+            // Для игры в статусе "Не начата"
+            gameModel.state.phase = GAME_PHASES.DISTRIBUTION;
+            gameView.updateGamePhase(GAME_PHASES.DISTRIBUTION);
+	}
+	
+	this.setupEventListeners();
+	gameView.initModalHandlers();
+	this.updatePlayers();
+	
+	// Сохраняем информацию о текущей игре для последующего сохранения
+	gameModel.currentGameInfo = {
+            eventId: event.id,
+            tableId: table.id,
+            gameId: game.id
+	};
     }
 
     updatePlayers() {
@@ -235,7 +304,10 @@ export class GameController {
         gameView.updateGamePhase(GAME_PHASES.DAY);
         gameView.elements.ppkButton.classList.remove('d-none');
 	gameView.elements.eliminatePlayerButton.classList.remove('d-none'); // Показываем кнопку удаления
-        
+
+	// Обновляем статус игры в хранилище
+	this.updateGameStatus("in_progress");
+	
         // Проверяем условия для начала голосования
         this.updateNominatedPlayers();
         
@@ -327,6 +399,9 @@ export class GameController {
 	const nightResult = nightActionsService.applyNightActions();
 	gameView.updateGamePhase(GAME_PHASES.DAY);
 
+	// Обновляем состояние игры при изменении круга
+	this.updateGameStatus("in_progress");
+	
 	// Очистка результатов предыдущих ночных проверок
 	gameView.elements.donResult.classList.add('d-none');
 	gameView.elements.sheriffResult.classList.add('d-none');
@@ -506,6 +581,7 @@ export class GameController {
             localization.t('gameStatus', 'mafiaWin'),
             'danger'
         );
+	this.updateGameStatus("finished", "mafia_win");
         this.endGame();
     }
 
@@ -514,6 +590,7 @@ export class GameController {
             localization.t('gameStatus', 'cityWin'),
             'success'
         );
+	this.updateGameStatus("finished", "city_win");
         this.endGame();
     }
 
@@ -522,7 +599,34 @@ export class GameController {
             localization.t('gameStatus', 'draw'),
             'warning'
         );
+	this.updateGameStatus("finished", "draw");
         this.endGame();
+    }
+
+    // Добавим новый метод для обновления статуса игры
+    updateGameStatus(status, result = null) {
+	if (!gameModel.currentGameInfo) return;
+	
+	const { eventId, tableId, gameId } = gameModel.currentGameInfo;
+	const event = eventModel.getEventById(eventId);
+	if (!event) return;
+	
+	const table = event.tables.find(t => t.id === tableId);
+	if (!table || !table.games) return;
+	
+	const game = table.games.find(g => g.id === gameId);
+	if (!game) return;
+	
+	// Обновляем статус и информацию игры
+	game.status = status;
+	game.currentRound = gameModel.state.round;
+	
+	if (result) {
+            game.result = result;
+	}
+	
+	// Сохраняем изменения
+	eventModel.saveEvents();
     }
 
     endGame() {

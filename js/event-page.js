@@ -90,6 +90,40 @@ document.addEventListener('DOMContentLoaded', () => {
     saveGameBtn.addEventListener('click', () => {
         saveNewGame(event, saveGameBtn.dataset.tableId);
     });
+
+    // Функция для удаления игры
+    function deleteGame(eventId, tableId, gameId) {
+	const event = eventModel.getEventById(eventId);
+	if (!event) return;
+	
+	const table = event.tables.find(t => t.id === parseInt(tableId));
+	if (!table || !table.games) return;
+	
+	// Фильтруем массив игр, удаляя игру с указанным ID
+	table.games = table.games.filter(g => g.id !== gameId);
+	
+	// Сохраняем изменения
+	eventModel.saveEvents();
+	
+	// Обновляем отображение
+	showTableDetails(event, table);
+    }
+    
+    // Добавим обработчик событий для всех кнопок удаления игр
+    document.addEventListener('click', (e) => {
+	const deleteBtn = e.target.closest('.delete-game-btn');
+	if (deleteBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const gameId = parseInt(deleteBtn.dataset.gameId);
+            const tableId = parseInt(document.getElementById('addGameBtn').dataset.tableId);
+            
+            if (confirm('Вы уверены, что хотите удалить эту игру?')) {
+		deleteGame(eventId, tableId, gameId);
+            }
+	}
+    });
     
     // Функция отображения деталей стола
     function showTableDetails(event, table) {
@@ -116,10 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
         tableDetails.innerHTML = `
             <div class="row mb-4">
                 <div class="col-md-6">
-                    <h6 class="text-muted">Вместимость:</h6>
-                    <p>${table.capacity} игроков</p>
-                </div>
-                <div class="col-md-6">
                     <h6 class="text-muted">Тип рассадки:</h6>
                     <p>
                         <span class="seating-type ${table.seatingType}">
@@ -144,17 +174,52 @@ document.addEventListener('DOMContentLoaded', () => {
             table.games.forEach(game => {
                 const gameItem = document.createElement('li');
                 gameItem.className = 'game-item';
-                gameItem.innerHTML = `
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-1">${game.name}</h6>
-                            <small class="text-muted">Создана: ${formatDate(game.created)}</small>
-                        </div>
-                        <a href="game.html?eventId=${event.id}&tableId=${table.id}&gameId=${game.id}" class="btn btn-sm btn-primary">
-                            Войти в игру
-                        </a>
-                    </div>
-                `;
+
+		// Определяем статус игры и дополнительную информацию
+		let statusText, statusClass;
+		let additionalInfo = '';
+
+		switch (game.status) {
+		case "in_progress":
+		    statusText = "В процессе";
+		    statusClass = "text-primary";
+		    additionalInfo = `<span class="badge bg-info">Круг: ${game.currentRound}</span>`;
+		    break;
+		case "finished":
+		    statusText = "Завершена";
+		    statusClass = "text-success";
+		    let resultText = '';
+		    if (game.result === "city_win") resultText = "Победа города";
+		    else if (game.result === "mafia_win") resultText = "Победа мафии";
+		    else if (game.result === "draw") resultText = "Ничья";
+		    additionalInfo = `<span class="badge bg-success">${resultText}</span>`;
+		    break;
+		default: // not_started
+		    statusText = "Не начата";
+		    statusClass = "text-secondary";
+		}
+		
+		gameItem.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="mb-1">${game.name}</h6>
+                <div class="d-flex align-items-center">
+                    <small class="text-muted me-2">Создана: ${formatDate(game.created)}</small>
+                    <span class="${statusClass} me-2">${statusText}</span>
+                    ${additionalInfo}
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-sm btn-outline-danger delete-game-btn" data-game-id="${game.id}">
+                    <i class="bi bi-trash"></i>
+                </button>
+                <a href="game.html?eventId=${event.id}&tableId=${table.id}&gameId=${game.id}" class="btn btn-sm btn-primary">
+                    Войти в игру
+                </a>
+            </div>
+        </div>
+    `;
+		
                 gamesList.appendChild(gameItem);
             });
         }
@@ -192,12 +257,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // Добавляем новую игру
         if (!table.games) table.games = [];
         
-        const newGame = {
-            id: Date.now(),
-            name: gameName,
-            created: new Date().toISOString(),
-            players: []
-        };
+	const newGame = {
+	    id: Date.now(),
+	    name: gameName,
+	    created: new Date().toISOString(),
+	    status: "not_started", // "not_started", "in_progress", "finished"
+	    players: [],
+	    currentRound: 0,
+	    result: null // "city_win", "mafia_win", "draw" для завершенных игр
+	};
         
         table.games.push(newGame);
         

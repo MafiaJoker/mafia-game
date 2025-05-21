@@ -47,7 +47,6 @@ export class TableView {
                 <span class="seating-type ${table.seatingType}">
                     ${table.seatingType === 'free' ? 'Свободная рассадка' : 'Заданная рассадка'}
                 </span>
-                <span class="badge bg-dark">${table.capacity} мест</span>
             </div>
         </div>
         <div class="mt-2">

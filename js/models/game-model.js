@@ -25,7 +25,11 @@ export class GameModel extends EventEmitter {
             bestMoveTargets: new Set(),
             rolesVisible: false
         };
+
         
+	// Информация о текущей игре в системе мероприятий
+	this.currentGameInfo = null;
+	
         this.initPlayers();
     }
 
