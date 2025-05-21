@@ -2,7 +2,7 @@
 export class ApiAdapter {
     constructor() {
         // Базовый URL API сервера
-        this.baseUrl = 'http://localhost:3000/api';
+        this.baseUrl = 'https://dev.api.jokermafia.am/mockapi/api';
         console.log('ApiAdapter инициализирован для работы с API');
     }
 
