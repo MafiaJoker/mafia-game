@@ -49,7 +49,20 @@ export class EventController {
 		    category: document.getElementById('eventCategory').value,
                     status: document.getElementById('eventStatus').value
                 };
-                
+
+		// Получаем выбранного ведущего из формы
+		const judgeSelector = document.getElementById('judgeSelector');
+		if (judgeSelector && judgeSelector.value) {
+		    eventData.judgeId = parseInt(judgeSelector.value);
+		} 
+		// Если ведущий не выбран в форме, используем ведущего из шапки
+		else {
+		    const defaultJudgeId = localStorage.getItem('defaultJudgeId');
+		    if (defaultJudgeId) {
+			eventData.judgeId = parseInt(defaultJudgeId);
+		    }
+		}
+		
 		const newEvent = await eventModel.createEvent(eventData);
 		
 		if (newEvent) {

@@ -68,6 +68,54 @@ async function loadJudgesIntoSelector() {
     }
 }
 
+// Функция для загрузки списка ведущих в селектор в шапке
+async function loadJudgesIntoHeaderSelector() {
+    const headerJudgeSelector = document.getElementById('headerJudgeSelector');
+    if (!headerJudgeSelector) return;
+    
+    try {
+        // Загружаем список ведущих с API
+        const judges = await apiAdapter.loadJudges();
+        
+        // Очищаем список
+        headerJudgeSelector.innerHTML = '';
+        
+        // Добавляем пустой элемент для возможности не выбирать ведущего
+        const emptyOption = document.createElement('option');
+        emptyOption.value = "";
+        emptyOption.textContent = "Выберите ведущего";
+        emptyOption.disabled = true;
+        emptyOption.selected = true;
+        headerJudgeSelector.appendChild(emptyOption);
+        
+        // Если ведущих нет, добавляем подсказку
+        if (judges.length === 0) {
+            const option = document.createElement('option');
+            option.value = "";
+            option.textContent = "Нет доступных ведущих";
+            option.disabled = true;
+            headerJudgeSelector.appendChild(option);
+        } else {
+            // Добавляем ведущих в список
+            judges.forEach(judge => {
+                const option = document.createElement('option');
+                option.value = judge.id;
+                option.textContent = judge.name;
+                headerJudgeSelector.appendChild(option);
+            });
+            
+            // Выбираем ведущего по умолчанию из localStorage
+            const defaultJudgeId = localStorage.getItem('defaultJudgeId');
+            if (defaultJudgeId && judges.some(judge => judge.id == defaultJudgeId)) {
+                headerJudgeSelector.value = defaultJudgeId;
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка при загрузке списка ведущих в шапку:', error);
+        headerJudgeSelector.innerHTML = '<option value="" disabled selected>Ошибка загрузки</option>';
+    }
+}
+
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', async () => {
     // Установка текущей даты по умолчанию
@@ -76,11 +124,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Загружаем список ведущих
     await loadJudgesIntoSelector();
 
+    // Загружаем список ведущих в селектор в шапке
+    await loadJudgesIntoHeaderSelector();
+    
     // Настраиваем обработчик для выбора ведущего
     const judgeSelector = document.getElementById('judgeSelector');
     if (judgeSelector) {
         judgeSelector.addEventListener('change', () => {
             localStorage.setItem('defaultJudgeId', judgeSelector.value);
+        });
+    }
+
+    // Настраиваем обработчик для выбора ведущего в шапке
+    const headerJudgeSelector = document.getElementById('headerJudgeSelector');
+    if (headerJudgeSelector) {
+        headerJudgeSelector.addEventListener('change', () => {
+            localStorage.setItem('defaultJudgeId', headerJudgeSelector.value);
+            
+            // Синхронизируем выбор с основным селектором
+            const judgeSelector = document.getElementById('judgeSelector');
+            if (judgeSelector) {
+                judgeSelector.value = headerJudgeSelector.value;
+            }
         });
     }
     

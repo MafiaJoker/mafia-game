@@ -52,10 +52,19 @@
     <!-- HTML остается тем же самым, как и в предыдущем ответе -->
     <div class="container main-container">
       <header class="text-center mb-5">
-        <h1 class="display-4 mb-0">Мероприятия Мафии</h1>
-        <p class="lead text-muted">Создавайте мероприятия и управляйте игровыми столами</p>
+	<div class="d-flex justify-content-between align-items-center mb-2">
+	  <div></div> <!-- пустой div для выравнивания -->
+	  <h1 class="display-4 mb-0">Мероприятия Мафии</h1>
+	  <div class="judge-selector" style="width: 200px;">
+	    <select class="form-select form-select-sm" id="headerJudgeSelector">
+              <option value="" selected disabled>Выберите ведущего</option>
+              <!-- Опции будут загружены динамически -->
+	    </select>
+	  </div>
+	</div>
+	<p class="lead text-muted">Создавайте мероприятия и управляйте игровыми столами</p>
       </header>
-
+      
       <div class="row g-4">
         <!-- Секция создания нового мероприятия -->
         <div class="col-lg-5">
@@ -99,7 +108,7 @@
 		<div class="mb-3">
 		  <label for="eventStatus" class="form-label">Статус мероприятия</label>
 		  <select class="form-control" id="eventStatus">
-		    <option value="planned" selected>Создано</option>
+		    <option value="planned" selected>Запланировать</option>
 		    <option value="active">Активно</option>
 		    <option value="completed">Завершено</option>
 		  </select>

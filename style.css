@@ -176,3 +176,14 @@
     background-color: #e83e8c;
     color: white;
 }
+
+.judge-selector {
+    max-width: 200px;
+}
+
+@media (max-width: 768px) {
+    .judge-selector {
+        max-width: 150px;
+        font-size: 0.9rem;
+    }
+}
