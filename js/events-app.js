@@ -21,6 +21,56 @@ window.setCurrentDateAsDefault = function() {
     }
 }
 
+// Функция для установки значений формы по умолчанию
+window.setDefaultEventValues = async function() {
+    // Убедимся, что мероприятия загружены
+    await eventModel.loadEvents();
+    
+    // Заполнение названия
+    const eventNameField = document.getElementById('eventName');
+    if (eventNameField) {
+        // Ищем все фановые игры (с категорией 'funky')
+        const funkyGames = eventModel.events.filter(event => 
+            event.category === 'funky');
+        
+        // Устанавливаем следующий номер
+        eventNameField.value = `Фановая игра #${funkyGames.length + 1}`;
+    }
+    
+    // Заполнение описания
+    const eventDescField = document.getElementById('eventDescription');
+    if (eventDescField) {
+        const today = new Date();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        
+        // Ищем фановые игры за текущий месяц (с категорией 'funky')
+        const currentMonthFunkyGames = eventModel.events.filter(event => {
+            // Проверяем категорию
+            const isFunky = event.category === 'funky';
+            
+            // Проверяем, что игра в текущем месяце
+            const eventDate = new Date(event.date);
+            const isCurrentMonth = eventDate.getMonth() === currentMonth && 
+                                  eventDate.getFullYear() === currentYear;
+            
+            return isFunky && isCurrentMonth;
+        });
+        
+        // Определяем, какая это игра по счету в текущем месяце
+        const gameNumber = currentMonthFunkyGames.length + 1;
+        
+        // Получаем название месяца
+        const monthNames = [
+            'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+            'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'
+        ];
+        
+        // Составляем описание
+        eventDescField.value = `${gameNumber}-я фановая игра вечера за ${monthNames[currentMonth]} ${currentYear} года.`;
+    }
+}
+
 // Загрузка списка ведущих в выпадающий список
 async function loadJudgesIntoSelector() {
     const judgeSelector = document.getElementById('judgeSelector');
@@ -127,6 +177,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Загружаем список ведущих в селектор в шапке
     await loadJudgesIntoHeaderSelector();
+
+    // Устанавливаем значения по умолчанию для полей формы
+    await setDefaultEventValues();
     
     // Настраиваем обработчик для выбора ведущего
     const judgeSelector = document.getElementById('judgeSelector');
