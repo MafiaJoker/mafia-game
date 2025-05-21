@@ -155,6 +155,11 @@ export class EventView {
 	this.elements.eventDetailsModalLabel.textContent = event.name;
 	this.elements.joinEventBtn.href = `event.html?id=${event.id}`;
 
+	const existingDeleteBtn = this.elements.joinEventBtn.parentElement.querySelector('.delete-event-btn');
+	if (existingDeleteBtn) {
+	    existingDeleteBtn.remove();
+	}
+	
 	const deleteBtn = document.createElement('button');
 	deleteBtn.className = 'btn btn-danger delete-event-btn ms-2';
 	deleteBtn.dataset.eventId = event.id;

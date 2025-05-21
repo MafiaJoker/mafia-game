@@ -63,11 +63,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <strong>${table.name}</strong>
-                        <div class="small text-muted">${table.capacity} мест</div>
                     </div>
-                    <span class="seating-type ${table.seatingType}">
-                        ${table.seatingType === 'free' ? 'Свободная' : 'Заданная'}
-                    </span>
                 </div>
             `;
 		tableItem.addEventListener('click', (e) => {
