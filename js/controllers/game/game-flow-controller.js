@@ -71,6 +71,11 @@ export class GameFlowController extends EventEmitter {
         }
     }
 
+    initDistribution() {
+	console.log('Инициализация раздачи ролей');
+	this.startRoleDistribution();
+    }
+    
     async loadExistingGame(game, event, table) {
         gameModel.currentGameInfo = {
             eventId: event.id,
@@ -156,34 +161,38 @@ export class GameFlowController extends EventEmitter {
     }
 
     updateControlsVisibility(status, substatus) {
-        // Сначала скрываем все контролы
-        this.hideAllControls();
-        
-        switch (status) {
-            case GAME_STATUSES.CREATED:
-                gameView.elements.startDistribution.classList.remove('d-none');
-                break;
-                
-            case GAME_STATUSES.SEATING_READY:
-                this.showSeatingControls();
-                break;
-                
-            case GAME_STATUSES.ROLE_DISTRIBUTION:
-                this.showRoleDistributionControls();
-                break;
-                
-            case GAME_STATUSES.IN_PROGRESS:
-                this.showInProgressControls(substatus);
-                break;
-                
-            case GAME_STATUSES.FINISHED_NO_SCORES:
-                this.showFinishedNoScoresControls();
-                break;
-                
-            case GAME_STATUSES.FINISHED_WITH_SCORES:
-                this.showFinishedWithScoresControls();
-                break;
-        }
+	// Сначала скрываем все контролы
+	this.hideAllControls();
+	
+	console.log('Обновление видимости контролов для статуса:', status);
+	
+	switch (status) {
+        case GAME_STATUSES.CREATED:
+            console.log('Показываем кнопку "Раздать роли"');
+            gameView.elements.startDistribution.classList.remove('d-none');
+            break;
+            
+        case GAME_STATUSES.SEATING_READY:
+            this.showSeatingControls();
+            break;
+            
+        case GAME_STATUSES.ROLE_DISTRIBUTION:
+            console.log('Показываем кнопки раздачи ролей и начала игры');
+            this.showRoleDistributionControls();
+            break;
+            
+        case GAME_STATUSES.IN_PROGRESS:
+            this.showInProgressControls(substatus);
+            break;
+            
+        case GAME_STATUSES.FINISHED_NO_SCORES:
+            this.showFinishedNoScoresControls();
+            break;
+            
+        case GAME_STATUSES.FINISHED_WITH_SCORES:
+            this.showFinishedWithScoresControls();
+            break;
+	}
     }
 
     hideAllControls() {
@@ -322,31 +331,61 @@ export class GameFlowController extends EventEmitter {
     }
 
     startRoleDistribution() {
-        if (gameModel.canTransitionTo(GAME_STATUSES.ROLE_DISTRIBUTION)) {
+	console.log('Запуск раздачи ролей, текущий статус:', gameModel.state.gameStatus);
+	if (gameModel.canTransitionTo(GAME_STATUSES.ROLE_DISTRIBUTION)) {
             gameModel.setGameStatus(GAME_STATUSES.ROLE_DISTRIBUTION);
-        }
+            console.log('Статус изменен на ROLE_DISTRIBUTION');
+	} else {
+            console.error('Невозможно перейти к раздаче ролей из текущего статуса:', gameModel.state.gameStatus);
+	}
     }
 
     async startGame() {
-        const gameRulesService = await import('../../services/game-rules-service.js');
-        
-        if (!gameRulesService.default.canStartGame(gameModel.state.players)) {
-            toastManager.error('Необходимо распределить 2 мафии, 1 дона и 1 шерифа!');
+	console.log('Попытка начать игру...');
+	console.log('Текущий статус игры:', gameModel.state.gameStatus);
+	console.log('Игроки:', gameModel.state.players.map(p => ({ id: p.id, role: p.role })));
+	
+	const gameRulesService = await import('../../services/game-rules-service.js');
+	
+	if (!gameRulesService.default.canStartGame(gameModel.state.players)) {
+            console.error('Роли распределены неправильно');
+            const mafiaCount = gameModel.state.players.filter(p => p.role === 'Мафия').length;
+            const donCount = gameModel.state.players.filter(p => p.role === 'Дон').length;
+            const sheriffCount = gameModel.state.players.filter(p => p.role === 'Шериф').length;
+            console.log('Текущее распределение ролей:', { mafiaCount, donCount, sheriffCount });
+            
+            // Попробуйте импортировать toastManager по-другому
+            try {
+		const toastManager = await import('../../utils/toast-manager.js');
+		toastManager.default.error('Необходимо распределить 2 мафии, 1 дона и 1 шерифа!');
+            } catch (error) {
+		console.error('Ошибка импорта toastManager:', error);
+		alert('Необходимо распределить 2 мафии, 1 дона и 1 шерифа!');
+            }
             return;
-        }
-        
-        if (gameModel.canTransitionTo(GAME_STATUSES.IN_PROGRESS)) {
+	}
+	
+	console.log('Проверка возможности перехода к IN_PROGRESS...');
+	if (gameModel.canTransitionTo(GAME_STATUSES.IN_PROGRESS)) {
+            console.log('Переход разрешен, начинаем игру...');
             gameModel.setGameStatus(GAME_STATUSES.IN_PROGRESS, GAME_SUBSTATUS.DISCUSSION);
             gameModel.state.isGameStarted = true;
             gameModel.state.round = 1;
 
-            await this.updateGameStatus("in_progress");
-            await gameModel.saveGameState();
+            try {
+		await this.updateGameStatus("in_progress");
+		await gameModel.saveGameState();
+		console.log('Игра успешно начата');
+            } catch (error) {
+		console.error('Ошибка при сохранении статуса игры:', error);
+            }
             
             timerService.reset();
             
             this.emit('gameStarted');
-        }
+	} else {
+            console.error('Невозможно перейти к IN_PROGRESS из текущего статуса:', gameModel.state.gameStatus);
+	}
     }
 
     startVoting() {
