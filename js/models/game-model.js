@@ -76,67 +76,36 @@ export class GameModel extends EventEmitter {
     // Новые методы для работы с API
 
     // Загрузка состояния игры с сервера
-    // Загрузка состояния игры с сервера
     async loadGameState() {
 	if (!this.currentGameInfo) return false;
 	
 	try {
             const { gameId } = this.currentGameInfo;
-            console.log('Загрузка состояния игры с ID:', gameId);
             const gameState = await apiAdapter.getGameState(gameId);
             
             if (gameState) {
-		console.log('Получено состояние с сервера:', gameState);
-		
-		// Полная замена локального состояния полученным с сервера
+		// Преобразуем полученное состояние в формат, понятный для модели
 		this.state = {
-                    round: gameState.round || 0,
-                    phase: gameState.phase || GAME_PHASES.DISTRIBUTION,
-                    isGameStarted: gameState.isGameStarted || false,
-                    nominatedPlayers: gameState.nominatedPlayers || [],
-                    votingResults: gameState.votingResults || {},
-                    shootoutPlayers: gameState.shootoutPlayers || [],
-                    deadPlayers: gameState.deadPlayers || [],
-                    eliminatedPlayers: gameState.eliminatedPlayers || [],
-                    nightKill: gameState.nightKill,
-                    bestMoveUsed: gameState.bestMoveUsed || false,
-                    noCandidatesRounds: gameState.noCandidatesRounds || 0,
-                    mafiaTarget: gameState.mafiaTarget,
-                    donTarget: gameState.donTarget,
-                    sheriffTarget: gameState.sheriffTarget,
-                    rolesVisible: gameState.rolesVisible || false
+                    ...this.state,
+                    ...gameState,
+                    // Удаляем id игры из состояния, так как оно уже хранится в currentGameInfo
+                    gameId: undefined
 		};
 		
-		// Корректная инициализация игроков из полученных данных
+		// Если есть игроки, создаем экземпляры класса Player
 		if (gameState.players && Array.isArray(gameState.players)) {
                     this.state.players = gameState.players.map(p => {
 			const player = new Player(p.id);
-			// Явно копируем все важные свойства
-			player.name = p.name;
-			player.role = p.role;
-			player.originalRole = p.originalRole;
-			player.fouls = p.fouls || 0;
-			player.nominated = p.nominated;
-			player.isAlive = p.isAlive !== undefined ? p.isAlive : true;
-			player.isEliminated = p.isEliminated || false;
-			player.isSilent = p.isSilent || false;
-			player.silentNextRound = p.silentNextRound || false;
+			Object.assign(player, p);
 			return player;
                     });
 		}
 		
-		// Правильное преобразование bestMoveTargets из массива в Set
-		if (gameState.bestMoveTargets) {
-                    this.state.bestMoveTargets = new Set(
-			Array.isArray(gameState.bestMoveTargets) 
-			    ? gameState.bestMoveTargets 
-			    : []
-                    );
-		} else {
-                    this.state.bestMoveTargets = new Set();
+		// Преобразуем bestMoveTargets из массива в Set
+		if (gameState.bestMoveTargets && Array.isArray(gameState.bestMoveTargets)) {
+                    this.state.bestMoveTargets = new Set(gameState.bestMoveTargets);
 		}
 		
-		console.log('Состояние игры успешно загружено');
 		this.emit('gameStateLoaded', this.state);
 		return true;
             }
@@ -144,44 +113,15 @@ export class GameModel extends EventEmitter {
             console.error('Ошибка загрузки состояния игры:', error);
 	}
 	
-	console.warn('Не удалось загрузить состояние игры, будет использовано стандартное состояние');
 	return false;
     }
 
-    // Проверка корректности загруженного состояния
-    validateGameState(gameState) {
-	// Проверяем минимальный набор нужных полей
-	if (!gameState || typeof gameState !== 'object') {
-            console.error('Некорректное состояние игры:', gameState);
-            return false;
-	}
-	
-	// Проверяем, что в состоянии есть массив игроков
-	if (!Array.isArray(gameState.players)) {
-            console.error('В состоянии игры отсутствуют игроки:', gameState);
-            return false;
-	}
-	
-	// Проверяем фазу игры
-	const validPhases = Object.values(GAME_PHASES);
-	if (gameState.phase && !validPhases.includes(gameState.phase)) {
-            console.error('Некорректная фаза игры:', gameState.phase);
-            return false;
-	}
-	
-	return true;
-    }
-    
     // Сохранение состояния игры на сервер
     async saveGameState() {
-	if (!this.currentGameInfo) {
-            console.error('Не удалось сохранить состояние: отсутствует информация о текущей игре');
-            return false;
-	}
+	if (!this.currentGameInfo) return false;
 	
 	try {
             const { gameId } = this.currentGameInfo;
-            console.log('Сохранение состояния игры с ID:', gameId, 'Текущий круг:', this.state.round);
             
             // Преобразуем Set bestMoveTargets в массив для сохранения
             const bestMoveTargetsArray = Array.from(this.state.bestMoveTargets);
@@ -192,7 +132,6 @@ export class GameModel extends EventEmitter {
             };
             
             await apiAdapter.saveGameState(gameId, stateToSave);
-            console.log('Состояние игры успешно сохранено');
             return true;
 	} catch (error) {
             console.error('Ошибка сохранения состояния игры:', error);
