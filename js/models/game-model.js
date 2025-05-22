@@ -180,9 +180,13 @@ export class GameModel extends EventEmitter {
     }
 
     canStartGame() {
-        return this.state.players.filter(p => p.role === 'Мафия').length === 2 &&
-            this.state.players.filter(p => p.role === 'Дон').length === 1 &&
-            this.state.players.filter(p => p.role === 'Шериф').length === 1;
+	const mafiaCount = this.state.players.filter(p => p.role === 'Мафия').length;
+	const donCount = this.state.players.filter(p => p.role === 'Дон').length;
+	const sheriffCount = this.state.players.filter(p => p.role === 'Шериф').length;
+	
+	console.log(`Проверка ролей: Мафия=${mafiaCount}, Дон=${donCount}, Шериф=${sheriffCount}`);
+	
+	return mafiaCount === 2 && donCount === 1 && sheriffCount === 1;
     }
 
     // Методы для работы с баллами

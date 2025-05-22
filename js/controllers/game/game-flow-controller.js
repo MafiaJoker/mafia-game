@@ -200,6 +200,15 @@ export class GameFlowController extends EventEmitter {
         elements.votingSection.classList.add('d-none');
         elements.nightSection.classList.add('d-none');
         elements.bestMoveSection.classList.add('d-none');
+
+	// Удаляем все кастомные кнопки
+	this.clearCustomButtons();
+    }
+    
+    // Добавляем метод для очистки кастомных кнопок
+    clearCustomButtons() {
+	const customButtons = gameView.elements.gameActions.querySelectorAll('button:not([id])');
+	customButtons.forEach(button => button.remove());
     }
 
     showSeatingControls() {
@@ -211,8 +220,39 @@ export class GameFlowController extends EventEmitter {
     }
 
     showRoleDistributionControls() {
-        gameView.elements.startDistribution.classList.remove('d-none');
-        gameView.elements.startGame.classList.remove('d-none');
+	gameView.elements.startDistribution.classList.remove('d-none');
+	
+	// Добавляем кнопку отмены раздачи ролей
+	const cancelButton = this.createCustomButton('Отменить раздачу ролей', () => {
+            this.cancelRoleDistribution();
+	});
+	cancelButton.classList.add('btn-secondary'); // Делаем серой
+	cancelButton.classList.remove('btn-primary');
+	gameView.elements.gameActions.appendChild(cancelButton);
+	
+	// Кнопка "Начать игру" будет показана только когда роли правильно розданы
+	// через событие canStartGameChanged
+	const canStart = gameModel.canStartGame();
+	gameView.elements.startGame.classList.toggle('d-none', !canStart);
+    }
+
+    cancelRoleDistribution() {
+	// Сбрасываем все роли на "Мирный"
+	gameModel.state.players.forEach(player => {
+            player.role = 'Мирный';
+            player.originalRole = 'Мирный';
+	});
+	
+	// Возвращаемся к начальному статусу
+	gameModel.setGameStatus(GAME_STATUSES.CREATED);
+	
+	// Скрываем кнопку "Начать игру"
+	gameView.elements.startGame.classList.add('d-none');
+	
+	// Обновляем отображение игроков
+	if (window.gameController) {
+            window.gameController.updatePlayers();
+	}
     }
 
     showInProgressControls(substatus) {

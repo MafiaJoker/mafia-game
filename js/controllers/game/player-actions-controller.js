@@ -75,23 +75,33 @@ export class PlayerActionsController extends EventEmitter {
     }
 
     changePlayerRole(playerId) {
-        // Используем новый метод проверки статуса
-        if (!gameModel.isInRoleDistribution()) {
+	console.log(`Попытка изменить роль игрока ${playerId}, статус игры: ${gameModel.state.gameStatus}`);
+	
+	// Используем новый метод проверки статуса
+	if (!gameModel.isInRoleDistribution()) {
+            console.log('Не в режиме раздачи ролей, изменение роли отклонено');
             return;
-        }
-        
-        const player = gameModel.getPlayer(playerId);
-        if (!player) return;
-        
-        const existingRoles = gameModel.state.players.map(p => p.role);
-        const newRole = player.changeRole(existingRoles);
-        
-        this.emit('playerRoleChanged', { playerId, newRole });
-        
-        const canStartGame = gameModel.canStartGame();
-        this.emit('canStartGameChanged', canStartGame);
-        
-        return newRole;
+	}
+	
+	const player = gameModel.getPlayer(playerId);
+	if (!player) {
+            console.log(`Игрок ${playerId} не найден`);
+            return;
+	}
+	
+	const existingRoles = gameModel.state.players.map(p => p.role);
+	const oldRole = player.role;
+	const newRole = player.changeRole(existingRoles);
+	
+	console.log(`Роль игрока ${playerId} изменена с ${oldRole} на ${newRole}`);
+	
+	this.emit('playerRoleChanged', { playerId, newRole });
+	
+	const canStartGame = gameModel.canStartGame();
+	console.log(`Проверка возможности начать игру: ${canStartGame}`);
+	this.emit('canStartGameChanged', canStartGame);
+	
+	return newRole;
     }
 
     showEliminatePlayerModal() {

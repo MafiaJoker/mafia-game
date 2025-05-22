@@ -25,6 +25,7 @@ export class GameController {
         this.setupControllerEvents();
         this.setupModelEvents();
         this.setupTimerEvents();
+	this.setupEventListeners();
     }
 
     setupControllerEvents() {
@@ -69,14 +70,16 @@ export class GameController {
             this.updatePlayers();
         });
         
-        this.playerActionsController.on('playerRoleChanged', ({ playerId, newRole }) => {
+	this.playerActionsController.on('playerRoleChanged', ({ playerId, newRole }) => {
+            console.log(`Роль игрока ${playerId} изменена на ${newRole}`);
             this.updatePlayers();
-        });
+	});
         
-        this.playerActionsController.on('canStartGameChanged', (canStart) => {
+	this.playerActionsController.on('canStartGameChanged', (canStart) => {
+            console.log(`Можно начать игру: ${canStart}`);
             gameView.elements.startGame.classList.toggle('d-none', !canStart);
-        });
-
+	});
+	
         // События голосования
         this.votingController.on('checkGameEnd', () => {
             this.checkGameEnd();
