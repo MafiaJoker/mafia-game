@@ -3,6 +3,7 @@ import { Player } from './player-model.js';
 import { GAME_PHASES, DEFAULT_PLAYERS_COUNT, NO_CANDIDATES_MAX_ROUNDS } from '../utils/constants.js';
 import EventEmitter from '../utils/event-emitter.js';
 import apiAdapter from '../adapter.js';
+import gameStateManager from '../services/game-state-manager.js';
 
 export class GameModel extends EventEmitter {
     constructor() {
@@ -77,97 +78,65 @@ export class GameModel extends EventEmitter {
 
     // Загрузка состояния игры с сервера
     async loadGameState() {
-	console.log('=== НАЧАЛО ЗАГРУЗКИ СОСТОЯНИЯ ИГРЫ ===');
-	
-	if (!this.currentGameInfo) {
+        if (!this.currentGameInfo) {
             console.error('currentGameInfo не установлен');
             return false;
-	}
-	
-	try {
-            const { gameId } = this.currentGameInfo;
-            console.log('Загрузка состояния для игры ID:', gameId);
-            console.log('API adapter:', apiAdapter);
+        }
+        
+        const { gameId } = this.currentGameInfo;
+        const gameState = await gameStateManager.loadState(gameId);
+        
+        if (gameState) {
+            // Применяем загруженное состояние
+            this.state = {
+                ...this.state,
+                ...gameState,
+                gameId: undefined
+            };
             
-            // Проверяем, что API adapter доступен
-            if (!apiAdapter) {
-		console.error('API adapter не найден');
-		return false;
+            // Создаем экземпляры игроков
+            if (gameState.players && Array.isArray(gameState.players)) {
+                const { Player } = await import('./player-model.js');
+                this.state.players = gameState.players.map(p => {
+                    const player = new Player(p.id);
+                    Object.assign(player, p);
+                    return player;
+                });
             }
             
-            console.log('Отправляем запрос на сервер...');
-            const gameState = await apiAdapter.getGameState(gameId);
-            console.log('Ответ от сервера:', gameState);
-            
-            if (gameState && gameState.round !== undefined) {
-		console.log('Состояние игры получено, применяем...');
-		
-		// Преобразуем полученное состояние в формат, понятный для модели
-		this.state = {
-                    ...this.state,
-                    ...gameState,
-                    // Удаляем id игры из состояния, так как оно уже хранится в currentGameInfo
-                    gameId: undefined
-		};
-		
-		// Если есть игроки, создаем экземпляры класса Player
-		if (gameState.players && Array.isArray(gameState.players)) {
-                    console.log('Создаем игроков из состояния, количество:', gameState.players.length);
-                    this.state.players = gameState.players.map(p => {
-			const player = new Player(p.id);
-			Object.assign(player, p);
-			return player;
-                    });
-		}
-		
-		// Преобразуем bestMoveTargets из массива в Set
-		if (gameState.bestMoveTargets && Array.isArray(gameState.bestMoveTargets)) {
-                    this.state.bestMoveTargets = new Set(gameState.bestMoveTargets);
-		} else {
-                    this.state.bestMoveTargets = new Set();
-		}
-		
-		console.log('Состояние игры успешно применено');
-		this.emit('gameStateLoaded', this.state);
-		return true;
-            } else {
-		console.log('Состояние игры не найдено или пустое, gameState:', gameState);
-		return false;
-            }
-	} catch (error) {
-            console.error('Ошибка загрузки состояния игры:', error);
-            return false;
-	}
+            this.emit('gameStateLoaded', this.state);
+            return true;
+        }
+        
+        return false;
+    }
+
+    // Запуск автосохранения при старте игры
+    startAutoSave() {
+        if (this.currentGameInfo) {
+            gameStateManager.startAutoSave(this.currentGameInfo.gameId);
+        }
+    }
+
+    stopAutoSave() {
+        gameStateManager.stopAutoSave();
     }
 
     // Сохранение состояния игры на сервер
     async saveGameState() {
-	if (!this.currentGameInfo) {
+        if (!this.currentGameInfo) {
             console.warn('Информация о текущей игре отсутствует');
             return false;
-	}
-	
-	try {
-            const { gameId } = this.currentGameInfo;
-            console.log('Сохранение состояния для игры ID:', gameId);
-            
-            // Преобразуем Set bestMoveTargets в массив для сохранения
-            const bestMoveTargetsArray = Array.from(this.state.bestMoveTargets);
-            
-            const stateToSave = {
-		...this.state,
-		bestMoveTargets: bestMoveTargetsArray
-            };
-            
-            console.log('Сохраняемое состояние:', stateToSave);
-            
-            await apiAdapter.saveGameState(gameId, stateToSave);
-            console.log('Состояние игры успешно сохранено');
-            return true;
-	} catch (error) {
-            console.error('Ошибка сохранения состояния игры:', error);
-            return false;
-	}
+        }
+        
+        const { gameId } = this.currentGameInfo;
+        const success = await gameStateManager.saveState(gameId, this.state);
+        
+        if (success) {
+            this.emit('gameStateSaved', gameId);
+        }
+        
+        return success;
     }
 
     // Обновление информации об игре
