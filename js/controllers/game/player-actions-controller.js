@@ -3,6 +3,7 @@ import gameModel from '../../models/game-model.js';
 import gameView from '../../views/game-view.js';
 import { MAX_FOULS } from '../../utils/constants.js';
 import EventEmitter from '../../utils/event-emitter.js';
+import gameRulesService from '../../services/game-rules-service.js';
 
 export class PlayerActionsController extends EventEmitter {
     constructor() {
@@ -76,7 +77,7 @@ export class PlayerActionsController extends EventEmitter {
     }
 
     changePlayerRole(playerId) {
-        const gameRulesService = require('../../services/game-rules-service.js').default;
+
         
         if (!gameRulesService.canChangeRoles(gameModel.state.phase)) {
             return;

@@ -159,6 +159,36 @@ export class ApiAdapter {
             method: 'DELETE'
 	});
     }
+
+    // МЕТОДЫ ДЛЯ РАБОТЫ С БАЛЛАМИ ИГРОКОВ
+
+    // Получение баллов игроков для игры
+    async getGameScores(gameId) {
+	return this.fetchApi(`/games/${gameId}/scores`);
+    }
+
+    // Обновление баллов игроков
+    async updateGameScores(gameId, scores) {
+	return this.fetchApi(`/games/${gameId}/scores`, {
+            method: 'PUT',
+            body: JSON.stringify(scores)
+	});
+    }
+
+    // Получение статистики игры
+    async getGameStatistics(gameId) {
+	return this.fetchApi(`/games/${gameId}/statistics`);
+    }
+
+    // МЕТОДЫ ДЛЯ РАБОТЫ С РАСШИРЕННЫМИ СТАТУСАМИ ИГР
+
+    // Обновление статуса игры с поддержкой новых полей
+    async updateGameWithStatus(eventId, tableId, gameId, gameData) {
+	return this.fetchApi(`/events/${eventId}/tables/${tableId}/games/${gameId}`, {
+            method: 'PUT',
+            body: JSON.stringify(gameData)
+	});
+    }
 }
 
 export default new ApiAdapter();

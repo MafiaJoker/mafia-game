@@ -40,7 +40,7 @@ export class GameController {
             gameView.initModalHandlers();
             this.updatePlayers();
         });
-        
+
         this.gameFlowController.on('gameStarted', () => {
             this.votingController.updateNominatedPlayers();
             this.updatePlayers();
@@ -124,8 +124,55 @@ export class GameController {
         this.bestMoveController.on('updateNominations', () => {
             this.votingController.updateNominatedPlayers();
         });
+
+	this.gameFlowController.on('showScoreInterface', () => {
+	    this.showScoreInterface();
+	});
+
+	this.gameFlowController.on('showFinalScores', () => {
+	    this.showFinalScores();
+	});
     }
 
+    async showScoreInterface() {
+	const { ScoreManager } = await import('../components/score-manager.js');
+	const scoreManager = new ScoreManager();
+	
+	// Добавляем интерфейс в контейнер
+	const container = document.querySelector('.container.main');
+	if (container) {
+            container.appendChild(scoreManager.element);
+	}
+    }
+
+    showFinalScores() {
+	// Показываем финальную таблицу с результатами игры
+	const finalScoresHtml = this.generateFinalScoresHtml();
+	gameView.showGameStatus(finalScoresHtml, 'success');
+    }
+
+    generateFinalScoresHtml() {
+	let html = '<h4>Итоговые результаты игры</h4><table class="table table-sm"><thead><tr><th>Место</th><th>Игрок</th><th>Роль</th><th>Баллы</th></tr></thead><tbody>';
+	
+	// Сортируем игроков по общему количеству баллов
+	const sortedPlayers = [...gameModel.state.players].sort((a, b) => {
+            return gameModel.getTotalPlayerScore(b.id) - gameModel.getTotalPlayerScore(a.id);
+	});
+	
+	sortedPlayers.forEach((player, index) => {
+            const totalScore = gameModel.getTotalPlayerScore(player.id);
+            html += `<tr>
+            <td>${index + 1}</td>
+            <td>${player.name}</td>
+            <td>${player.originalRole}</td>
+            <td><strong>${totalScore.toFixed(1)}</strong></td>
+        </tr>`;
+	});
+	
+	html += '</tbody></table>';
+	return html;
+    }
+    
     setupModelEvents() {
         gameModel.on('rolesVisibilityChanged', (visible) => {
             this.updatePlayers();
