@@ -2,6 +2,7 @@
 import eventModel from '../models/event-model.js';
 import tableView from '../views/table-view.js';
 import eventView from '../views/event-view.js';
+import toastManager from '../utils/toast-manager.js';
 
 export class TableController {
     constructor() {
@@ -53,7 +54,7 @@ export class TableController {
 	// Проверяем статус мероприятия
 	const event = eventModel.getEventById(eventId);
 	if (event && event.status === 'completed') {
-            alert('Невозможно добавить стол к завершенному мероприятию');
+            toastManager.error('Невозможно добавить стол к завершенному мероприятию');
             return;
 	}
 	
@@ -100,7 +101,7 @@ export class TableController {
 	// Проверяем статус мероприятия
 	const event = eventModel.getEventById(eventId);
 	if (event && event.status === 'completed') {
-            alert('Невозможно добавить стол к завершенному мероприятию');
+            toastManager.error('Невозможно добавить стол к завершенному мероприятию');
             return;
 	}
 	
@@ -136,7 +137,7 @@ export class TableController {
             }
 	} catch (error) {
             console.error('Ошибка при сохранении стола:', error);
-            alert('Произошла ошибка при сохранении стола.');
+            toastManager.error('Произошла ошибка при сохранении стола.');
 	}
     }
     
@@ -153,11 +154,11 @@ export class TableController {
 			eventView.renderEventDetails(updatedEvent);
                     }
 		} else {
-                    alert('Не удалось удалить стол. Проверьте подключение к серверу.');
+                    toastManager.error('Не удалось удалить стол. Проверьте подключение к серверу.');
 		}
             } catch (error) {
 		console.error('Ошибка удаления стола:', error);
-		alert('Произошла ошибка при удалении стола.');
+		toastManager.errot('Произошла ошибка при удалении стола.');
             }
 	}
     }

@@ -5,6 +5,7 @@ import timerService from '../../utils/timer-service.js';
 import { GAME_PHASES } from '../../utils/constants.js';
 import localization from '../../utils/localization.js';
 import EventEmitter from '../../utils/event-emitter.js';
+import toastManager from '../../utils/toast-manager.js';
 
 export class GameFlowController extends EventEmitter {
     constructor() {
@@ -40,7 +41,7 @@ export class GameFlowController extends EventEmitter {
                 }
                 
                 console.error('Не удалось найти игру с указанными параметрами');
-                alert('Игра не найдена');
+                toastManager.error('Игра не найдена');
                 return;
             }
             
@@ -125,7 +126,7 @@ export class GameFlowController extends EventEmitter {
         const gameRulesService = await import('../../services/game-rules-service.js');
         
         if (!gameRulesService.default.canStartGame(gameModel.state.players)) {
-            alert('Необходимо распределить 2 мафии, 1 дона и 1 шерифа!');
+            toastManager.error('Необходимо распределить 2 мафии, 1 дона и 1 шерифа!');
             return;
         }
         

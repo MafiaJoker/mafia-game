@@ -4,6 +4,7 @@ import tableController from './controllers/table-controller.js';
 import eventModel from './models/event-model.js';
 import eventView from './views/event-view.js';
 import apiAdapter from './adapter.js';
+import toastManager from './utils/toast-manager.js';
 
 // Делаем адаптер доступным глобально
 window.apiAdapter = apiAdapter;

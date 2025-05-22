@@ -2,6 +2,7 @@
 import eventModel from './models/event-model.js';
 import tableController from './controllers/table-controller.js';
 import apiAdapter from './adapter.js';
+import toastManager from './utils/toast-manager.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -10,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const eventId = parseInt(urlParams.get('id'));
         
         if (!eventId) {
-            alert('ID мероприятия не указан');
+            toastManager.error('ID мероприятия не указан');
             window.location.href = 'index.html';
             return;
         }
@@ -21,7 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Теперь пытаемся найти мероприятие
         const event = eventModel.getEventById(eventId);
         if (!event) {
-            alert('Мероприятие не найдено');
+            toastManager.error('Мероприятие не найдено');
             window.location.href = 'index.html';
             return;
         }
@@ -113,7 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 		}
 	    } catch (error) {
 		console.error('Ошибка при удалении игры:', error);
-		alert('Не удалось удалить игру.');
+		toastManager.error('Не удалось удалить игру.');
 	    }
 	}
 	
@@ -254,7 +255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 	    const gameName = document.getElementById('gameName').value;
 	    
 	    if (!gameName) {
-		alert('Введите название игры');
+		toastManager.error('Введите название игры');
 		return;
 	    }
 	    
@@ -280,7 +281,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 		}
 	    } catch (error) {
 		console.error('Ошибка создания игры:', error);
-		alert('Не удалось создать игру. Проверьте, запущен ли API-сервер.');
+		toastManager.error('Не удалось создать игру. Проверьте, запущен ли API-сервер.');
 	    }
 	}
 	
@@ -295,7 +296,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 	}
     } catch (error) {
         console.error('Ошибка при загрузке мероприятия:', error);
-        alert('Произошла ошибка при загрузке мероприятия. Проверьте, запущен ли API-сервер.');
+        toastManager.error('Произошла ошибка при загрузке мероприятия. Проверьте, запущен ли API-сервер.');
         window.location.href = 'index.html';
     }
 });

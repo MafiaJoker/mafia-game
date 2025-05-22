@@ -2,6 +2,7 @@
 import eventModel from '../models/event-model.js';
 import eventView from '../views/event-view.js';
 import tableController from './table-controller.js';
+import toastManager from '../utils/toast-manager.js';
 
 export class EventController {
     constructor() {
@@ -74,7 +75,7 @@ export class EventController {
                     eventView.renderEventsList(eventModel.events);
                     
                     // Показываем уведомление
-                    alert('Мероприятие успешно создано!');
+                    toastManager.success('Мероприятие успешно создано!');
                     
                     // Сбрасываем форму
                     createEventForm.reset();
@@ -246,9 +247,9 @@ export class EventController {
             }
             
             // Показываем сообщение об успешном изменении статуса
-            alert(`Статус мероприятия изменен на "${eventModel.getStatusName(newStatus)}"`);
+            toastManager.success(`Статус мероприятия изменен на "${eventModel.getStatusName(newStatus)}"`);
 	} else {
-            alert('Ошибка изменения статуса мероприятия');
+            toastManager.error('Ошибка изменения статуса мероприятия');
 	}
     }
     
@@ -285,9 +286,9 @@ export class EventController {
 		eventView.renderEventsList(eventModel.events);
 		
 		// Показываем уведомление
-		alert('Мероприятие успешно удалено!');
+                toastManager.success('Мероприятие успешно создано!');
             } else {
-		alert('Не удалось удалить мероприятие. Проверьте, что API-сервер запущен.');
+		toastManager.error('Не удалось удалить мероприятие. Проверьте, что API-сервер запущен.');
             }
 	}
     }
