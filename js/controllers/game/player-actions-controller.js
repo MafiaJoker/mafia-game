@@ -3,7 +3,6 @@ import gameModel from '../../models/game-model.js';
 import gameView from '../../views/game-view.js';
 import { MAX_FOULS } from '../../utils/constants.js';
 import EventEmitter from '../../utils/event-emitter.js';
-import gameRulesService from '../../services/game-rules-service.js';
 
 export class PlayerActionsController extends EventEmitter {
     constructor() {
@@ -16,7 +15,6 @@ export class PlayerActionsController extends EventEmitter {
             player.eliminate();
             gameModel.state.eliminatedPlayers.push(playerId);
             
-            // Сбрасываем все номинации для этого игрока
             gameModel.state.players.forEach(p => {
                 if (p.nominated === playerId) {
                     p.nominated = null;
@@ -77,9 +75,8 @@ export class PlayerActionsController extends EventEmitter {
     }
 
     changePlayerRole(playerId) {
-
-        
-        if (!gameRulesService.canChangeRoles(gameModel.state.phase)) {
+        // Используем новый метод проверки статуса
+        if (!gameModel.isInRoleDistribution()) {
             return;
         }
         
@@ -91,7 +88,7 @@ export class PlayerActionsController extends EventEmitter {
         
         this.emit('playerRoleChanged', { playerId, newRole });
         
-        const canStartGame = gameRulesService.canStartGame(gameModel.state.players);
+        const canStartGame = gameModel.canStartGame();
         this.emit('canStartGameChanged', canStartGame);
         
         return newRole;

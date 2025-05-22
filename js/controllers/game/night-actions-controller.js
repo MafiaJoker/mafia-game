@@ -2,7 +2,7 @@
 import gameModel from '../../models/game-model.js';
 import gameView from '../../views/game-view.js';
 import nightActionsService from '../../services/night-actions-service.js';
-import { GAME_PHASES } from '../../utils/constants.js';
+import { GAME_STATUSES, GAME_SUBSTATUS } from '../../utils/constants.js';
 import EventEmitter from '../../utils/event-emitter.js';
 
 export class NightActionsController extends EventEmitter {
@@ -21,7 +21,8 @@ export class NightActionsController extends EventEmitter {
         });
         
         nightActionsService.on('nightActionsApplied', (result) => {
-            gameView.updateGamePhase(GAME_PHASES.DAY);
+            // Обновляем UI для нового дня (обсуждение)
+            gameView.updateGameStatus(gameModel.state.gameStatus, gameModel.state.gameSubstatus);
             gameView.updateRound(result.round);
             
             console.log("Ночные действия применены, round:", result.round);
@@ -38,8 +39,8 @@ export class NightActionsController extends EventEmitter {
     }
 
     goToNight() {
-        gameModel.state.phase = GAME_PHASES.NIGHT;
-        gameView.updateGamePhase(GAME_PHASES.NIGHT);
+        gameModel.setGameSubstatus(GAME_SUBSTATUS.NIGHT);
+        gameView.updateGameStatus(gameModel.state.gameStatus, gameModel.state.gameSubstatus);
         
         // Сброс ночных целей
         gameModel.state.mafiaTarget = null;
@@ -75,7 +76,9 @@ export class NightActionsController extends EventEmitter {
 
     async confirmNight() {
         const nightResult = nightActionsService.applyNightActions();
-        gameView.updateGamePhase(GAME_PHASES.DAY);
+        
+        // Переходим к обсуждению нового дня
+        gameView.updateGameStatus(gameModel.state.gameStatus, gameModel.state.gameSubstatus);
 
         // Обновляем статус игры при изменении круга
         this.emit('updateGameStatus', "in_progress");

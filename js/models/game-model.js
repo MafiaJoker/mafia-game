@@ -1,7 +1,6 @@
 // js/models/game-model.js
 import { Player } from './player-model.js';
 import { 
-    GAME_PHASES, 
     GAME_STATUSES, 
     GAME_SUBSTATUS,
     DEFAULT_PLAYERS_COUNT, 
@@ -16,9 +15,8 @@ export class GameModel extends EventEmitter {
         super();
         this.state = {
             round: 0,
-            phase: GAME_PHASES.DISTRIBUTION,
             
-            // Новые поля для статусов
+            // Новая система статусов (убрали phase полностью)
             gameStatus: GAME_STATUSES.CREATED,
             gameSubstatus: null,
             
@@ -38,14 +36,12 @@ export class GameModel extends EventEmitter {
             bestMoveTargets: new Set(),
             rolesVisible: false,
             
-            // Новые поля для системы баллов
-            scores: {}, // { playerId: { baseScore: number, additionalScore: number } }
-            isCriticalRound: false // флаг критического круга
+            // Система баллов
+            scores: {},
+            isCriticalRound: false
         };
 
-        // Информация о текущей игре в системе мероприятий
         this.currentGameInfo = null;
-        
         this.initPlayers();
     }
 
@@ -53,7 +49,6 @@ export class GameModel extends EventEmitter {
         this.state.players = [];
         for (let i = 1; i <= DEFAULT_PLAYERS_COUNT; i++) {
             this.state.players.push(new Player(i));
-            // Инициализируем баллы для каждого игрока
             this.state.scores[i] = { baseScore: 0, additionalScore: 0 };
         }
     }
@@ -96,7 +91,6 @@ export class GameModel extends EventEmitter {
     canTransitionTo(targetStatus, targetSubstatus = null) {
         const current = this.state.gameStatus;
         
-        // Определяем разрешенные переходы
         const allowedTransitions = {
             [GAME_STATUSES.CREATED]: [
                 GAME_STATUSES.SEATING_READY,
@@ -104,30 +98,50 @@ export class GameModel extends EventEmitter {
             ],
             [GAME_STATUSES.SEATING_READY]: [
                 GAME_STATUSES.ROLE_DISTRIBUTION,
-                GAME_STATUSES.CREATED // возврат назад
+                GAME_STATUSES.CREATED
             ],
             [GAME_STATUSES.ROLE_DISTRIBUTION]: [
                 GAME_STATUSES.IN_PROGRESS,
-                GAME_STATUSES.SEATING_READY // возврат назад
+                GAME_STATUSES.SEATING_READY
             ],
             [GAME_STATUSES.IN_PROGRESS]: [
                 GAME_STATUSES.FINISHED_NO_SCORES
             ],
             [GAME_STATUSES.FINISHED_NO_SCORES]: [
                 GAME_STATUSES.FINISHED_WITH_SCORES,
-                GAME_STATUSES.IN_PROGRESS // возврат к игре если нужно
+                GAME_STATUSES.IN_PROGRESS
             ],
-            [GAME_STATUSES.FINISHED_WITH_SCORES]: [
-                // Финальный статус, переходов нет
-            ]
+            [GAME_STATUSES.FINISHED_WITH_SCORES]: []
         };
 
         return allowedTransitions[current]?.includes(targetStatus) || false;
     }
 
+    // Проверяем, находимся ли в фазе раздачи ролей
+    isInRoleDistribution() {
+        return this.state.gameStatus === GAME_STATUSES.ROLE_DISTRIBUTION;
+    }
+
+    // Проверяем, идет ли игра
+    isGameInProgress() {
+        return this.state.gameStatus === GAME_STATUSES.IN_PROGRESS;
+    }
+
+    // Проверяем, можно ли голосовать
+    canVote() {
+        return this.state.gameStatus === GAME_STATUSES.IN_PROGRESS && 
+            this.state.gameSubstatus === GAME_SUBSTATUS.VOTING;
+    }
+
+    // Проверяем, ночь ли сейчас
+    isNight() {
+        return this.state.gameStatus === GAME_STATUSES.IN_PROGRESS && 
+            this.state.gameSubstatus === GAME_SUBSTATUS.NIGHT;
+    }
+
     // Проверяем критический ли сейчас круг
     isCriticalRound() {
-        if (this.state.gameStatus !== GAME_STATUSES.IN_PROGRESS) return false;
+        if (!this.isGameInProgress()) return false;
         
         const alivePlayers = this.state.players.filter(p => p.isAlive && !p.isEliminated);
         const mafiaCount = alivePlayers.filter(p => 
@@ -135,8 +149,40 @@ export class GameModel extends EventEmitter {
         ).length;
         const civilianCount = alivePlayers.length - mafiaCount;
         
-        // Критический круг когда мафии осталось столько же или больше чем мирных
         return mafiaCount >= civilianCount - 1;
+    }
+
+    // Остальные методы остаются без изменений...
+    toggleRolesVisibility() {
+        this.state.rolesVisible = !this.state.rolesVisible;
+        this.emit('rolesVisibilityChanged', this.state.rolesVisible);
+    }
+
+    getPlayer(playerId) {
+        return this.state.players.find(p => p.id === playerId);
+    }
+
+    changePlayerRole(playerId) {
+        if (!this.isInRoleDistribution()) return;
+        
+        const player = this.getPlayer(playerId);
+        if (!player) return;
+        
+        const existingRoles = this.state.players.map(p => p.role);
+        player.changeRole(existingRoles);
+        
+        this.emit('playerRoleChanged', player);
+        
+        const canStartGame = this.canStartGame();
+        this.emit('canStartGameChanged', canStartGame);
+        
+        return player.role;
+    }
+
+    canStartGame() {
+        return this.state.players.filter(p => p.role === 'Мафия').length === 2 &&
+            this.state.players.filter(p => p.role === 'Дон').length === 1 &&
+            this.state.players.filter(p => p.role === 'Шериф').length === 1;
     }
 
     // Методы для работы с баллами
@@ -160,40 +206,7 @@ export class GameModel extends EventEmitter {
         return score.baseScore + score.additionalScore;
     }
 
-    // Остальные методы остаются без изменений...
-    toggleRolesVisibility() {
-        this.state.rolesVisible = !this.state.rolesVisible;
-        this.emit('rolesVisibilityChanged', this.state.rolesVisible);
-    }
-
-    getPlayer(playerId) {
-        return this.state.players.find(p => p.id === playerId);
-    }
-
-    changePlayerRole(playerId) {
-        if (this.state.gameStatus !== GAME_STATUSES.ROLE_DISTRIBUTION) return;
-        
-        const player = this.getPlayer(playerId);
-        if (!player) return;
-        
-        const existingRoles = this.state.players.map(p => p.role);
-        player.changeRole(existingRoles);
-        
-        this.emit('playerRoleChanged', player);
-        
-        const canStartGame = this.canStartGame();
-        this.emit('canStartGameChanged', canStartGame);
-        
-        return player.role;
-    }
-
-    canStartGame() {
-        return this.state.players.filter(p => p.role === 'Мафия').length === 2 &&
-               this.state.players.filter(p => p.role === 'Дон').length === 1 &&
-               this.state.players.filter(p => p.role === 'Шериф').length === 1;
-    }
-
-    // Обновленные методы для работы с API
+    // Методы работы с API остаются без изменений
     async loadGameState() {
         if (!this.currentGameInfo) {
             console.error('currentGameInfo не установлен');
@@ -204,14 +217,12 @@ export class GameModel extends EventEmitter {
         const gameState = await gameStateManager.loadState(gameId);
         
         if (gameState) {
-            // Применяем загруженное состояние
             this.state = {
                 ...this.state,
                 ...gameState,
                 gameId: undefined
             };
             
-            // Создаем экземпляры игроков
             if (gameState.players && Array.isArray(gameState.players)) {
                 const { Player } = await import('./player-model.js');
                 this.state.players = gameState.players.map(p => {
@@ -221,7 +232,6 @@ export class GameModel extends EventEmitter {
                 });
             }
             
-            // Убеждаемся что scores инициализированы
             if (!this.state.scores) {
                 this.state.scores = {};
                 this.state.players.forEach(p => {
@@ -236,7 +246,6 @@ export class GameModel extends EventEmitter {
         return false;
     }
 
-    // Остальные методы без изменений...
     startAutoSave() {
         if (this.currentGameInfo) {
             gameStateManager.startAutoSave(this.currentGameInfo.gameId);
@@ -279,8 +288,6 @@ export class GameModel extends EventEmitter {
             }
             
             await apiAdapter.updateGame(eventId, tableId, gameId, gameData);
-            
-            // Сохраняем обновленное состояние игры
             await this.saveGameState();
             
             return true;

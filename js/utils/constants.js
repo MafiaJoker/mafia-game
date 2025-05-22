@@ -1,10 +1,4 @@
 // utils/constants.js
-export const GAME_PHASES = {
-    DISTRIBUTION: 'distribution',
-    DAY: 'day',
-    VOTING: 'voting',
-    NIGHT: 'night'
-};
 
 // Основные статусы игры
 export const GAME_STATUSES = {

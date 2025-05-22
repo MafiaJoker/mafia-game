@@ -1,5 +1,5 @@
 // js/services/game-rules-service.js
-import { GAME_PHASES, NO_CANDIDATES_MAX_ROUNDS } from '../utils/constants.js';
+import { GAME_STATUSES, NO_CANDIDATES_MAX_ROUNDS } from '../utils/constants.js';
 
 export class GameRulesService {
     canStartGame(players) {
@@ -10,8 +10,8 @@ export class GameRulesService {
         return mafiaCount === 2 && donCount === 1 && sheriffCount === 1;
     }
     
-    canChangeRoles(currentPhase) {
-        return currentPhase === GAME_PHASES.DISTRIBUTION;
+    canChangeRoles(gameStatus) {
+        return gameStatus === GAME_STATUSES.ROLE_DISTRIBUTION;
     }
     
     checkWinConditions(players, noCandidatesRounds = 0) {
@@ -65,9 +65,9 @@ export class GameRulesService {
     
     getMinimumCandidates(round, totalPlayers) {
         if (round === 0 && totalPlayers === 10) {
-            return 2; // Первый день при 10 игроках
+            return 2;
         }
-        return 1; // Остальные случаи
+        return 1;
     }
 }
 

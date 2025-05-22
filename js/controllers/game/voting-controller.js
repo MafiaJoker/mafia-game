@@ -2,7 +2,7 @@
 import gameModel from '../../models/game-model.js';
 import gameView from '../../views/game-view.js';
 import votingService from '../../services/voting-service.js';
-import { GAME_PHASES } from '../../utils/constants.js';
+import { GAME_STATUSES, GAME_SUBSTATUS } from '../../utils/constants.js';
 import localization from '../../utils/localization.js';
 import EventEmitter from '../../utils/event-emitter.js';
 
@@ -14,7 +14,8 @@ export class VotingController extends EventEmitter {
 
     setupVotingListeners() {
         votingService.on('votingStarted', (nominatedPlayers) => {
-            gameView.updateGamePhase(GAME_PHASES.VOTING);
+            gameModel.setGameSubstatus(GAME_SUBSTATUS.VOTING);
+            gameView.updateGameStatus(gameModel.state.gameStatus, gameModel.state.gameSubstatus);
             gameView.renderVotingOptions(nominatedPlayers, gameModel.state.votingResults);
         });
         
@@ -56,7 +57,6 @@ export class VotingController extends EventEmitter {
     }
 
     startVoting() {
-        // Проверка на единственную кандидатуру
         if (gameModel.state.nominatedPlayers.length === 1 && gameModel.state.round > 0) {
             this.handleSingleCandidate();
             return;
@@ -115,11 +115,14 @@ export class VotingController extends EventEmitter {
         const startVotingBtn = gameView.elements.startVoting;
         const goToNightBtn = gameView.elements.goToNight;
         
-        if (gameModel.state.phase === GAME_PHASES.DAY) {
+        // Проверяем, что мы в процессе игры и в фазе обсуждения
+        if (gameModel.isGameInProgress() && 
+            (gameModel.state.gameSubstatus === GAME_SUBSTATUS.DISCUSSION || 
+             gameModel.state.gameSubstatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION)) {
+            
             const playersCount = gameModel.state.players.filter(p => p.isAlive && !p.isEliminated).length;
             
             if (gameModel.state.round === 0 && playersCount === 10) {
-                // Первый день - требуется минимум 2 кандидатуры при 10 игроках
                 if (gameModel.state.nominatedPlayers.length >= 2) {
                     startVotingBtn.classList.remove('d-none');
                     goToNightBtn.classList.add('d-none');
@@ -128,11 +131,9 @@ export class VotingController extends EventEmitter {
                     goToNightBtn.classList.remove('d-none');
                 }
             } else if (gameModel.state.nominatedPlayers.length >= 1) {
-                // Остальные случаи - минимум 1 кандидатура
                 startVotingBtn.classList.remove('d-none');
                 goToNightBtn.classList.add('d-none');
             } else {
-                // Нет кандидатур - идем в ночь
                 startVotingBtn.classList.add('d-none');
                 goToNightBtn.classList.remove('d-none');
             }

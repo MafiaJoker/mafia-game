@@ -3,7 +3,6 @@ import gameModel from '../../models/game-model.js';
 import gameView from '../../views/game-view.js';
 import timerService from '../../utils/timer-service.js';
 import { 
-    GAME_PHASES, 
     GAME_STATUSES, 
     GAME_SUBSTATUS,
     GAME_STATUS_NAMES,
@@ -72,8 +71,8 @@ export class GameFlowController extends EventEmitter {
     }
 
     initDistribution() {
-	console.log('Инициализация раздачи ролей');
-	this.startRoleDistribution();
+        console.log('Инициализация раздачи ролей');
+        this.startRoleDistribution();
     }
     
     async loadExistingGame(game, event, table) {
@@ -106,7 +105,6 @@ export class GameFlowController extends EventEmitter {
         if (game.status === "in_progress") {
             gameModel.setGameStatus(GAME_STATUSES.IN_PROGRESS, GAME_SUBSTATUS.DISCUSSION);
             gameModel.state.round = game.currentRound || 1;
-            gameModel.state.phase = "day";
             gameModel.state.isGameStarted = true;
             
             this.updateUIForStatus(GAME_STATUSES.IN_PROGRESS, GAME_SUBSTATUS.DISCUSSION);
@@ -128,7 +126,6 @@ export class GameFlowController extends EventEmitter {
         gameModel.setGameStatus(status);
         
         gameModel.state.round = game.currentRound || 0;
-        gameModel.state.phase = "end";
         gameModel.state.isGameStarted = false;
         
         this.updateUIForStatus(status);
@@ -148,9 +145,6 @@ export class GameFlowController extends EventEmitter {
         
         // Показываем/скрываем элементы управления в зависимости от статуса
         this.updateControlsVisibility(status, substatus);
-        
-        // Обновляем фазу игры для совместимости со старым кодом
-        this.updateLegacyPhase(status, substatus);
     }
 
     updateStatusDisplay(status, substatus) {
@@ -161,12 +155,12 @@ export class GameFlowController extends EventEmitter {
     }
 
     updateControlsVisibility(status, substatus) {
-	// Сначала скрываем все контролы
-	this.hideAllControls();
-	
-	console.log('Обновление видимости контролов для статуса:', status);
-	
-	switch (status) {
+        // Сначала скрываем все контролы
+        this.hideAllControls();
+        
+        console.log('Обновление видимости контролов для статуса:', status);
+        
+        switch (status) {
         case GAME_STATUSES.CREATED:
             console.log('Показываем кнопку "Раздать роли"');
             gameView.elements.startDistribution.classList.remove('d-none');
@@ -192,7 +186,7 @@ export class GameFlowController extends EventEmitter {
         case GAME_STATUSES.FINISHED_WITH_SCORES:
             this.showFinishedWithScoresControls();
             break;
-	}
+        }
     }
 
     hideAllControls() {
@@ -297,30 +291,9 @@ export class GameFlowController extends EventEmitter {
         return button;
     }
 
-    updateLegacyPhase(status, substatus) {
-        // Обновляем старую систему фаз для совместимости
-        if (status === GAME_STATUSES.ROLE_DISTRIBUTION) {
-            gameModel.state.phase = GAME_PHASES.DISTRIBUTION;
-            gameView.updateGamePhase(GAME_PHASES.DISTRIBUTION);
-        } else if (status === GAME_STATUSES.IN_PROGRESS) {
-            switch (substatus) {
-                case GAME_SUBSTATUS.DISCUSSION:
-                case GAME_SUBSTATUS.CRITICAL_DISCUSSION:
-                case GAME_SUBSTATUS.SUSPECTS_SPEECH:
-                case GAME_SUBSTATUS.FAREWELL_MINUTE:
-                    gameModel.state.phase = GAME_PHASES.DAY;
-                    gameView.updateGamePhase(GAME_PHASES.DAY);
-                    break;
-                case GAME_SUBSTATUS.VOTING:
-                    gameModel.state.phase = GAME_PHASES.VOTING;
-                    gameView.updateGamePhase(GAME_PHASES.VOTING);
-                    break;
-                case GAME_SUBSTATUS.NIGHT:
-                    gameModel.state.phase = GAME_PHASES.NIGHT;
-                    gameView.updateGamePhase(GAME_PHASES.NIGHT);
-                    break;
-            }
-        }
+    updateUIForSubstatus(substatus) {
+        // Обновляем UI для изменения подстатуса
+        this.updateControlsVisibility(gameModel.state.gameStatus, substatus);
     }
 
     // Методы переходов между статусами
@@ -331,61 +304,60 @@ export class GameFlowController extends EventEmitter {
     }
 
     startRoleDistribution() {
-	console.log('Запуск раздачи ролей, текущий статус:', gameModel.state.gameStatus);
-	if (gameModel.canTransitionTo(GAME_STATUSES.ROLE_DISTRIBUTION)) {
+        console.log('Запуск раздачи ролей, текущий статус:', gameModel.state.gameStatus);
+        if (gameModel.canTransitionTo(GAME_STATUSES.ROLE_DISTRIBUTION)) {
             gameModel.setGameStatus(GAME_STATUSES.ROLE_DISTRIBUTION);
             console.log('Статус изменен на ROLE_DISTRIBUTION');
-	} else {
+        } else {
             console.error('Невозможно перейти к раздаче ролей из текущего статуса:', gameModel.state.gameStatus);
-	}
+        }
     }
 
     async startGame() {
-	console.log('Попытка начать игру...');
-	console.log('Текущий статус игры:', gameModel.state.gameStatus);
-	console.log('Игроки:', gameModel.state.players.map(p => ({ id: p.id, role: p.role })));
-	
-	const gameRulesService = await import('../../services/game-rules-service.js');
-	
-	if (!gameRulesService.default.canStartGame(gameModel.state.players)) {
+        console.log('Попытка начать игру...');
+        console.log('Текущий статус игры:', gameModel.state.gameStatus);
+        console.log('Игроки:', gameModel.state.players.map(p => ({ id: p.id, role: p.role })));
+        
+        const gameRulesService = await import('../../services/game-rules-service.js');
+        
+        if (!gameRulesService.default.canStartGame(gameModel.state.players)) {
             console.error('Роли распределены неправильно');
             const mafiaCount = gameModel.state.players.filter(p => p.role === 'Мафия').length;
             const donCount = gameModel.state.players.filter(p => p.role === 'Дон').length;
             const sheriffCount = gameModel.state.players.filter(p => p.role === 'Шериф').length;
             console.log('Текущее распределение ролей:', { mafiaCount, donCount, sheriffCount });
             
-            // Попробуйте импортировать toastManager по-другому
             try {
-		const toastManager = await import('../../utils/toast-manager.js');
-		toastManager.default.error('Необходимо распределить 2 мафии, 1 дона и 1 шерифа!');
+                const toastManager = await import('../../utils/toast-manager.js');
+                toastManager.default.error('Необходимо распределить 2 мафии, 1 дона и 1 шерифа!');
             } catch (error) {
-		console.error('Ошибка импорта toastManager:', error);
-		alert('Необходимо распределить 2 мафии, 1 дона и 1 шерифа!');
+                console.error('Ошибка импорта toastManager:', error);
+                alert('Необходимо распределить 2 мафии, 1 дона и 1 шерифа!');
             }
             return;
-	}
-	
-	console.log('Проверка возможности перехода к IN_PROGRESS...');
-	if (gameModel.canTransitionTo(GAME_STATUSES.IN_PROGRESS)) {
+        }
+        
+        console.log('Проверка возможности перехода к IN_PROGRESS...');
+        if (gameModel.canTransitionTo(GAME_STATUSES.IN_PROGRESS)) {
             console.log('Переход разрешен, начинаем игру...');
             gameModel.setGameStatus(GAME_STATUSES.IN_PROGRESS, GAME_SUBSTATUS.DISCUSSION);
             gameModel.state.isGameStarted = true;
             gameModel.state.round = 1;
 
             try {
-		await this.updateGameStatus("in_progress");
-		await gameModel.saveGameState();
-		console.log('Игра успешно начата');
+                await this.updateGameStatus("in_progress");
+                await gameModel.saveGameState();
+                console.log('Игра успешно начата');
             } catch (error) {
-		console.error('Ошибка при сохранении статуса игры:', error);
+                console.error('Ошибка при сохранении статуса игры:', error);
             }
             
             timerService.reset();
             
             this.emit('gameStarted');
-	} else {
+        } else {
             console.error('Невозможно перейти к IN_PROGRESS из текущего статуса:', gameModel.state.gameStatus);
-	}
+        }
     }
 
     startVoting() {
@@ -504,6 +476,16 @@ export class GameFlowController extends EventEmitter {
         if (message) {
             gameView.showGameStatus(message, type);
         }
+    }
+
+    endGame() {
+        // Отключаем все игровые контролы
+        gameView.disableGameControls();
+        
+        // Останавливаем автосохранение
+        gameModel.stopAutoSave();
+        
+        this.emit('gameEnded');
     }
 }
 
