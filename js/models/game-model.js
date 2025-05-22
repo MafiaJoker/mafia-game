@@ -77,13 +77,31 @@ export class GameModel extends EventEmitter {
 
     // Загрузка состояния игры с сервера
     async loadGameState() {
-	if (!this.currentGameInfo) return false;
+	console.log('=== НАЧАЛО ЗАГРУЗКИ СОСТОЯНИЯ ИГРЫ ===');
+	
+	if (!this.currentGameInfo) {
+            console.error('currentGameInfo не установлен');
+            return false;
+	}
 	
 	try {
             const { gameId } = this.currentGameInfo;
-            const gameState = await apiAdapter.getGameState(gameId);
+            console.log('Загрузка состояния для игры ID:', gameId);
+            console.log('API adapter:', apiAdapter);
             
-            if (gameState) {
+            // Проверяем, что API adapter доступен
+            if (!apiAdapter) {
+		console.error('API adapter не найден');
+		return false;
+            }
+            
+            console.log('Отправляем запрос на сервер...');
+            const gameState = await apiAdapter.getGameState(gameId);
+            console.log('Ответ от сервера:', gameState);
+            
+            if (gameState && gameState.round !== undefined) {
+		console.log('Состояние игры получено, применяем...');
+		
 		// Преобразуем полученное состояние в формат, понятный для модели
 		this.state = {
                     ...this.state,
@@ -94,6 +112,7 @@ export class GameModel extends EventEmitter {
 		
 		// Если есть игроки, создаем экземпляры класса Player
 		if (gameState.players && Array.isArray(gameState.players)) {
+                    console.log('Создаем игроков из состояния, количество:', gameState.players.length);
                     this.state.players = gameState.players.map(p => {
 			const player = new Player(p.id);
 			Object.assign(player, p);
@@ -104,24 +123,33 @@ export class GameModel extends EventEmitter {
 		// Преобразуем bestMoveTargets из массива в Set
 		if (gameState.bestMoveTargets && Array.isArray(gameState.bestMoveTargets)) {
                     this.state.bestMoveTargets = new Set(gameState.bestMoveTargets);
+		} else {
+                    this.state.bestMoveTargets = new Set();
 		}
 		
+		console.log('Состояние игры успешно применено');
 		this.emit('gameStateLoaded', this.state);
 		return true;
+            } else {
+		console.log('Состояние игры не найдено или пустое, gameState:', gameState);
+		return false;
             }
 	} catch (error) {
             console.error('Ошибка загрузки состояния игры:', error);
+            return false;
 	}
-	
-	return false;
     }
 
     // Сохранение состояния игры на сервер
     async saveGameState() {
-	if (!this.currentGameInfo) return false;
+	if (!this.currentGameInfo) {
+            console.warn('Информация о текущей игре отсутствует');
+            return false;
+	}
 	
 	try {
             const { gameId } = this.currentGameInfo;
+            console.log('Сохранение состояния для игры ID:', gameId);
             
             // Преобразуем Set bestMoveTargets в массив для сохранения
             const bestMoveTargetsArray = Array.from(this.state.bestMoveTargets);
@@ -131,7 +159,10 @@ export class GameModel extends EventEmitter {
 		bestMoveTargets: bestMoveTargetsArray
             };
             
+            console.log('Сохраняемое состояние:', stateToSave);
+            
             await apiAdapter.saveGameState(gameId, stateToSave);
+            console.log('Состояние игры успешно сохранено');
             return true;
 	} catch (error) {
             console.error('Ошибка сохранения состояния игры:', error);
@@ -165,34 +196,6 @@ export class GameModel extends EventEmitter {
             console.error('Ошибка обновления статуса игры:', error);
             return false;
 	}
-    }
-
-    // Обновление информации об игре
-    async updateGameStatus(status, result = null) {
-        if (!this.currentGameInfo) return false;
-        
-        try {
-            const { eventId, tableId, gameId } = this.currentGameInfo;
-            
-            const gameData = {
-                status: status,
-                currentRound: this.state.round
-            };
-            
-            if (result) {
-                gameData.result = result;
-            }
-            
-            await apiAdapter.updateGame(eventId, tableId, gameId, gameData);
-            
-            // Сохраняем обновленное состояние игры
-            await this.saveGameState();
-            
-            return true;
-        } catch (error) {
-            console.error('Ошибка обновления статуса игры:', error);
-            return false;
-        }
     }
     
     // Здесь будут остальные методы модели

@@ -137,37 +137,59 @@ export class GameController {
         });
     }
 
-    initGame() {
-        try {
-	    // Получаем параметры из URL
+    async initGame() {
+	try {
+            console.log('Инициализация игры...');
+            
+            // Получаем параметры из URL
             const urlParams = new URLSearchParams(window.location.search);
             const eventId = parseInt(urlParams.get('eventId'));
             const tableId = parseInt(urlParams.get('tableId'));
             const gameId = parseInt(urlParams.get('gameId'));
             
+            console.log('Параметры URL:', { eventId, tableId, gameId });
+            
             // Если есть ID игры, пытаемся загрузить существующую игру
             if (eventId && tableId && gameId) {
+		console.log('Загрузка существующей игры...');
+		
+		// ВАЖНО: Сначала загружаем события
+		console.log('Загружаем события с сервера...');
+		await eventModel.loadEvents();
+		console.log('События загружены, количество:', eventModel.events.length);
+		
 		const event = eventModel.getEventById(eventId);
+		console.log('Найдено событие:', event?.name || 'НЕ НАЙДЕНО');
+		
 		if (event) {
                     const table = event.tables.find(t => t.id === tableId);
+                    console.log('Найден стол:', table?.name || 'НЕ НАЙДЕН');
+                    
                     if (table && table.games) {
 			const game = table.games.find(g => g.id === gameId);
+			console.log('Найдена игра:', game?.name || 'НЕ НАЙДЕНА');
+			
 			if (game) {
-                            this.loadExistingGame(game, event, table);
+                            await this.loadExistingGame(game, event, table);
                             return;
 			}
                     }
 		}
+		
+		console.error('Не удалось найти игру с указанными параметрами');
+		alert('Игра не найдена');
+		return;
             }
-	    
-            // Инициализация модели уже произошла в конструкторе
+            
+            console.log('Инициализация новой игры...');
+            // Инициализация новой игры
             this.setupEventListeners();
-	    gameView.initModalHandlers(); // Инициализируем обработчики модальных окон
+            gameView.initModalHandlers();
             this.updatePlayers();
-        } catch (error) {
+	} catch (error) {
             console.error('Ошибка инициализации игры:', error);
             gameView.showGameStatus('Не удалось инициализировать игру. Пожалуйста, обновите страницу.', 'danger');
-        }
+	}
     }
 
     // Добавим метод для загрузки существующей игры
@@ -179,44 +201,14 @@ export class GameController {
             gameId: game.id
 	};
 	
+	console.log('Загрузка игры:', game.name, 'Статус:', game.status);
+	
 	// Пробуем загрузить состояние игры с сервера
 	const stateLoaded = await gameModel.loadGameState();
 	
-	// Если состояние не загружено, инициализируем стандартное состояние
-	if (!stateLoaded) {
-            if (game.status === "in_progress" || game.status === "finished") {
-		gameModel.state.round = game.currentRound || 0;
-		gameModel.state.phase = game.status === "finished" ? "end" : "day";
-		gameModel.state.isGameStarted = true;
-		
-		// Настраиваем интерфейс в соответствии с состоянием игры
-		gameView.updateGamePhase(gameModel.state.phase);
-		gameView.updateRound(gameModel.state.round);
-		gameView.elements.ppkButton.classList.remove('d-none');
-		gameView.elements.eliminatePlayerButton.classList.remove('d-none');
-		
-		// Если игра завершена, показываем результат
-		if (game.status === "finished") {
-                    let message = "";
-                    if (game.result === "city_win") {
-			message = localization.t('gameStatus', 'cityWin');
-			gameView.showGameStatus(message, 'success');
-                    } else if (game.result === "mafia_win") {
-			message = localization.t('gameStatus', 'mafiaWin');
-			gameView.showGameStatus(message, 'danger');
-                    } else if (game.result === "draw") {
-			message = localization.t('gameStatus', 'draw');
-			gameView.showGameStatus(message, 'warning');
-                    }
-                    
-                    gameView.disableGameControls();
-		}
-            } else {
-		// Для игры в статусе "Не начата"
-		gameModel.state.phase = GAME_PHASES.DISTRIBUTION;
-		gameView.updateGamePhase(GAME_PHASES.DISTRIBUTION);
-            }
-	} else {
+	if (stateLoaded) {
+            console.log('Состояние игры загружено с сервера');
+            
             // Если состояние успешно загружено, обновляем интерфейс
             gameView.updateGamePhase(gameModel.state.phase);
             gameView.updateRound(gameModel.state.round);
@@ -228,13 +220,44 @@ export class GameController {
             
             if (game.status === "finished") {
 		gameView.disableGameControls();
+		this.showGameEndMessage(game.result);
+            }
+	} else {
+            console.log('Состояние игры не найдено, используем базовое состояние');
+            
+            // Если состояние не загружено, настраиваем базовое состояние на основе статуса игры
+            if (game.status === "in_progress") {
+		// Для игры в процессе - переводим в дневную фазу
+		gameModel.state.round = game.currentRound || 1;
+		gameModel.state.phase = "day";
+		gameModel.state.isGameStarted = true;
+		
+		gameView.updateGamePhase("day");
+		gameView.updateRound(gameModel.state.round);
+		gameView.elements.ppkButton.classList.remove('d-none');
+		gameView.elements.eliminatePlayerButton.classList.remove('d-none');
+            } else if (game.status === "finished") {
+		// Для завершенной игры
+		gameModel.state.round = game.currentRound || 0;
+		gameModel.state.phase = "end";
+		gameModel.state.isGameStarted = false;
+		
+		gameView.updateGamePhase("end");
+		gameView.updateRound(gameModel.state.round);
+		gameView.disableGameControls();
+		this.showGameEndMessage(game.result);
+            } else {
+		// Для новой игры - фаза распределения ролей
+		gameModel.state.phase = "distribution";
+		gameModel.state.isGameStarted = false;
+		
+		gameView.updateGamePhase("distribution");
             }
 	}
 	
 	this.setupEventListeners();
 	gameView.initModalHandlers();
 	this.updatePlayers();
-	
     }
 
     updatePlayers() {
@@ -312,7 +335,7 @@ export class GameController {
         this.updatePlayers();
     }
 
-    startGame() {
+    async startGame() {
         if (!gameModel.canStartGame()) {
             alert('Необходимо распределить 2 мафии, 1 дона и 1 шерифа!');
             return;
@@ -327,6 +350,8 @@ export class GameController {
 
 	// Обновляем статус игры в хранилище
 	this.updateGameStatus("in_progress");
+
+	await gameModel.saveGameState();
 	
         // Проверяем условия для начала голосования
         this.updateNominatedPlayers();
@@ -627,29 +652,27 @@ export class GameController {
     }
 
     // Добавим новый метод для обновления статуса игры
-    updateGameStatus(status, result = null) {
-	if (!gameModel.currentGameInfo) return;
+    async updateGameStatus(status, result = null) {
+	if (!this.currentGameInfo) return false;
 	
-	const { eventId, tableId, gameId } = gameModel.currentGameInfo;
-	const event = eventModel.getEventById(eventId);
-	if (!event) return;
-	
-	const table = event.tables.find(t => t.id === tableId);
-	if (!table || !table.games) return;
-	
-	const game = table.games.find(g => g.id === gameId);
-	if (!game) return;
-	
-	// Обновляем статус и информацию игры
-	game.status = status;
-	game.currentRound = gameModel.state.round;
-	
-	if (result) {
-            game.result = result;
+	try {
+            const { eventId, tableId, gameId } = this.currentGameInfo;
+            
+            const gameData = {
+		status: status,
+		currentRound: this.state.round
+            };
+            
+            if (result) {
+		gameData.result = result;
+            }
+            
+            await apiAdapter.updateGame(eventId, tableId, gameId, gameData);
+            return true;
+	} catch (error) {
+            console.error('Ошибка обновления статуса игры:', error);
+            return false;
 	}
-	
-	// Сохраняем изменения
-	eventModel.saveEvents();
     }
 
     endGame() {
