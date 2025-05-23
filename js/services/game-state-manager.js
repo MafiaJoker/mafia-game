@@ -73,11 +73,7 @@ export class GameStateManager extends EventEmitter {
         if (typeof state.round !== 'number') {
             errors.push('round должен быть числом');
         }
-        
-        if (!state.phase) {
-            errors.push('phase обязательно');
-        }
-        
+                
         if (!Array.isArray(state.players)) {
             errors.push('players должен быть массивом');
         } else if (state.players.length === 0) {
@@ -93,13 +89,7 @@ export class GameStateManager extends EventEmitter {
                 errors.push(`игрок ${index} должен иметь имя`);
             }
         });
-        
-        // Проверка фазы игры
-        const validPhases = ['distribution', 'day', 'voting', 'night', 'end'];
-        if (!validPhases.includes(state.phase)) {
-            errors.push(`некорректная фаза игры: ${state.phase}`);
-        }
-        
+                
         return {
             isValid: errors.length === 0,
             errors

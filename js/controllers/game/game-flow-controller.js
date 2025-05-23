@@ -29,7 +29,7 @@ export class GameFlowController extends EventEmitter {
     }
 
     async initGame() {
-        try {
+	try {
             console.log('Инициализация игры...');
             
             const urlParams = new URLSearchParams(window.location.search);
@@ -40,34 +40,35 @@ export class GameFlowController extends EventEmitter {
             console.log('Параметры URL:', { eventId, tableId, gameId });
             
             if (eventId && tableId && gameId) {
-                console.log('Загрузка существующей игры...');
-                const eventModel = await import('../../models/event-model.js');
-                await eventModel.default.loadEvents();
-                
-                const event = eventModel.default.getEventById(eventId);
-                if (event) {
+		console.log('Загрузка существующей игры...');
+		const eventModel = await import('../../models/event-model.js');
+		await eventModel.default.loadEvents();
+		
+		const event = eventModel.default.getEventById(eventId);
+		if (event) {
                     const table = event.tables.find(t => t.id === tableId);
                     if (table && table.games) {
-                        const game = table.games.find(g => g.id === gameId);
-                        if (game) {
+			const game = table.games.find(g => g.id === gameId);
+			if (game) {
                             await this.loadExistingGame(game, event, table);
                             return;
-                        }
+			}
                     }
-                }
-                
-                console.error('Не удалось найти игру с указанными параметрами');
-                toastManager.error('Игра не найдена');
-                return;
+		}
+		
+		console.error('Не удалось найти игру с указанными параметрами');
+		toastManager.error('Игра не найдена');
+		return;
             }
             
             console.log('Инициализация новой игры...');
-            gameModel.setGameStatus(GAME_STATUSES.CREATED);
+            // Для новой игры начинаем с статуса SEATING_READY вместо CREATED
+            gameModel.setGameStatus(GAME_STATUSES.SEATING_READY);
             this.emit('gameInitialized');
-        } catch (error) {
+	} catch (error) {
             console.error('Ошибка инициализации игры:', error);
             gameView.showGameStatus('Не удалось инициализировать игру. Пожалуйста, обновите страницу.', 'danger');
-        }
+	}
     }
 
     initDistribution() {
@@ -102,18 +103,19 @@ export class GameFlowController extends EventEmitter {
     }
 
     setupGameByStatus(game) {
-        if (game.status === "in_progress") {
+	if (game.status === "in_progress") {
             gameModel.setGameStatus(GAME_STATUSES.IN_PROGRESS, GAME_SUBSTATUS.DISCUSSION);
             gameModel.state.round = game.currentRound || 1;
             gameModel.state.isGameStarted = true;
             
             this.updateUIForStatus(GAME_STATUSES.IN_PROGRESS, GAME_SUBSTATUS.DISCUSSION);
-        } else if (game.status === "finished") {
+	} else if (game.status === "finished") {
             this.handleFinishedGame(game);
-        } else {
-            gameModel.setGameStatus(GAME_STATUSES.CREATED);
-            this.updateUIForStatus(GAME_STATUSES.CREATED);
-        }
+	} else {
+            // Для не начатых игр ставим статус SEATING_READY
+            gameModel.setGameStatus(GAME_STATUSES.SEATING_READY);
+            this.updateUIForStatus(GAME_STATUSES.SEATING_READY);
+	}
     }
 
     handleFinishedGame(game) {
@@ -155,38 +157,42 @@ export class GameFlowController extends EventEmitter {
     }
 
     updateControlsVisibility(status, substatus) {
-        // Сначала скрываем все контролы
-        this.hideAllControls();
-        
-        console.log('Обновление видимости контролов для статуса:', status);
-        
-        switch (status) {
-        case GAME_STATUSES.CREATED:
-            console.log('Показываем кнопку "Раздать роли"');
-            gameView.elements.startDistribution.classList.remove('d-none');
+	// Сначала скрываем все контролы
+	this.hideAllControls();
+	
+	console.log('Обновление видимости контролов для статуса:', status);
+	
+	switch (status) {
+	case GAME_STATUSES.CREATED:
+            console.log('Показываем кнопку перехода к рассадке');
+            // Вместо кнопки "Раздать роли" показываем кнопку "Подготовить рассадку"
+            const seatingButton = this.createCustomButton('Подготовить рассадку', () => {
+		this.startSeating();
+            });
+            gameView.elements.gameActions.appendChild(seatingButton);
             break;
             
-        case GAME_STATUSES.SEATING_READY:
+	case GAME_STATUSES.SEATING_READY:
             this.showSeatingControls();
             break;
             
-        case GAME_STATUSES.ROLE_DISTRIBUTION:
-            console.log('Показываем кнопки раздачи ролей и начала игры');
+	case GAME_STATUSES.ROLE_DISTRIBUTION:
+            console.log('Показываем контролы раздачи ролей');
             this.showRoleDistributionControls();
             break;
             
-        case GAME_STATUSES.IN_PROGRESS:
+	case GAME_STATUSES.IN_PROGRESS:
             this.showInProgressControls(substatus);
             break;
             
-        case GAME_STATUSES.FINISHED_NO_SCORES:
+	case GAME_STATUSES.FINISHED_NO_SCORES:
             this.showFinishedNoScoresControls();
             break;
             
-        case GAME_STATUSES.FINISHED_WITH_SCORES:
+	case GAME_STATUSES.FINISHED_WITH_SCORES:
             this.showFinishedWithScoresControls();
             break;
-        }
+	}
     }
 
     hideAllControls() {
@@ -220,18 +226,18 @@ export class GameFlowController extends EventEmitter {
     }
 
     showRoleDistributionControls() {
-	gameView.elements.startDistribution.classList.remove('d-none');
+	// НЕ показываем кнопку "Раздать роли" в режиме раздачи ролей
+	// gameView.elements.startDistribution.classList.remove('d-none');
 	
 	// Добавляем кнопку отмены раздачи ролей
 	const cancelButton = this.createCustomButton('Отменить раздачу ролей', () => {
             this.cancelRoleDistribution();
 	});
-	cancelButton.classList.add('btn-secondary'); // Делаем серой
+	cancelButton.classList.add('btn-secondary');
 	cancelButton.classList.remove('btn-primary');
 	gameView.elements.gameActions.appendChild(cancelButton);
 	
 	// Кнопка "Начать игру" будет показана только когда роли правильно розданы
-	// через событие canStartGameChanged
 	const canStart = gameModel.canStartGame();
 	gameView.elements.startGame.classList.toggle('d-none', !canStart);
     }
@@ -243,16 +249,13 @@ export class GameFlowController extends EventEmitter {
             player.originalRole = 'Мирный';
 	});
 	
-	// Возвращаемся к начальному статусу
-	gameModel.setGameStatus(GAME_STATUSES.CREATED);
+	// Возвращаемся к статусу "Рассадка готова", а не "Создано"
+	gameModel.setGameStatus(GAME_STATUSES.SEATING_READY);
 	
 	// Скрываем кнопку "Начать игру"
 	gameView.elements.startGame.classList.add('d-none');
 	
-	// Обновляем отображение игроков
-	if (window.gameController) {
-            window.gameController.updatePlayers();
-	}
+	this.emit('updatePlayers');
     }
 
     showInProgressControls(substatus) {
@@ -338,9 +341,12 @@ export class GameFlowController extends EventEmitter {
 
     // Методы переходов между статусами
     startSeating() {
-        if (gameModel.canTransitionTo(GAME_STATUSES.SEATING_READY)) {
+	if (gameModel.canTransitionTo(GAME_STATUSES.SEATING_READY)) {
             gameModel.setGameStatus(GAME_STATUSES.SEATING_READY);
-        }
+            console.log('Статус изменен на SEATING_READY');
+	} else {
+            console.error('Невозможно перейти к рассадке из текущего статуса:', gameModel.state.gameStatus);
+	}
     }
 
     startRoleDistribution() {
@@ -348,6 +354,8 @@ export class GameFlowController extends EventEmitter {
         if (gameModel.canTransitionTo(GAME_STATUSES.ROLE_DISTRIBUTION)) {
             gameModel.setGameStatus(GAME_STATUSES.ROLE_DISTRIBUTION);
             console.log('Статус изменен на ROLE_DISTRIBUTION');
+
+	    this.emit('updatePlayers');
         } else {
             console.error('Невозможно перейти к раздаче ролей из текущего статуса:', gameModel.state.gameStatus);
         }

@@ -51,6 +51,11 @@ export class GameController {
             this.updatePlayers();
         });
 
+	this.gameFlowController.on('updatePlayers', () => {
+            console.log('Принудительное обновление списка игроков');
+            this.updatePlayers();
+	});
+	
         // События действий с игроками
         this.playerActionsController.on('playerEliminated', () => {
             this.updatePlayers();
