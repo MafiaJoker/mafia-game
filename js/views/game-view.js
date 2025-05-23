@@ -55,6 +55,7 @@ export class GameView {
             
             // Контролы ППК
             ppkButton: document.getElementById('ppkButton'),
+	    cancelGameButton: document.getElementById('cancelGameButton'),
             ppkControls: document.getElementById('ppkControls'),
             cancelPpk: document.getElementById('cancelPpk'),
             mafiaWin: document.getElementById('mafiaWin'),

@@ -202,6 +202,7 @@ export class GameFlowController extends EventEmitter {
         elements.startVoting.classList.add('d-none');
         elements.goToNight.classList.add('d-none');
         elements.ppkButton.classList.add('d-none');
+	elements.cancelGameButton.classList.add('d-none');
         elements.eliminatePlayerButton.classList.add('d-none');
         elements.votingSection.classList.add('d-none');
         elements.nightSection.classList.add('d-none');
@@ -261,14 +262,15 @@ export class GameFlowController extends EventEmitter {
     showInProgressControls(substatus) {
 	gameView.elements.ppkButton.classList.remove('d-none');
 	gameView.elements.eliminatePlayerButton.classList.remove('d-none');
+	gameView.elements.cancelGameButton.classList.remove('d-none');
 	
 	// Добавляем кнопку отмены игры рядом с ППК
-	const cancelButton = this.createCustomButton('Отменить игру', () => {
-            this.showCancelGameModal();
-	});
-	cancelButton.classList.add('btn-outline-warning');
-	cancelButton.classList.remove('btn-primary');
-	gameView.elements.gameActions.appendChild(cancelButton);
+	// const cancelButton = this.createCustomButton('Отменить игру', () => {
+        //     this.showCancelGameModal();
+	// });
+	// cancelButton.classList.add('btn-outline-warning');
+	// cancelButton.classList.remove('btn-primary');
+	// gameView.elements.gameActions.appendChild(cancelButton);
 	
 	switch (substatus) {
         case GAME_SUBSTATUS.DISCUSSION:
@@ -320,18 +322,37 @@ export class GameFlowController extends EventEmitter {
 	this.emit('votingCancelled');
     }
 
-    showCancelGameModal() {
-	// Создаем модальное окно для отмены игры
-	const modal = this.createCancelGameModal();
-	document.body.appendChild(modal);
+    async showCancelGameModal() {
+	const reasons = {
+            'player_misbehavior': 'Нарушение правил игроком',
+            'technical_issues': 'Технические проблемы', 
+            'insufficient_players': 'Недостаточно игроков',
+            'other': 'Другая причина'
+	};
 	
-	const bootstrapModal = new bootstrap.Modal(modal);
-	bootstrapModal.show();
+	let reasonText = '';
+	for (let [key, value] of Object.entries(reasons)) {
+            reasonText += `${Object.keys(reasons).indexOf(key) + 1}. ${value}\n`;
+	}
 	
-	// Удаляем модальное окно после закрытия
-	modal.addEventListener('hidden.bs.modal', () => {
-            modal.remove();
-	});
+	const choice = prompt(`Выберите причину отмены игры (введите номер 1-4):\n${reasonText}`);
+	if (!choice) return;
+	
+	const reasonKeys = Object.keys(reasons);
+	const selectedReason = reasonKeys[parseInt(choice) - 1];
+	
+	if (!selectedReason) {
+            alert('Неверный выбор');
+            return;
+	}
+	
+	const playerSlot = prompt('Номер игрока (если применимо, иначе оставьте пустым):');
+	const comment = prompt('Комментарий (необязательно):') || '';
+	const withRestart = confirm('Нужна ли перерасдача (начать заново с рассадки)?');
+	
+	if (confirm(`Подтвердите отмену игры.\nПричина: ${reasons[selectedReason]}\nИгрок: ${playerSlot || 'не указан'}\nПерерасдача: ${withRestart ? 'да' : 'нет'}`)) {
+            await this.cancelGame(selectedReason, playerSlot || null, comment, withRestart);
+	}
     }
 
     createCancelGameModal() {
@@ -448,17 +469,22 @@ export class GameFlowController extends EventEmitter {
     }
 
     showDiscussionControls(isCritical = false) {
-        const buttonText = isCritical ? 'Начать голосование (критический круг)' : 'Начать голосование';
-        const voteButton = this.createCustomButton(buttonText, () => {
-            this.startVoting();
-        });
+	// Используем существующую кнопку startVoting
+	gameView.elements.startVoting.classList.remove('d-none');
+	// Используем существующую кнопку goToNight  
+	gameView.elements.goToNight.classList.remove('d-none');
+	
+        // const buttonText = isCritical ? 'Начать голосование (критический круг)' : 'Начать голосование';
+        // const voteButton = this.createCustomButton(buttonText, () => {
+        //     this.startVoting();
+        // });
         
-        const nightButton = this.createCustomButton('В ночь', () => {
-            this.goToNight();
-        });
+        // const nightButton = this.createCustomButton('В ночь', () => {
+        //     this.goToNight();
+        // });
         
-        gameView.elements.gameActions.appendChild(voteButton);
-        gameView.elements.gameActions.appendChild(nightButton);
+        // gameView.elements.gameActions.appendChild(voteButton);
+        // gameView.elements.gameActions.appendChild(nightButton);
     }
 
     showSuspectsSpeechControls() {

@@ -289,6 +289,7 @@ export class GameController {
 
         // ППК
         gameView.elements.ppkButton.addEventListener('click', () => gameView.showPpkControls());
+	gameView.elements.cancelGameButton.addEventListener('click', () => this.gameFlowController.showCancelGameModal());
         gameView.elements.cancelPpk.addEventListener('click', () => gameView.hidePpkControls());
         gameView.elements.mafiaWin.addEventListener('click', () => this.declareMafiaWin());
         gameView.elements.cityWin.addEventListener('click', () => this.declareCityWin());
