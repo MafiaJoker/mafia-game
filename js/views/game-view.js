@@ -351,6 +351,157 @@ export class GameView {
 
     // Остальные методы ночных действий, лучшего хода остаются без изменений...
     // (renderDonActions, renderSheriffActions, showBestMoveSection и т.д.)
+
+    renderDonActions(players) {
+	const donTargetsEl = this.elements.donTargets;
+	donTargetsEl.innerHTML = '';
+	
+	const donAlive = players.some(p => 
+            p.originalRole === 'Дон' && p.isAlive && !p.isEliminated);
+	
+	if (donAlive) {
+            players.forEach(p => {
+		if (p.isAlive && !p.isEliminated) {
+                    const targetBtn = document.createElement('button');
+                    targetBtn.className = 'btn vote-btn ' + 
+			(gameModel.state.donTarget === p.id ? 'btn-warning' : 'btn-outline-warning');
+                    targetBtn.textContent = `${p.id}`;
+                    targetBtn.onclick = () => this.onDonTargetSelect(p.id);
+                    donTargetsEl.appendChild(targetBtn);
+		}
+            });
+	} else {
+            donTargetsEl.innerHTML = `<p>${localization.t('nightActions', 'noDon')}</p>`;
+	}
+    }
+
+    renderSheriffActions(players) {
+	const sheriffTargetsEl = this.elements.sheriffTargets;
+	sheriffTargetsEl.innerHTML = '';
+	
+	const sheriffAlive = players.some(p => 
+            p.originalRole === 'Шериф' && p.isAlive && !p.isEliminated);
+	
+	if (sheriffAlive) {
+            players.forEach(p => {
+		if (p.isAlive && !p.isEliminated) {
+                    const targetBtn = document.createElement('button');
+                    targetBtn.className = 'btn vote-btn ' + 
+			(gameModel.state.sheriffTarget === p.id ? 'btn-info' : 'btn-outline-info');
+                    targetBtn.textContent = `${p.id}`;
+                    targetBtn.onclick = () => this.onSheriffTargetSelect(p.id);
+                    sheriffTargetsEl.appendChild(targetBtn);
+		}
+            });
+	} else {
+            sheriffTargetsEl.innerHTML = `<p>${localization.t('nightActions', 'noSheriff')}</p>`;
+	}
+    }
+
+    // Обработчики кликов по целям
+    onMafiaTargetSelect(playerId) {
+	if (window.gameController) {
+            window.gameController.selectMafiaTarget(playerId);
+	} else {
+            console.error('gameController не определен');
+	}
+    }
+
+    onDonTargetSelect(playerId) {
+	if (window.gameController) {
+            window.gameController.selectDonTarget(playerId);
+	} else {
+            console.error('gameController не определен');
+	}
+    }
+
+    onSheriffTargetSelect(playerId) {
+	if (window.gameController) {
+            window.gameController.selectSheriffTarget(playerId);
+	} else {
+            console.error('gameController не определен');
+	}
+    }
+
+    // Методы для обновления результатов проверок
+    updateDonCheckResult(result) {
+	const donResultEl = this.elements.donResult;
+	
+	if (result.isSheriff) {
+            donResultEl.innerHTML = localization.t('nightActions', 'isSheriff', result.targetId, result.targetName);
+            donResultEl.className = 'alert alert-success';
+	} else {
+            donResultEl.innerHTML = localization.t('nightActions', 'notSheriff', result.targetId, result.targetName);
+            donResultEl.className = 'alert alert-danger';
+	}
+	
+	donResultEl.classList.remove('d-none');
+    }
+
+    updateSheriffCheckResult(result) {
+	const sheriffResultEl = this.elements.sheriffResult;
+	
+	if (result.isMafia) {
+            sheriffResultEl.innerHTML = localization.t('nightActions', 'isMafia', result.targetId, result.targetName);
+            sheriffResultEl.className = 'alert alert-danger';
+	} else {
+            sheriffResultEl.innerHTML = localization.t('nightActions', 'notMafia', result.targetId, result.targetName);
+            sheriffResultEl.className = 'alert alert-success';
+	}
+	
+	sheriffResultEl.classList.remove('d-none');
+    }
+
+    showBestMoveSection(player) {
+	this.elements.bestMovePlayer.innerHTML = `
+        <h5>Лучший ход для игрока ${player.id}: ${player.name}</h5>
+    `;
+	
+	this.renderBestMoveChoices();
+	this.elements.bestMoveSection.classList.remove('d-none');
+	this.elements.bestMoveControls.classList.remove('d-none');
+    }
+
+    renderBestMoveChoices() {
+	const bestMoveChoicesEl = this.elements.bestMoveChoices;
+	bestMoveChoicesEl.innerHTML = '';
+	
+	gameModel.state.players.forEach(p => {
+            if (p.isAlive && !p.isEliminated) {
+		const choiceBtn = document.createElement('button');
+		choiceBtn.className = 'btn vote-btn btn-outline-primary m-1';
+		choiceBtn.textContent = `${p.id}`;
+		choiceBtn.onclick = () => this.onBestMoveTargetSelect(p.id, choiceBtn);
+		bestMoveChoicesEl.appendChild(choiceBtn);
+            }
+	});
+    }
+
+    onBestMoveTargetSelect(playerId, button) {
+	if (window.gameController) {
+            window.gameController.toggleBestMoveTarget(playerId, button);
+	} else {
+            console.error('gameController не определен');
+	}
+    }
+
+    updateBestMoveSelection(selectedCount) {
+	this.elements.bestMoveSelected.textContent = selectedCount;
+	this.elements.confirmBestMove.disabled = selectedCount !== 3;
+    }
+
+    hideBestMoveSection() {
+	this.elements.bestMoveSection.classList.add('d-none');
+	this.elements.bestMoveControls.classList.add('d-none');
+    }
+
+    showPpkControls() {
+	this.elements.ppkControls.classList.remove('d-none');
+    }
+
+    hidePpkControls() {
+	this.elements.ppkControls.classList.add('d-none');
+    }
     
     disableGameControls() {
         this.elements.startVoting.classList.add('d-none');
