@@ -86,11 +86,15 @@ export class NightActionsController extends EventEmitter {
         // Очистка результатов предыдущих ночных проверок
         gameView.elements.donResult.classList.add('d-none');
         gameView.elements.sheriffResult.classList.add('d-none');
-        
-        this.emit('checkBestMove');
-        this.emit('updatePlayers');
-        this.emit('checkGameEnd');
-        this.emit('updateNominations');
+
+	const gameController = await import('../game-controller.js');
+	const bestMoveShown = gameController.default.bestMoveController.checkForBestMove();
+	
+	if (!bestMoveShown) {
+            this.emit('updatePlayers');
+            this.emit('checkGameEnd');
+            this.emit('updateNominations');
+	}
     }
 }
 

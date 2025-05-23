@@ -109,7 +109,7 @@ export class GameController {
         });
         
         this.nightActionsController.on('checkBestMove', () => {
-            return this.bestMoveController.checkForBestMove();
+            this.bestMoveController.checkForBestMove();
         });
         
         this.nightActionsController.on('checkGameEnd', () => {
