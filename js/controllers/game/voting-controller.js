@@ -10,6 +10,50 @@ export class VotingController extends EventEmitter {
     constructor() {
         super();
         this.setupVotingListeners();
+	this.setupPlayerEliminationListener();
+    }
+
+    
+    setupPlayerEliminationListener() {
+	// Слушаем события удаления игроков
+	gameModel.on('playerEliminated', (playerId) => {
+            this.handlePlayerEliminationDuringVoting(playerId);
+	});
+    }
+
+    handlePlayerEliminationDuringVoting(playerId) {
+	const currentSubstatus = gameModel.state.gameSubstatus;
+	
+	// Если удаление произошло во время обсуждения, голосования или речи подозреваемых
+	if ([
+            GAME_SUBSTATUS.DISCUSSION,
+            GAME_SUBSTATUS.CRITICAL_DISCUSSION,
+            GAME_SUBSTATUS.VOTING,
+            GAME_SUBSTATUS.SUSPECTS_SPEECH
+	].includes(currentSubstatus)) {
+            
+            console.log(`Игрок ${playerId} удален во время ${currentSubstatus}. Голосование на этом кругу отменяется.`);
+            
+            // Отменяем голосование и переходим к ночи
+            this.cancelVotingDueToElimination();
+	}
+    }
+
+    cancelVotingDueToElimination() {
+	// Сбрасываем все данные голосования
+	gameModel.state.nominatedPlayers = [];
+	gameModel.state.votingResults = {};
+	gameModel.state.shootoutPlayers = [];
+	
+	// Сбрасываем номинации всех игроков
+	gameModel.state.players.forEach(p => {
+            p.nominated = null;
+	});
+	
+	// Переходим к ночи
+	gameModel.setGameSubstatus(GAME_SUBSTATUS.NIGHT);
+	
+	this.emit('votingCancelledDueToElimination');
     }
 
     setupVotingListeners() {
@@ -112,32 +156,46 @@ export class VotingController extends EventEmitter {
     }
 
     updateVotingButtons() {
-        const startVotingBtn = gameView.elements.startVoting;
-        const goToNightBtn = gameView.elements.goToNight;
-        
-        // Проверяем, что мы в процессе игры и в фазе обсуждения
-        if (gameModel.isGameInProgress() && 
+	const startVotingBtn = gameView.elements.startVoting;
+	const goToNightBtn = gameView.elements.goToNight;
+	
+	// Проверяем, что мы в процессе игры и в фазе обсуждения
+	if (gameModel.isGameInProgress() && 
             (gameModel.state.gameSubstatus === GAME_SUBSTATUS.DISCUSSION || 
              gameModel.state.gameSubstatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION)) {
             
             const playersCount = gameModel.state.players.filter(p => p.isAlive && !p.isEliminated).length;
+            const isCritical = gameModel.isCriticalRound();
             
-            if (gameModel.state.round === 0 && playersCount === 10) {
-                if (gameModel.state.nominatedPlayers.length >= 2) {
+            // На критическом кругу особые правила
+            if (isCritical) {
+		// На критическом кругу голосование обязательно если есть хотя бы одна кандидатура
+		if (gameModel.state.nominatedPlayers.length >= 1) {
                     startVotingBtn.classList.remove('d-none');
                     goToNightBtn.classList.add('d-none');
-                } else {
+		} else {
                     startVotingBtn.classList.add('d-none');
                     goToNightBtn.classList.remove('d-none');
-                }
-            } else if (gameModel.state.nominatedPlayers.length >= 1) {
-                startVotingBtn.classList.remove('d-none');
-                goToNightBtn.classList.add('d-none');
+		}
             } else {
-                startVotingBtn.classList.add('d-none');
-                goToNightBtn.classList.remove('d-none');
+		// Обычные правила голосования
+		if (gameModel.state.round === 0 && playersCount === 10) {
+                    if (gameModel.state.nominatedPlayers.length >= 2) {
+			startVotingBtn.classList.remove('d-none');
+			goToNightBtn.classList.add('d-none');
+                    } else {
+			startVotingBtn.classList.add('d-none');
+			goToNightBtn.classList.remove('d-none');
+                    }
+		} else if (gameModel.state.nominatedPlayers.length >= 1) {
+                    startVotingBtn.classList.remove('d-none');
+                    goToNightBtn.classList.add('d-none');
+		} else {
+                    startVotingBtn.classList.add('d-none');
+                    goToNightBtn.classList.remove('d-none');
+		}
             }
-        }
+	}
     }
 }
 

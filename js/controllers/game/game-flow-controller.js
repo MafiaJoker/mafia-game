@@ -259,31 +259,192 @@ export class GameFlowController extends EventEmitter {
     }
 
     showInProgressControls(substatus) {
-        gameView.elements.ppkButton.classList.remove('d-none');
-        gameView.elements.eliminatePlayerButton.classList.remove('d-none');
-        
-        switch (substatus) {
-            case GAME_SUBSTATUS.DISCUSSION:
-            case GAME_SUBSTATUS.CRITICAL_DISCUSSION:
-                this.showDiscussionControls(substatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION);
-                break;
-                
-            case GAME_SUBSTATUS.VOTING:
-                gameView.elements.votingSection.classList.remove('d-none');
-                break;
-                
-            case GAME_SUBSTATUS.SUSPECTS_SPEECH:
-                this.showSuspectsSpeechControls();
-                break;
-                
-            case GAME_SUBSTATUS.FAREWELL_MINUTE:
-                this.showFarewellControls();
-                break;
-                
-            case GAME_SUBSTATUS.NIGHT:
-                gameView.elements.nightSection.classList.remove('d-none');
-                break;
-        }
+	gameView.elements.ppkButton.classList.remove('d-none');
+	gameView.elements.eliminatePlayerButton.classList.remove('d-none');
+	
+	// Добавляем кнопку отмены игры рядом с ППК
+	const cancelButton = this.createCustomButton('Отменить игру', () => {
+            this.showCancelGameModal();
+	});
+	cancelButton.classList.add('btn-outline-warning');
+	cancelButton.classList.remove('btn-primary');
+	gameView.elements.gameActions.appendChild(cancelButton);
+	
+	switch (substatus) {
+        case GAME_SUBSTATUS.DISCUSSION:
+        case GAME_SUBSTATUS.CRITICAL_DISCUSSION:
+            this.showDiscussionControls(substatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION);
+            break;
+            
+        case GAME_SUBSTATUS.VOTING:
+            this.showVotingControls();
+            break;
+            
+        case GAME_SUBSTATUS.SUSPECTS_SPEECH:
+            this.showSuspectsSpeechControls();
+            break;
+            
+        case GAME_SUBSTATUS.FAREWELL_MINUTE:
+            this.showFarewellControls();
+            break;
+            
+        case GAME_SUBSTATUS.NIGHT:
+            gameView.elements.nightSection.classList.remove('d-none');
+            break;
+	}
+    }
+
+    showVotingControls() {
+	gameView.elements.votingSection.classList.remove('d-none');
+	
+	// Добавляем кнопку отмены голосования
+	const cancelVotingButton = this.createCustomButton('Отменить голосование', () => {
+            this.cancelVoting();
+	});
+	cancelVotingButton.classList.add('btn-outline-secondary');
+	cancelVotingButton.classList.remove('btn-primary');
+	gameView.elements.gameActions.appendChild(cancelVotingButton);
+    }
+
+    cancelVoting() {
+	// Возвращаемся к обсуждению
+	const isCritical = gameModel.isCriticalRound();
+	const newSubstatus = isCritical ? GAME_SUBSTATUS.CRITICAL_DISCUSSION : GAME_SUBSTATUS.DISCUSSION;
+	
+	gameModel.setGameSubstatus(newSubstatus);
+	
+	// Сбрасываем результаты голосования
+	gameModel.state.votingResults = {};
+	gameModel.state.shootoutPlayers = [];
+	
+	this.emit('votingCancelled');
+    }
+
+    showCancelGameModal() {
+	// Создаем модальное окно для отмены игры
+	const modal = this.createCancelGameModal();
+	document.body.appendChild(modal);
+	
+	const bootstrapModal = new bootstrap.Modal(modal);
+	bootstrapModal.show();
+	
+	// Удаляем модальное окно после закрытия
+	modal.addEventListener('hidden.bs.modal', () => {
+            modal.remove();
+	});
+    }
+
+    createCancelGameModal() {
+	const modal = document.createElement('div');
+	modal.className = 'modal fade';
+	modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">Отмена игры</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Причина отмены:</label>
+                        <select class="form-select" id="cancellationReason">
+                            <option value="player_misbehavior">Нарушение правил игроком</option>
+                            <option value="technical_issues">Технические проблемы</option>
+                            <option value="insufficient_players">Недостаточно игроков</option>
+                            <option value="other">Другая причина</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Номер игрока (если применимо):</label>
+                        <select class="form-select" id="playerSlot">
+                            <option value="">Не указано</option>
+                            ${gameModel.state.players.map(p => 
+                                `<option value="${p.id}">${p.id}: ${p.name}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Комментарий:</label>
+                        <textarea class="form-control" id="cancellationComment" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="withRestart">
+                        <label class="form-check-label" for="withRestart">
+                            Перерасдача (начать заново с рассадки)
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-warning" id="confirmCancellation">Отменить игру</button>
+                </div>
+            </div>
+        </div>
+    `;
+	
+	// Обработчик подтверждения отмены
+	modal.querySelector('#confirmCancellation').addEventListener('click', async () => {
+            const reason = modal.querySelector('#cancellationReason').value;
+            const playerSlot = modal.querySelector('#playerSlot').value || null;
+            const comment = modal.querySelector('#cancellationComment').value;
+            const withRestart = modal.querySelector('#withRestart').checked;
+            
+            await this.cancelGame(reason, playerSlot, comment, withRestart);
+            
+            bootstrap.Modal.getInstance(modal).hide();
+	});
+	
+	return modal;
+    }
+
+    async cancelGame(reason, playerSlot, comment, withRestart) {
+	const success = await gameModel.cancelGame(reason, playerSlot, comment, withRestart);
+	
+	if (success) {
+            if (withRestart) {
+		// Показываем сообщение и кнопку для перерасдачи
+		this.showCancellationWithRestartControls();
+            } else {
+		// Просто показываем сообщение об отмене
+		this.showCancellationControls();
+            }
+            
+            this.emit('gameCancelled', { reason, playerSlot, comment, withRestart });
+	}
+    }
+
+    showCancellationControls() {
+	gameView.showGameStatus('Игра отменена', 'warning');
+	this.hideAllControls();
+	
+	const message = this.createCustomButton('Игра отменена', () => {});
+	message.disabled = true;
+	message.classList.add('btn-warning');
+	gameView.elements.gameActions.appendChild(message);
+    }
+
+    showCancellationWithRestartControls() {
+	gameView.showGameStatus('Игра отменена. Возможна перерасдача.', 'warning');
+	this.hideAllControls();
+	
+	const restartButton = this.createCustomButton('Начать перерасдачу', async () => {
+            await this.restartAfterCancellation();
+	});
+	restartButton.classList.add('btn-success');
+	gameView.elements.gameActions.appendChild(restartButton);
+    }
+
+    async restartAfterCancellation() {
+	const success = await gameModel.restartAfterCancellation();
+	
+	if (success) {
+            gameView.showGameStatus('Игра перезапущена. Рассадка готова.', 'success');
+            this.emit('gameRestarted');
+            this.emit('updatePlayers');
+	}
     }
 
     showDiscussionControls(isCritical = false) {

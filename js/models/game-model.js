@@ -300,6 +300,113 @@ export class GameModel extends EventEmitter {
             return false;
         }
     }
+
+    canTransitionTo(targetStatus, targetSubstatus = null) {
+	const current = this.state.gameStatus;
+	
+	const allowedTransitions = {
+            [GAME_STATUSES.CREATED]: [
+		GAME_STATUSES.SEATING_READY
+            ],
+            [GAME_STATUSES.SEATING_READY]: [
+		GAME_STATUSES.ROLE_DISTRIBUTION,
+		GAME_STATUSES.CREATED
+            ],
+            [GAME_STATUSES.ROLE_DISTRIBUTION]: [
+		GAME_STATUSES.IN_PROGRESS,
+		GAME_STATUSES.SEATING_READY
+            ],
+            [GAME_STATUSES.IN_PROGRESS]: [
+		GAME_STATUSES.FINISHED_NO_SCORES,
+		GAME_STATUSES.CANCELLED
+            ],
+            [GAME_STATUSES.FINISHED_NO_SCORES]: [
+		GAME_STATUSES.FINISHED_WITH_SCORES
+            ],
+            [GAME_STATUSES.FINISHED_WITH_SCORES]: [],
+            [GAME_STATUSES.CANCELLED]: [
+		GAME_STATUSES.SEATING_READY  // Для перерасдачи
+            ]
+	};
+
+	return allowedTransitions[current]?.includes(targetStatus) || false;
+    }
+
+    // Методы для отмены игры
+    async cancelGame(reason, playerSlot = null, comment = '', withRestart = false) {
+	if (!this.canTransitionTo(GAME_STATUSES.CANCELLED)) {
+            return false;
+	}
+	
+	this.state.cancellationInfo = {
+            reason,
+            playerSlot,
+            comment,
+            withRestart,
+            timestamp: new Date().toISOString(),
+            round: this.state.round
+	};
+	
+	this.setGameStatus(GAME_STATUSES.CANCELLED);
+	
+	// Сохраняем статус отмененной игры
+	await this.updateGameStatus('cancelled');
+	await this.saveGameState();
+	
+	this.emit('gameCancelled', this.state.cancellationInfo);
+	
+	return true;
+    }
+
+    // Перерасдача после отмены
+    async restartAfterCancellation() {
+	if (this.state.gameStatus !== GAME_STATUSES.CANCELLED) {
+            return false;
+	}
+	
+	if (!this.state.cancellationInfo?.withRestart) {
+            return false;
+	}
+	
+	// Создаем новую игру в статусе SEATING_READY
+	await this.resetToSeatingReady();
+	
+	this.emit('gameRestarted');
+	return true;
+    }
+
+    async resetToSeatingReady() {
+	// Сбрасываем состояние игры к начальному
+	this.state.round = 0;
+	this.state.isGameStarted = false;
+	this.state.deadPlayers = [];
+	this.state.eliminatedPlayers = [];
+	this.state.nominatedPlayers = [];
+	this.state.votingResults = {};
+	this.state.shootoutPlayers = [];
+	this.state.bestMoveUsed = false;
+	this.state.noCandidatesRounds = 0;
+	
+	// Сбрасываем роли всех игроков на "Мирный"
+	this.state.players.forEach(player => {
+            player.role = 'Мирный';
+            player.originalRole = 'Мирный';
+            player.fouls = 0;
+            player.nominated = null;
+            player.isAlive = true;
+            player.isEliminated = false;
+            player.isSilent = false;
+            player.silentNextRound = false;
+	});
+	
+	// Сбрасываем баллы
+	this.state.players.forEach(player => {
+            this.state.scores[player.id] = { baseScore: 0, additionalScore: 0 };
+	});
+	
+	this.setGameStatus(GAME_STATUSES.SEATING_READY);
+	await this.saveGameState();
+    }
 }
 
 export default new GameModel();

@@ -123,48 +123,97 @@ export class GameView {
 
     // Убираем updateGamePhase, заменяем на updateGameStatus
     updateGameStatus(gameStatus, gameSubstatus = null) {
-        // Скрыть все секции
-        this.elements.votingSection.classList.add('d-none');
-        this.elements.votingControls.classList.add('d-none');
-        this.elements.nightSection.classList.add('d-none');
-        this.elements.nightControls.classList.add('d-none');
-        this.elements.bestMoveSection.classList.add('d-none');
-        this.elements.bestMoveControls.classList.add('d-none');
-        
-        // Показать нужные секции в зависимости от статуса
-        switch (gameStatus) {
-            case GAME_STATUSES.ROLE_DISTRIBUTION:
-                this.elements.startDistribution.classList.remove('d-none');
-                this.elements.startGame.classList.remove('d-none');
-                break;
-                
-            case GAME_STATUSES.IN_PROGRESS:
-                this.handleInProgressStatus(gameSubstatus);
-                break;
-                
-            default:
-                this.hideGameStatus();
-                break;
-        }
+	// Скрыть все секции
+	this.elements.votingSection.classList.add('d-none');
+	this.elements.votingControls.classList.add('d-none');
+	this.elements.nightSection.classList.add('d-none');
+	this.elements.nightControls.classList.add('d-none');
+	this.elements.bestMoveSection.classList.add('d-none');
+	this.elements.bestMoveControls.classList.add('d-none');
+	
+	// Показать нужные секции в зависимости от статуса
+	switch (gameStatus) {
+        case GAME_STATUSES.CREATED:
+            this.showCreatedControls();
+            break;
+            
+        case GAME_STATUSES.SEATING_READY:
+            this.showSeatingReadyControls();
+            break;
+            
+        case GAME_STATUSES.ROLE_DISTRIBUTION:
+            this.showRoleDistributionControls();
+            break;
+            
+        case GAME_STATUSES.IN_PROGRESS:
+            this.handleInProgressStatus(gameSubstatus);
+            break;
+            
+        case GAME_STATUSES.FINISHED_NO_SCORES:
+            this.showFinishedNoScoresControls();
+            break;
+            
+        case GAME_STATUSES.FINISHED_WITH_SCORES:
+            this.showFinishedWithScoresControls();
+            break;
+            
+        case GAME_STATUSES.CANCELLED:
+            this.showCancelledControls();
+            break;
+            
+        default:
+            this.hideGameStatus();
+            break;
+	}
+    }
+
+    showCreatedControls() {
+	this.showGameStatus('Игра создана. Подготовьте рассадку.', 'info');
+    }
+
+    showSeatingReadyControls() {
+	this.showGameStatus('Рассадка готова. Можно приступать к раздаче ролей.', 'info');
+    }
+
+    showRoleDistributionControls() {
+	this.showGameStatus('Раздача ролей. Распределите роли между игроками.', 'warning');
+    }
+
+    showCancelledControls() {
+	this.showGameStatus('Игра отменена.', 'danger');
+	this.disableGameControls();
     }
 
     handleInProgressStatus(gameSubstatus) {
-        switch (gameSubstatus) {
-            case GAME_SUBSTATUS.DISCUSSION:
-            case GAME_SUBSTATUS.CRITICAL_DISCUSSION:
-                // Показываем кнопки обсуждения
-                break;
-                
-            case GAME_SUBSTATUS.VOTING:
-                this.elements.votingSection.classList.remove('d-none');
-                this.elements.votingControls.classList.remove('d-none');
-                break;
-                
-            case GAME_SUBSTATUS.NIGHT:
-                this.elements.nightSection.classList.remove('d-none');
-                this.elements.nightControls.classList.remove('d-none');
-                break;
-        }
+	switch (gameSubstatus) {
+        case GAME_SUBSTATUS.DISCUSSION:
+            this.showGameStatus('Обсуждение', 'primary');
+            break;
+            
+        case GAME_SUBSTATUS.CRITICAL_DISCUSSION:
+            this.showGameStatus('Критический круг (угадайка)', 'danger');
+            break;
+            
+        case GAME_SUBSTATUS.VOTING:
+            this.elements.votingSection.classList.remove('d-none');
+            this.elements.votingControls.classList.remove('d-none');
+            this.showGameStatus('Голосование', 'warning');
+            break;
+            
+        case GAME_SUBSTATUS.SUSPECTS_SPEECH:
+            this.showGameStatus('Речь подозреваемых на попиле', 'info');
+            break;
+            
+        case GAME_SUBSTATUS.FAREWELL_MINUTE:
+            this.showGameStatus('Прощальная минута', 'secondary');
+            break;
+            
+        case GAME_SUBSTATUS.NIGHT:
+            this.elements.nightSection.classList.remove('d-none');
+            this.elements.nightControls.classList.remove('d-none');
+            this.showGameStatus('Ночь', 'dark');
+            break;
+	}
     }
 
     renderPlayers(players, gameState, callbacks) {
