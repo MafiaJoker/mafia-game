@@ -262,7 +262,7 @@ export class GameFlowController extends EventEmitter {
     showInProgressControls(substatus) {
 	gameView.elements.ppkButton.classList.remove('d-none');
 	gameView.elements.eliminatePlayerButton.classList.remove('d-none');
-	gameView.elements.cancelGameButton.classList.remove('d-none');
+	// gameView.elements.cancelGameButton.classList.remove('d-none');
 	
 	// Добавляем кнопку отмены игры рядом с ППК
 	// const cancelButton = this.createCustomButton('Отменить игру', () => {

@@ -69,50 +69,54 @@ export class NightActionsService extends EventEmitter {
         };
     }
 
-    applyNightActions() {
-        if (gameModel.state.mafiaTarget && gameModel.state.mafiaTarget !== 0) {
+    async applyNightActions() {
+	if (gameModel.state.mafiaTarget && gameModel.state.mafiaTarget !== 0) {
             const target = gameModel.getPlayer(gameModel.state.mafiaTarget);
             
             if (target && target.isAlive && !target.isEliminated) {
-                target.isAlive = false;
-                gameModel.state.deadPlayers.push(gameModel.state.mafiaTarget);
-                gameModel.state.nightKill = gameModel.state.mafiaTarget;
-                
-                gameModel.state.players.forEach(p => {
+		target.isAlive = false;
+		gameModel.state.deadPlayers.push(gameModel.state.mafiaTarget);
+		gameModel.state.nightKill = gameModel.state.mafiaTarget;
+		
+		gameModel.state.players.forEach(p => {
                     if (p.nominated === gameModel.state.mafiaTarget) {
-                        p.nominated = null;
+			p.nominated = null;
                     }
-                });
-                
-                this.emit('playerKilled', {
+		});
+		
+		this.emit('playerKilled', {
                     targetId: target.id,
                     targetName: target.name
-                });
+		});
             }
-        }
-        
-        gameModel.state.round++;
-        
-        // Устанавливаем статус обсуждения для нового дня
-        gameModel.setGameSubstatus(GAME_SUBSTATUS.DISCUSSION);
-        
-        gameModel.state.players.forEach(p => {
+	}
+	
+	gameModel.state.round++;
+	
+	// Устанавливаем статус обсуждения для нового дня
+	gameModel.setGameSubstatus(GAME_SUBSTATUS.DISCUSSION);
+	
+	gameModel.state.players.forEach(p => {
             if (p.silentNextRound) {
-                p.isSilent = true;
-                p.silentNextRound = false;
+		p.isSilent = true;
+		p.silentNextRound = false;
             } else if (p.isSilent) {
-                p.isSilent = false;
+		p.isSilent = false;
             }
-        });
-        
-        this.emit('nightActionsApplied', {
+	});
+	
+	// Помечаем состояние как измененное для автосохранения
+	const gameStateManager = await import('../services/game-state-manager.js');
+	gameStateManager.default.markDirty();
+	
+	this.emit('nightActionsApplied', {
             round: gameModel.state.round
-        });
-        
-        return {
+	});
+	
+	return {
             round: gameModel.state.round,
             killed: gameModel.state.nightKill
-        };
+	};
     }
 }
 
