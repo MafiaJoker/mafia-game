@@ -262,20 +262,11 @@ export class GameFlowController extends EventEmitter {
     showInProgressControls(substatus) {
 	gameView.elements.ppkButton.classList.remove('d-none');
 	gameView.elements.eliminatePlayerButton.classList.remove('d-none');
-	// gameView.elements.cancelGameButton.classList.remove('d-none');
-	
-	// Добавляем кнопку отмены игры рядом с ППК
-	// const cancelButton = this.createCustomButton('Отменить игру', () => {
-        //     this.showCancelGameModal();
-	// });
-	// cancelButton.classList.add('btn-outline-warning');
-	// cancelButton.classList.remove('btn-primary');
-	// gameView.elements.gameActions.appendChild(cancelButton);
-	
+	gameView.elements.cancelGameButton.classList.remove('d-none');
+		
 	switch (substatus) {
         case GAME_SUBSTATUS.DISCUSSION:
         case GAME_SUBSTATUS.CRITICAL_DISCUSSION:
-            this.showDiscussionControls(substatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION);
             break;
             
         case GAME_SUBSTATUS.VOTING:
@@ -466,25 +457,6 @@ export class GameFlowController extends EventEmitter {
             this.emit('gameRestarted');
             this.emit('updatePlayers');
 	}
-    }
-
-    showDiscussionControls(isCritical = false) {
-	// Используем существующую кнопку startVoting
-	gameView.elements.startVoting.classList.remove('d-none');
-	// Используем существующую кнопку goToNight  
-	gameView.elements.goToNight.classList.remove('d-none');
-	
-        // const buttonText = isCritical ? 'Начать голосование (критический круг)' : 'Начать голосование';
-        // const voteButton = this.createCustomButton(buttonText, () => {
-        //     this.startVoting();
-        // });
-        
-        // const nightButton = this.createCustomButton('В ночь', () => {
-        //     this.goToNight();
-        // });
-        
-        // gameView.elements.gameActions.appendChild(voteButton);
-        // gameView.elements.gameActions.appendChild(nightButton);
     }
 
     showSuspectsSpeechControls() {

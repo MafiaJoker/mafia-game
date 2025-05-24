@@ -66,7 +66,7 @@ export class VotingController extends EventEmitter {
         votingService.on('votesRegistered', (data) => {
             gameView.renderVotingOptions(gameModel.state.nominatedPlayers, data.results);
         });
-        
+
         votingService.on('shootoutStarted', (players) => {
             gameView.showGameStatus(
                 localization.t('gameStatus', 'shootout') +
@@ -164,13 +164,21 @@ export class VotingController extends EventEmitter {
             (gameModel.state.gameSubstatus === GAME_SUBSTATUS.DISCUSSION || 
              gameModel.state.gameSubstatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION)) {
             
+            const candidatesCount = gameModel.state.nominatedPlayers.length;
             const playersCount = gameModel.state.players.filter(p => p.isAlive && !p.isEliminated).length;
             const isCritical = gameModel.isCriticalRound();
             
+            // Если нет кандидатур вообще - голосование невозможно
+            if (candidatesCount === 0) {
+		startVotingBtn.classList.add('d-none');
+		goToNightBtn.classList.remove('d-none');
+		return;
+            }
+            
             // На критическом кругу особые правила
             if (isCritical) {
-		// На критическом кругу голосование обязательно если есть хотя бы одна кандидатура
-		if (gameModel.state.nominatedPlayers.length >= 1) {
+		// На критическом кругу голосование проводится если есть хотя бы одна кандидатура
+		if (candidatesCount >= 1) {
                     startVotingBtn.classList.remove('d-none');
                     goToNightBtn.classList.add('d-none');
 		} else {
@@ -179,20 +187,25 @@ export class VotingController extends EventEmitter {
 		}
             } else {
 		// Обычные правила голосования
-		if (gameModel.state.round === 0 && playersCount === 10) {
-                    if (gameModel.state.nominatedPlayers.length >= 2) {
+		if (gameModel.state.round === 0) {
+                    // На нулевом кругу нужно минимум 2 кандидатуры
+                    if (candidatesCount >= 2) {
+			startVotingBtn.classList.remove('d-none');
+			goToNightBtn.classList.add('d-none');
+                    } else {
+			// Если 0 или 1 кандидатура на нулевом кругу - голосования нет
+			startVotingBtn.classList.add('d-none');
+			goToNightBtn.classList.remove('d-none');
+                    }
+		} else {
+                    // На остальных кругах нужна минимум 1 кандидатура
+                    if (candidatesCount >= 1) {
 			startVotingBtn.classList.remove('d-none');
 			goToNightBtn.classList.add('d-none');
                     } else {
 			startVotingBtn.classList.add('d-none');
 			goToNightBtn.classList.remove('d-none');
                     }
-		} else if (gameModel.state.nominatedPlayers.length >= 1) {
-                    startVotingBtn.classList.remove('d-none');
-                    goToNightBtn.classList.add('d-none');
-		} else {
-                    startVotingBtn.classList.add('d-none');
-                    goToNightBtn.classList.remove('d-none');
 		}
             }
 	}

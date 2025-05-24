@@ -73,6 +73,7 @@ export class NightActionsController extends EventEmitter {
         const checkResult = nightActionsService.checkSheriff(playerId);
         gameView.renderNightActions(gameModel.state.players);
     }
+    
     async confirmNight() {
 	// Просто применяем ночные действия - вся остальная логика в обработчике события
 	nightActionsService.applyNightActions();
