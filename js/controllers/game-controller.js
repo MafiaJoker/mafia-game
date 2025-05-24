@@ -31,13 +31,13 @@ export class GameController {
     setupControllerEvents() {
         // События игрового процесса
         this.gameFlowController.on('gameInitialized', () => {
-            this.setupEventListeners();
+            // this.setupEventListeners();
             gameView.initModalHandlers();
             this.updatePlayers();
         });
         
         this.gameFlowController.on('gameLoaded', () => {
-            this.setupEventListeners();
+            // this.setupEventListeners();
             gameView.initModalHandlers();
             this.updatePlayers();
         });

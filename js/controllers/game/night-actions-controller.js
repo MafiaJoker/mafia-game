@@ -73,29 +73,37 @@ export class NightActionsController extends EventEmitter {
         const checkResult = nightActionsService.checkSheriff(playerId);
         gameView.renderNightActions(gameModel.state.players);
     }
-
     async confirmNight() {
-        const nightResult = nightActionsService.applyNightActions();
-        
-        // Переходим к обсуждению нового дня
-        gameView.updateGameStatus(gameModel.state.gameStatus, gameModel.state.gameSubstatus);
-
-        // Обновляем статус игры при изменении круга
-        this.emit('updateGameStatus', "in_progress");
-        
-        // Очистка результатов предыдущих ночных проверок
-        gameView.elements.donResult.classList.add('d-none');
-        gameView.elements.sheriffResult.classList.add('d-none');
-
-	const gameController = await import('../game-controller.js');
-	const bestMoveShown = gameController.default.bestMoveController.checkForBestMove();
+	// Просто применяем ночные действия - вся остальная логика в обработчике события
+	nightActionsService.applyNightActions();
 	
-	if (!bestMoveShown) {
-            this.emit('updatePlayers');
-            this.emit('checkGameEnd');
-            this.emit('updateNominations');
-	}
+	// Очистка результатов предыдущих ночных проверок
+	gameView.elements.donResult.classList.add('d-none');
+	gameView.elements.sheriffResult.classList.add('d-none');
     }
+    
+    // async confirmNight() {
+    //     const nightResult = nightActionsService.applyNightActions();
+        
+    //     // Переходим к обсуждению нового дня
+    //     gameView.updateGameStatus(gameModel.state.gameStatus, gameModel.state.gameSubstatus);
+
+    //     // Обновляем статус игры при изменении круга
+    //     this.emit('updateGameStatus', "in_progress");
+        
+    //     // Очистка результатов предыдущих ночных проверок
+    //     gameView.elements.donResult.classList.add('d-none');
+    //     gameView.elements.sheriffResult.classList.add('d-none');
+
+    // 	const gameController = await import('../game-controller.js');
+    // 	const bestMoveShown = gameController.default.bestMoveController.checkForBestMove();
+	
+    // 	if (!bestMoveShown) {
+    //         this.emit('updatePlayers');
+    //         this.emit('checkGameEnd');
+    //         this.emit('updateNominations');
+    // 	}
+    // }
 }
 
 export default new NightActionsController();
