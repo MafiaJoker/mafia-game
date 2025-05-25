@@ -1,0 +1,76 @@
+{
+    "common": {
+	"loading": "Загрузка...",
+	"save": "Сохранить",
+	"cancel": "Отмена",
+	"delete": "Удалить",
+	"edit": "Редактировать",
+	"close": "Закрыть",
+	"confirm": "Подтвердить",
+	"yes": "Да",
+	"no": "Нет"
+    },
+    "game": {
+	"round": "Круг",
+	"players": "Игроки",
+	"voting": "Голосование",
+	"night": "Ночь",
+	"bestMove": "Лучший ход",
+	"startGame": "Начать игру",
+	"distributeRoles": "Раздать роли",
+	"startVoting": "Начать голосование",
+	"goToNight": "В ночь",
+	"confirmVoting": "Подтвердить голосование",
+	"resetVoting": "Начать заново"
+    },
+    "roles": {
+	"civilian": "Мирный",
+	"sheriff": "Шериф",
+	"mafia": "Мафия", 
+	"don": "Дон"
+    },
+    "gameStatus": {
+	"created": "Создана",
+	"seatingReady": "Рассадка готова",
+	"roleDistribution": "Роздача ролей",
+	"inProgress": "В процессе",
+	"finishedNoScores": "Завершена без баллов",
+	"finishedWithScores": "Завершена с баллами",
+	"cancelled": "Отменена",
+	"mafiaWin": "Конец игры! Победа команды мафии!",
+	"cityWin": "Конец игры! Победа мирного города!",
+	"draw": "Конец игры! Ничья! 3 круга не было голосований."
+    },
+    "events": {
+	"title": "Мероприятия Мафии",
+	"create": "Создать мероприятие",
+	"name": "Название",
+	"description": "Описание",
+	"date": "Дата",
+	"language": "Язык",
+	"category": "Категория",
+	"status": "Статус",
+	"judge": "Ведущий",
+	"tables": "Столы",
+	"noEvents": "Нет мероприятий",
+	"activeEvents": "Активные мероприятия",
+	"archivedEvents": "Архив мероприятий"
+    },
+    "tables": {
+	"name": "Название стола",
+	"capacity": "Количество игроков",
+	"seatingType": "Тип рассадки",
+	"freeSeating": "Свободная рассадка",
+	"fixedSeating": "Заданная рассадка",
+	"judge": "Судья",
+	"games": "Игры",
+	"noTables": "Нет столов",
+	"createTable": "Создать стол"
+    },
+    "validation": {
+	"required": "Это поле обязательно",
+	"invalidEmail": "Неверный формат email",
+	"minLength": "Минимальная длина {min} символов",
+	"maxLength": "Максимальная длина {max} символов"
+    }
+}
