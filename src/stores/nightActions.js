@@ -52,6 +52,14 @@ export const useNightActionsStore = defineStore('nightActions', () => {
 	}
 	
 	gameStore.gameState.round++
+
+	if (gameStore.checkBestMove()) {
+	    // Если показали лучший ход, не продолжаем дальше
+	    return {
+		round: gameStore.gameState.round,
+		killed: gameStore.gameState.nightKill
+	    }
+	}
 	
 	// Устанавливаем статус обсуждения для нового дня
 	gameStore.setGameStatus(gameStore.gameState.gameStatus, GAME_SUBSTATUS.DISCUSSION)
