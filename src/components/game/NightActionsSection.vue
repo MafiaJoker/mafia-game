@@ -11,7 +11,7 @@
       <!-- Стрельба мафии -->
       <div class="action-group mb-6">
         <h5 class="action-title">
-          <el-icon><Sword /></el-icon>
+          <el-icon><Aim /></el-icon>
           Стрельба мафии:
         </h5>
         
@@ -46,7 +46,7 @@
       <!-- Проверка дона -->
       <div class="action-group mb-6">
         <h5 class="action-title">
-          <el-icon><Crown /></el-icon>
+          <el-icon><Aim /></el-icon>
           Проверка дона:
         </h5>
         
@@ -86,7 +86,7 @@
       <!-- Проверка шерифа -->
       <div class="action-group">
         <h5 class="action-title">
-          <el-icon><Shield /></el-icon>
+          <el-icon><Orange /></el-icon>
           Проверка шерифа:
         </h5>
         
@@ -133,9 +133,8 @@
   import { PLAYER_ROLES } from '@/utils/constants'
   import { 
       Moon, 
-      Sword, 
-      Crown, 
-      Shield 
+      Aim, 
+      Orange 
   } from '@element-plus/icons-vue'
 
   const gameStore = useGameStore()

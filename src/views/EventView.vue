@@ -85,30 +85,30 @@
                   <el-empty description="У этого мероприятия еще нет столов" />
                 </div>
 
-                <el-list v-else>
-                  <el-list-item
-                    v-for="table in event.tables"
-                    :key="table.id"
-                    class="table-item"
-                    :class="{ active: selectedTable?.id === table.id }"
-                    @click="selectTable(table)"
-                    >
-                    <div class="table-content">
-                      <div class="table-name">{{ table.name }}</div>
-                      <div class="table-meta">
-                        <el-tag 
-                          :type="table.seatingType === 'free' ? 'success' : 'primary'"
-                          size="small"
-                          >
-                          {{ table.seatingType === 'free' ? 'Свободная рассадка' : 'Заданная рассадка' }}
-                        </el-tag>
-                        <span v-if="table.judge" class="judge-info">
-                          Судья: {{ table.judge }}
-                        </span>
-                      </div>
-                    </div>
-                  </el-list-item>
-                </el-list>
+		<div class="tables-list">
+		  <div
+		    v-for="table in event.tables"
+		    :key="table.id"
+		    class="table-item"
+		    :class="{ active: selectedTable?.id === table.id }"
+		    @click="selectTable(table)"
+		    >
+		    <div class="table-content">
+		      <div class="table-name">{{ table.name }}</div>
+		      <div class="table-meta">
+			<el-tag 
+			  :type="table.seatingType === 'free' ? 'success' : 'primary'"
+			  size="small"
+			  >
+			  {{ table.seatingType === 'free' ? 'Свободная рассадка' : 'Заданная рассадка' }}
+			</el-tag>
+			<span v-if="table.judge" class="judge-info">
+			  Судья: {{ table.judge }}
+			</span>
+		      </div>
+		    </div>
+		  </div>
+		</div>
               </div>
 
               <el-skeleton v-else :rows="3" animated />

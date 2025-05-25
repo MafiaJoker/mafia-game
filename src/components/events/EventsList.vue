@@ -7,8 +7,8 @@
         </el-empty>
       </div>
       
-      <el-list v-else>
-        <el-list-item 
+      <div v-else class="events-container">
+        <div 
           v-for="event in events" 
           :key="event.id"
           class="event-item"
@@ -68,8 +68,8 @@
               </div>
             </div>
           </div>
-        </el-list-item>
-      </el-list>
+        </div>
+      </div>
     </el-skeleton>
   </div>
 </template>
@@ -161,22 +161,30 @@
       height: 100%;
   }
 
+  .events-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+  }
+
   .event-item {
       cursor: pointer;
       transition: all 0.3s ease;
       border-radius: 8px;
-      margin-bottom: 8px;
+      border: 1px solid #ebeef5;
+      background-color: #fff;
+      padding: 16px;
   }
 
   .event-item:hover {
       background-color: #f5f7fa;
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border-color: #409eff;
   }
 
   .event-content {
       width: 100%;
-      padding: 16px;
   }
 
   .event-header {
@@ -235,5 +243,26 @@
   .empty-state {
       text-align: center;
       padding: 40px 20px;
+  }
+
+  @media (max-width: 768px) {
+      .event-item {
+	  padding: 12px;
+      }
+      
+      .event-title {
+	  font-size: 16px;
+      }
+      
+      .event-footer {
+	  flex-direction: column;
+	  gap: 8px;
+	  align-items: flex-start;
+      }
+      
+      .event-info {
+	  width: 100%;
+	  justify-content: space-between;
+      }
   }
 </style>

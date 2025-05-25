@@ -47,7 +47,7 @@
             style="width: 100%"
             @click="declareMafiaWin"
             >
-            <el-icon><Sword /></el-icon>
+            <el-icon><Aim /></el-icon>
             Победа мафии
           </el-button>
           
@@ -72,7 +72,7 @@
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { 
       Trophy, 
-      Sword, 
+      Aim, 
       Close 
   } from '@element-plus/icons-vue'
 

@@ -29,9 +29,8 @@
   import { PLAYER_ROLES } from '@/utils/constants'
   import { 
       User, 
-      Shield, 
-      Sword, 
-      Crown, 
+      Orange, 
+      Aim, 
       Hide 
   } from '@element-plus/icons-vue'
 
@@ -55,9 +54,9 @@
   const getRoleIcon = (role) => {
       switch (role) {
       case PLAYER_ROLES.CIVILIAN: return User
-      case PLAYER_ROLES.SHERIFF: return Shield
-      case PLAYER_ROLES.MAFIA: return Sword
-      case PLAYER_ROLES.DON: return Crown
+      case PLAYER_ROLES.SHERIFF: return Orange
+      case PLAYER_ROLES.MAFIA: return Aim
+      case PLAYER_ROLES.DON: return Aim
       default: return User
       }
   }

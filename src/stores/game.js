@@ -55,6 +55,70 @@ export const useGameStore = defineStore('game', () => {
     })
 
     // Actions
+    const finishGame = async (result) => {
+	try {
+            // Устанавливаем статус завершенной игры
+            setGameStatus(GAME_STATUSES.FINISHED_NO_SCORES)
+            gameState.value.isGameStarted = false
+            
+            // Устанавливаем базовые баллы в зависимости от результата
+            setBaseScores(result)
+            
+            // Обновляем статус игры в API
+            if (gameInfo.value) {
+		await apiService.updateGame(
+                    gameInfo.value.eventId, 
+                    gameInfo.value.tableId, 
+                    gameInfo.value.gameId, 
+                    {
+			status: 'finished',
+			result: result,
+			currentRound: gameState.value.round
+                    }
+		)
+            }
+            
+            await saveGameState()
+            return true
+	} catch (error) {
+            console.error('Ошибка завершения игры:', error)
+            return false
+	}
+    }
+    const setBaseScores = (result) => {
+	gameState.value.players.forEach(player => {
+            let baseScore = 0
+            
+            const isWinner = (
+		(result === 'city_win' && (player.originalRole === PLAYER_ROLES.CIVILIAN || player.originalRole === PLAYER_ROLES.SHERIFF)) ||
+		    (result === 'mafia_win' && (player.originalRole === PLAYER_ROLES.MAFIA || player.originalRole === PLAYER_ROLES.DON))
+            )
+            
+            if (result === 'draw') {
+		baseScore = 0.5 // При ничьей всем по 0.5 балла
+            } else if (isWinner) {
+		baseScore = 1 // Победители получают 1 балл
+            } else {
+		baseScore = 0 // Проигравшие получают 0 баллов
+            }
+            
+            setPlayerScore(player.id, baseScore, 0)
+	})
+    }
+
+    const setPlayerScore = (playerId, baseScore, additionalScore = 0) => {
+	if (!gameState.value.scores[playerId]) {
+            gameState.value.scores[playerId] = { baseScore: 0, additionalScore: 0 }
+	}
+	
+	gameState.value.scores[playerId].baseScore = baseScore
+	gameState.value.scores[playerId].additionalScore = additionalScore
+    }
+
+    const getPlayerScore = (playerId) => {
+	return gameState.value.scores[playerId] || { baseScore: 0, additionalScore: 0 }
+    }
+    
     const checkBestMove = () => {
 	// Проверка на первого убитого для лучшего хода
 	if (gameState.value.deadPlayers.length === 1 && 
@@ -236,6 +300,10 @@ export const useGameStore = defineStore('game', () => {
 	
 	// Actions
 	checkBestMove,
+	finishGame,
+	setBaseScores,
+	setPlayerScore,
+	getPlayerScore,
 	initGame,
 	loadGameState,
 	saveGameState,
