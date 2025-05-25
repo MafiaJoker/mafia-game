@@ -19,7 +19,7 @@
           v-if="player.fouls === MAX_FOULS.BEFORE_SILENCE && !player.isSilent && !player.silentNextRound"
           type="warning" 
           size="small"
-          @click="$emit('silentNow', player.id)"
+          @click="emit('silentNow', player.id)"
           >
           Молчит сейчас
         </el-button>
@@ -28,7 +28,7 @@
           v-if="player.fouls === MAX_FOULS.BEFORE_SILENCE && !player.isSilent && !player.silentNextRound"
           type="info" 
           size="small"
-          @click="$emit('silentNext', player.id)"
+          @click="emit('silentNext', player.id)"
           >
           Молчит след. круг
         </el-button>
@@ -37,7 +37,7 @@
           v-if="player.fouls >= MAX_FOULS.BEFORE_ELIMINATION"
           type="danger" 
           size="small"
-          @click="$emit('eliminate', player.id)"
+          @click="emit('eliminate', player.id)"
           >
           Удалить
         </el-button>
@@ -46,7 +46,7 @@
           v-if="player.fouls >= MAX_FOULS.BEFORE_ELIMINATION"
           type="secondary" 
           size="small"
-          @click="$emit('reset', player.id)"
+          @click="emit('reset', player.id)"
           >
           Сбросить
         </el-button>
@@ -66,7 +66,7 @@
       }
   })
 
-  defineEmits(['increment', 'reset', 'silentNow', 'silentNext', 'eliminate'])
+  const emit = defineEmits(['increment', 'reset', 'silentNow', 'silentNext', 'eliminate'])
 
   const showFoulActions = computed(() => {
       return props.player.fouls >= MAX_FOULS.BEFORE_SILENCE
@@ -84,7 +84,7 @@
 	  (props.player.fouls === MAX_FOULS.BEFORE_SILENCE && 
 	   (props.player.isSilent || props.player.silentNextRound)) ||
 	  props.player.fouls >= MAX_FOULS.BEFORE_ELIMINATION) {
-	  $emit('increment', props.player.id)
+	  emit('increment', props.player.id)
       }
   }
 </script>

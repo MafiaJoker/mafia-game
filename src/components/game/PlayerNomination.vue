@@ -51,43 +51,43 @@
       }
   })
 
-  defineEmits(['nominate'])
+  const emit = defineEmits(['nominate'])
 
   const canNominate = computed(() => {
       return props.player.isAlive && 
           !props.player.isEliminated &&
           props.gameState.gameStatus === GAME_STATUSES.IN_PROGRESS &&
           (props.gameState.gameSubstatus === GAME_SUBSTATUS.DISCUSSION ||
-           props.gameState.gameSubstatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION)
+  props.gameState.gameSubstatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION)
   })
 
   const availableTargets = computed(() => {
-      if (!canNominate.value) return []
-      
-      const nominatedPlayerIds = props.gameState.players
+	    if (!canNominate.value) return []
+	    
+	    const nominatedPlayerIds = props.gameState.players
 	    .filter(p => p.isAlive && !p.isEliminated && p.nominated !== null)
-	    .map(p => p.nominated)
-      
-      return props.players.filter(p => {
-	  // Может номинировать себя
-	  if (p.id === props.player.id) return true
-	  
-	  // Может номинировать живых игроков, которые еще не номинированы
-	  // или которых номинировал именно этот игрок
-	  return p.isAlive && 
-              !p.isEliminated && 
-              (!nominatedPlayerIds.includes(p.id) || p.id === props.player.nominated)
-      })
-  })
+    .map(p => p.nominated)
+    
+    return props.players.filter(p => {
+    // Может номинировать себя
+    if (p.id === props.player.id) return true
+    
+    // Может номинировать живых игроков, которые еще не номинированы
+    // или которых номинировал именно этот игрок
+    return p.isAlive && 
+    !p.isEliminated && 
+    (!nominatedPlayerIds.includes(p.id) || p.id === props.player.nominated)
+    })
+    })
 
-  const getNominatedPlayerName = (playerId) => {
-      const nominatedPlayer = props.players.find(p => p.id === playerId)
-      return nominatedPlayer ? `${nominatedPlayer.id}: ${nominatedPlayer.name}` : `Игрок ${playerId}`
-  }
+    const getNominatedPlayerName = (playerId) => {
+    const nominatedPlayer = props.players.find(p => p.id === playerId)
+    return nominatedPlayer ? `${nominatedPlayer.id}: ${nominatedPlayer.name}` : `Игрок ${playerId}`
+    }
 
-  const handleNomination = (targetId) => {
-      $emit('nominate', props.player.id, targetId)
-  }
+    const handleNomination = (targetId) => {
+    emit('nominate', props.player.id, targetId)
+    }
 </script>
 
 <style scoped>
