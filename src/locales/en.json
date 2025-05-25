@@ -1,0 +1,47 @@
+{
+    "common": {
+	"loading": "Loading...",
+	"save": "Save",
+	"cancel": "Cancel",
+	"delete": "Delete",
+	"edit": "Edit",
+	"close": "Close",
+	"confirm": "Confirm",
+	"yes": "Yes",
+	"no": "No"
+    },
+    "game": {
+	"round": "Round",
+	"players": "Players",
+	"voting": "Voting",
+	"night": "Night",
+	"bestMove": "Best Move",
+	"startGame": "Start Game",
+	"distributeRoles": "Distribute Roles",
+	"startVoting": "Start Voting",
+	"goToNight": "Go to Night",
+	"confirmVoting": "Confirm Voting",
+	"resetVoting": "Reset"
+    },
+    "roles": {
+	"civilian": "Civilian",
+	"sheriff": "Sheriff",
+	"mafia": "Mafia",
+	"don": "Don"
+    },
+    "events": {
+	"title": "Mafia Events",
+	"create": "Create Event",
+	"name": "Name",
+	"description": "Description",
+	"date": "Date",
+	"language": "Language",
+	"category": "Category",
+	"status": "Status",
+	"judge": "Judge",
+	"tables": "Tables",
+	"noEvents": "No events",
+	"activeEvents": "Active Events",
+	"archivedEvents": "Archived Events"
+    }
+}

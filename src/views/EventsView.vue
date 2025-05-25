@@ -118,7 +118,7 @@
   import ArchivedEvents from '@/components/events/ArchivedEvents.vue'
   import ActiveGames from '@/components/events/ActiveGames.vue'
   import EventDetailsDialog from '@/components/events/EventDetailsDialog.vue'
-  import { ElMessage } from 'element-plus'
+  import { ElMessage, ElMessageBox } from 'element-plus'
   import { 
       Plus, 
       Calendar, 
