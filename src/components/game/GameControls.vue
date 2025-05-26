@@ -180,15 +180,16 @@
   }
 
   const cancelVoting = () => {
-      gameStore.setGameSubstatus(
-	  gameStore.isCriticalRound() ? GAME_SUBSTATUS.CRITICAL_DISCUSSION : GAME_SUBSTATUS.DISCUSSION
+      gameStore.setGameStatus(
+	  gameStore.gameState.gameStatus,
+	  gameStore.isCriticalRound ? GAME_SUBSTATUS.CRITICAL_DISCUSSION : GAME_SUBSTATUS.DISCUSSION
       )
       gameState.value.votingResults = {}
       gameState.value.shootoutPlayers = []
   }
 
   const goToNight = () => {
-      gameStore.setGameSubstatus(GAME_SUBSTATUS.NIGHT)
+      gameStore.setGameStatus(gameStore.gameState.gameStatus, GAME_SUBSTATUS.NIGHT)
       
       // Сброс ночных целей
       gameState.value.mafiaTarget = null
@@ -207,7 +208,7 @@
   }
 
   const goToFarewell = () => {
-      gameStore.setGameSubstatus(GAME_SUBSTATUS.FAREWELL_MINUTE)
+      gameStore.setGameStatus(gameStore.gameState.gameStatus, GAME_SUBSTATUS.FAREWELL_MINUTE)
   }
 
   const confirmBestMove = () => {

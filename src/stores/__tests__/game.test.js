@@ -172,8 +172,14 @@ describe('GameStore', () => {
       store.gameState.noCandidatesRounds = 2
       store.incrementNoCandidatesRounds()
       expect(store.gameState.noCandidatesRounds).toBe(3)
-      // После 3 раундов без кандидатов игра переходит в критический режим
-      expect(store.gameState.isCriticalRound).toBe(true)
+      // Критический раунд теперь зависит от количества игроков, а не от раундов без кандидатов
+      // Добавим игроков для проверки
+      store.initializeGame({ eventId: 1, tableId: 1 })
+      for (let i = 1; i <= 4; i++) {
+        store.addPlayer({ id: i, nickname: `Player${i}` })
+      }
+      // С 4 игроками должен быть критический раунд
+      expect(store.isCriticalRound).toBe(true)
     })
   })
 
