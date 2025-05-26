@@ -31,7 +31,7 @@
         </el-button>
         
         <el-button 
-          type="secondary" 
+          type="info" 
           size="small"
           @click="$emit('reset', player.id)"
           >

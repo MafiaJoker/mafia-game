@@ -11,7 +11,7 @@
 
     <div class="ppk-actions">
       <el-space>
-        <el-button type="secondary" @click="handleCancel">
+        <el-button type="info" @click="handleCancel">
           <el-icon><Close /></el-icon>
           Отменить
         </el-button>

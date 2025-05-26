@@ -48,7 +48,7 @@
         <el-button type="danger" @click="resetVoting">
           Начать заново
         </el-button>
-        <el-button type="secondary" @click="cancelVoting">
+        <el-button type="info" @click="cancelVoting">
           Отменить голосование
         </el-button>
       </template>

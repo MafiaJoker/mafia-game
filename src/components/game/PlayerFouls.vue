@@ -44,7 +44,7 @@
         
         <el-button 
           v-if="player.fouls >= MAX_FOULS.BEFORE_ELIMINATION"
-          type="secondary" 
+          type="info" 
           size="small"
           @click="emit('reset', player.id)"
           >
