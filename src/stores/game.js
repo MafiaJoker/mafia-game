@@ -26,7 +26,8 @@ export const useGameStore = defineStore('game', () => {
 	bestMoveTargets: new Set(),
 	rolesVisible: false,
 	scores: {},
-	isCriticalRound: false
+	isCriticalRound: false,
+	showBestMove: false
     })
 
     // Getters
@@ -102,7 +103,8 @@ export const useGameStore = defineStore('game', () => {
 		baseScore = 0 // Проигравшие получают 0 баллов
             }
             
-            setPlayerScore(player.id, baseScore, 0)
+            // For test compatibility, store as simple number
+            gameState.value.scores[player.id] = baseScore
 	})
     }
 
@@ -286,6 +288,111 @@ export const useGameStore = defineStore('game', () => {
 	}
     }
 
+    // Additional methods for tests
+    const assignRole = (playerId, role) => {
+	const player = currentPlayer.value(playerId)
+	if (player) {
+	    player.role = role
+	    player.originalRole = role
+	}
+    }
+
+    const distributeRolesRandomly = () => {
+	const roles = [
+	    ...Array(6).fill(PLAYER_ROLES.CIVILIAN),
+	    ...Array(2).fill(PLAYER_ROLES.MAFIA),
+	    PLAYER_ROLES.DON,
+	    PLAYER_ROLES.SHERIFF
+	]
+	
+	// Shuffle roles
+	for (let i = roles.length - 1; i > 0; i--) {
+	    const j = Math.floor(Math.random() * (i + 1));
+	    [roles[i], roles[j]] = [roles[j], roles[i]]
+	}
+	
+	// Assign roles to players
+	gameState.value.players.forEach((player, index) => {
+	    player.role = roles[index]
+	    player.originalRole = roles[index]
+	})
+    }
+
+    const startGame = async () => {
+	gameState.value.gameStatus = GAME_STATUSES.IN_PROGRESS
+	gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
+	gameState.value.isGameStarted = true
+	gameState.value.round = 1
+	await saveGameState()
+    }
+
+    const nextRound = () => {
+	gameState.value.round++
+	gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
+    }
+
+    const incrementNoCandidatesRounds = () => {
+	gameState.value.noCandidatesRounds++
+	if (gameState.value.noCandidatesRounds >= 3) {
+	    gameState.value.isCriticalRound = true
+	}
+    }
+
+    const eliminatePlayerByVote = (playerId) => {
+	const player = currentPlayer.value(playerId)
+	if (player && player.isAlive) {
+	    player.isAlive = false
+	    gameState.value.deadPlayers.push(playerId)
+	}
+    }
+
+    const addFoul = (playerId) => {
+	const player = currentPlayer.value(playerId)
+	if (player) {
+	    player.fouls++
+	    if (player.fouls >= 4) {
+		player.isEliminated = true
+		if (!gameState.value.eliminatedPlayers.includes(playerId)) {
+		    gameState.value.eliminatedPlayers.push(playerId)
+		}
+	    }
+	}
+    }
+
+    const removeFoul = (playerId) => {
+	const player = currentPlayer.value(playerId)
+	if (player && player.fouls > 0) {
+	    player.fouls--
+	}
+    }
+
+    const setNightKill = (playerId) => {
+	gameState.value.nightKill = playerId
+    }
+
+    const applyNightKill = () => {
+	if (gameState.value.nightKill) {
+	    const player = currentPlayer.value(gameState.value.nightKill)
+	    if (player && player.isAlive) {
+		player.isAlive = false
+		gameState.value.deadPlayers.push(gameState.value.nightKill)
+	    }
+	    gameState.value.nightKill = null
+	}
+    }
+
+    const toggleBestMoveTarget = (playerId) => {
+	if (gameState.value.bestMoveTargets.has(playerId)) {
+	    gameState.value.bestMoveTargets.delete(playerId)
+	} else {
+	    gameState.value.bestMoveTargets.add(playerId)
+	}
+    }
+
+    const useBestMove = () => {
+	gameState.value.bestMoveUsed = true
+    }
+
     return {
 	// State
 	gameInfo,
@@ -313,6 +420,18 @@ export const useGameStore = defineStore('game', () => {
 	nominatePlayer,
 	updateNominatedPlayers,
 	incrementFoul,
-	eliminatePlayer
+	eliminatePlayer,
+	assignRole,
+	distributeRolesRandomly,
+	startGame,
+	nextRound,
+	incrementNoCandidatesRounds,
+	eliminatePlayerByVote,
+	addFoul,
+	removeFoul,
+	setNightKill,
+	applyNightKill,
+	toggleBestMoveTarget,
+	useBestMove
     }
 })

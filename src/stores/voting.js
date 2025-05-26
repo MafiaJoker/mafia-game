@@ -65,7 +65,7 @@ export const useVotingStore = defineStore('voting', () => {
 	
 	if (playersWithMaxVotes.length === 1) {
 	    const eliminatedId = playersWithMaxVotes[0]
-	    gameStore.eliminatePlayer(eliminatedId)
+	    gameStore.eliminatePlayerByVote(eliminatedId)
 	    gameStore.gameState.noCandidatesRounds = 0
 	}
 	
