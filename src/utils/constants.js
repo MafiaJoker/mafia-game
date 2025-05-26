@@ -86,3 +86,16 @@ export const CANCELLATION_REASONS = {
     INSUFFICIENT_PLAYERS: 'insufficient_players',
     OTHER: 'other'
 }
+
+// Aliases for tests
+export const ROLE = PLAYER_ROLES
+export const PLAYER_STATUS = {
+    ALIVE: 'ALIVE',
+    VOTED_OUT: 'VOTED_OUT',
+    KILLED: 'KILLED',
+    KICKED: 'KICKED'
+}
+export const GAME_PHASE = {
+    DAY: 'DAY',
+    NIGHT: 'NIGHT'
+}

@@ -60,8 +60,86 @@ export const useGameResultsStore = defineStore('gameResults', () => {
 	})
     }
 
+    // Methods for tests
+    const checkWinCondition = (players) => {
+	const alivePlayers = players.filter(p => p.status === 'ALIVE')
+	
+	const mafiaCount = alivePlayers.filter(p => 
+	    p.role === PLAYER_ROLES.MAFIA || p.role === PLAYER_ROLES.DON
+	).length
+	
+	const civilianCount = alivePlayers.filter(p => 
+	    p.role === PLAYER_ROLES.CIVILIAN || p.role === PLAYER_ROLES.SHERIFF
+	).length
+	
+	// Победа города - вся мафия убита
+	if (mafiaCount === 0 && civilianCount > 0) {
+	    return { 
+		isGameOver: true,
+		winner: 'city',
+		reason: 'Вся мафия устранена'
+	    }
+	}
+	
+	// Победа мафии - мафии больше или равно мирным
+	if (mafiaCount >= civilianCount && mafiaCount > 0) {
+	    return { 
+		isGameOver: true,
+		winner: 'mafia',
+		reason: 'Мафия в большинстве'
+	    }
+	}
+	
+	// Игра продолжается
+	return { 
+	    isGameOver: false,
+	    winner: null,
+	    reason: null
+	}
+    }
+
+    const calculateScores = (players, game) => {
+	const scores = []
+	
+	players.forEach(player => {
+	    const score = {
+		playerId: player.id,
+		baseScore: 0,
+		additionalScore: 0,
+		bestMove: 0
+	    }
+	    
+	    // Определяем победителя
+	    const result = checkWinCondition(players)
+	    
+	    if (result.winner === 'city' && (player.role === PLAYER_ROLES.CIVILIAN || player.role === PLAYER_ROLES.SHERIFF)) {
+		score.baseScore = 1
+	    } else if (result.winner === 'mafia' && (player.role === PLAYER_ROLES.MAFIA || player.role === PLAYER_ROLES.DON)) {
+		score.baseScore = 1
+	    }
+	    
+	    // Подсчет лучшего хода
+	    if (player.id === gameStore.firstEliminatedPlayer && game.bestMoveUsed) {
+		const bestMoveTargets = gameStore.bestMoveTargets
+		const mafiaInTargets = bestMoveTargets.filter(targetId => {
+		    const target = players.find(p => p.id === targetId)
+		    return target && (target.role === PLAYER_ROLES.MAFIA || target.role === PLAYER_ROLES.DON)
+		}).length
+		
+		score.bestMove = mafiaInTargets
+		score.additionalScore += mafiaInTargets * 0.5
+	    }
+	    
+	    scores.push(score)
+	})
+	
+	return scores
+    }
+
     return {
 	checkWinConditions,
-	setBaseScores
+	setBaseScores,
+	checkWinCondition,
+	calculateScores
     }
 })

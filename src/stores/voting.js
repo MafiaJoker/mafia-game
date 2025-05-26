@@ -78,12 +78,73 @@ export const useVotingStore = defineStore('voting', () => {
 
     const resetVoting = () => {
 	gameStore.gameState.votingResults = {}
+	gameStore.gameState.votes = []
+    }
+
+    // Methods for tests
+    const addVote = ({ voterId, candidateId }) => {
+	if (!gameStore.gameState.votes) {
+	    gameStore.gameState.votes = []
+	}
+	gameStore.gameState.votes.push({ voterId, candidateId })
+    }
+
+    const getVotingResult = () => {
+	if (!gameStore.gameState.votes || gameStore.gameState.votes.length === 0) {
+	    return { eliminated: [] }
+	}
+
+	// Count votes for each candidate
+	const voteCounts = {}
+	gameStore.gameState.votes.forEach(vote => {
+	    if (!voteCounts[vote.candidateId]) {
+		voteCounts[vote.candidateId] = 0
+	    }
+	    voteCounts[vote.candidateId]++
+	})
+
+	// Find candidates with max votes
+	let maxVotes = 0
+	let eliminated = []
+
+	Object.entries(voteCounts).forEach(([candidateId, votes]) => {
+	    if (votes > maxVotes) {
+		maxVotes = votes
+		eliminated = [parseInt(candidateId)]
+	    } else if (votes === maxVotes) {
+		eliminated.push(parseInt(candidateId))
+	    }
+	})
+
+	// If tie with too many players, no one is eliminated
+	const alivePlayers = gameStore.players.filter(p => p.status === 'ALIVE').length
+	if (eliminated.length >= alivePlayers / 2) {
+	    return { eliminated: [] }
+	}
+
+	return { eliminated }
+    }
+
+    const handleShootout = (playerIds) => {
+	gameStore.gameState.shootoutPlayers = playerIds
+    }
+
+    const setShootoutLoser = (playerId) => {
+	// Mark player as eliminated in shootout
+	const player = gameStore.players.find(p => p.id === playerId)
+	if (player) {
+	    player.shootoutLoser = true
+	}
     }
 
     return {
 	startVoting,
 	registerVotes,
 	confirmVoting,
-	resetVoting
+	resetVoting,
+	addVote,
+	getVotingResult,
+	handleShootout,
+	setShootoutLoser
     }
 })

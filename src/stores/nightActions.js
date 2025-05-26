@@ -1,9 +1,15 @@
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
 import { useGameStore } from './game'
 import { PLAYER_ROLES, GAME_SUBSTATUS } from '@/utils/constants'
 
 export const useNightActionsStore = defineStore('nightActions', () => {
     const gameStore = useGameStore()
+    
+    // State for tests
+    const nightKill = ref(null)
+    const sheriffCheck = ref(null)
+    const donCheck = ref(null)
 
     const checkSheriff = (targetPlayerId) => {
 	const target = gameStore.currentPlayer(targetPlayerId)
@@ -88,9 +94,34 @@ export const useNightActionsStore = defineStore('nightActions', () => {
 	}
     }
 
+    // Methods for tests
+    const setNightKill = (playerId) => {
+	nightKill.value = playerId
+	gameStore.setNightKill(playerId)
+    }
+
+    const setSheriffCheck = (playerId) => {
+	sheriffCheck.value = playerId
+    }
+
+    const getSheriffCheckResult = (players) => {
+	if (!sheriffCheck.value) return null
+	
+	const target = players.find(p => p.id === sheriffCheck.value)
+	if (!target) return null
+	
+	return {
+	    targetId: sheriffCheck.value,
+	    role: target.role
+	}
+    }
+
     return {
 	checkSheriff,
 	checkDon,
-	confirmNight
+	confirmNight,
+	setNightKill,
+	setSheriffCheck,
+	getSheriffCheckResult
     }
 })

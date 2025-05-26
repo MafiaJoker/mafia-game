@@ -297,6 +297,63 @@ export const useGameStore = defineStore('game', () => {
 	}
     }
 
+    const initializeGame = (config) => {
+	gameInfo.value = {
+	    eventId: config.eventId,
+	    tableId: config.tableId,
+	    gameId: config.gameId || null
+	}
+	
+	// Reset game state
+	gameState.value = {
+	    round: 0,
+	    gameStatus: GAME_STATUSES.CREATED,
+	    gameSubstatus: null,
+	    isGameStarted: false,
+	    players: [],
+	    nominatedPlayers: [],
+	    votingResults: {},
+	    shootoutPlayers: [],
+	    deadPlayers: [],
+	    eliminatedPlayers: [],
+	    nightKill: null,
+	    bestMoveUsed: false,
+	    noCandidatesRounds: 0,
+	    mafiaTarget: null,
+	    donTarget: null,
+	    sheriffTarget: null,
+	    bestMoveTargets: new Set(),
+	    rolesVisible: false,
+	    scores: {},
+	    isCriticalRound: false,
+	    showBestMove: false,
+	    firstEliminatedPlayer: null
+	}
+    }
+
+    const addPlayer = (playerData) => {
+	const player = {
+	    id: playerData.id,
+	    name: playerData.nickname || playerData.name,
+	    nickname: playerData.nickname,
+	    realName: playerData.realName,
+	    role: PLAYER_ROLES.CIVILIAN,
+	    originalRole: PLAYER_ROLES.CIVILIAN,
+	    fouls: 0,
+	    canSpeak: true,
+	    nominated: null,
+	    isAlive: true,
+	    isEliminated: false,
+	    isSilent: false,
+	    silentNextRound: false,
+	    seatNumber: gameState.value.players.length + 1,
+	    status: 'ALIVE'
+	}
+	
+	gameState.value.players.push(player)
+	gameState.value.scores[player.id] = 0
+    }
+
     const distributeRolesRandomly = () => {
 	const roles = [
 	    ...Array(6).fill(PLAYER_ROLES.CIVILIAN),
@@ -323,6 +380,23 @@ export const useGameStore = defineStore('game', () => {
 	gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
 	gameState.value.isGameStarted = true
 	gameState.value.round = 1
+	gameState.value.phase = 'DAY'
+	
+	// Создаем игру если нужно
+	if (!gameInfo.value?.gameId && gameInfo.value) {
+	    try {
+		const response = await apiService.createGame({
+		    eventId: gameInfo.value.eventId,
+		    tableId: gameInfo.value.tableId
+		})
+		if (response?.data?.id) {
+		    gameInfo.value.gameId = response.data.id
+		}
+	    } catch (error) {
+		console.error('Failed to create game:', error)
+	    }
+	}
+	
 	await saveGameState()
     }
 
@@ -333,16 +407,23 @@ export const useGameStore = defineStore('game', () => {
 
     const incrementNoCandidatesRounds = () => {
 	gameState.value.noCandidatesRounds++
-	if (gameState.value.noCandidatesRounds >= 3) {
-	    gameState.value.isCriticalRound = true
-	}
     }
 
     const eliminatePlayerByVote = (playerId) => {
 	const player = currentPlayer.value(playerId)
 	if (player && player.isAlive) {
 	    player.isAlive = false
+	    player.status = 'VOTED_OUT'
 	    gameState.value.deadPlayers.push(playerId)
+	    
+	    // Если это первый выбывший в первом раунде, активируем лучший ход
+	    if (gameState.value.deadPlayers.length === 1 && gameState.value.round === 1) {
+		gameState.value.showBestMove = true
+		gameState.value.firstEliminatedPlayer = playerId
+	    }
+	    
+	    // Сбрасываем счетчик раундов без кандидатов
+	    gameState.value.noCandidatesRounds = 0
 	}
     }
 
@@ -350,8 +431,13 @@ export const useGameStore = defineStore('game', () => {
 	const player = currentPlayer.value(playerId)
 	if (player) {
 	    player.fouls++
+	    if (player.fouls >= 3) {
+		player.canSpeak = false
+	    }
 	    if (player.fouls >= 4) {
 		player.isEliminated = true
+		player.isAlive = false
+		player.status = 'KICKED'
 		if (!gameState.value.eliminatedPlayers.includes(playerId)) {
 		    gameState.value.eliminatedPlayers.push(playerId)
 		}
@@ -375,6 +461,7 @@ export const useGameStore = defineStore('game', () => {
 	    const player = currentPlayer.value(gameState.value.nightKill)
 	    if (player && player.isAlive) {
 		player.isAlive = false
+		player.status = 'KILLED'
 		gameState.value.deadPlayers.push(gameState.value.nightKill)
 	    }
 	    gameState.value.nightKill = null
@@ -382,16 +469,51 @@ export const useGameStore = defineStore('game', () => {
     }
 
     const toggleBestMoveTarget = (playerId) => {
-	if (gameState.value.bestMoveTargets.has(playerId)) {
-	    gameState.value.bestMoveTargets.delete(playerId)
-	} else {
-	    gameState.value.bestMoveTargets.add(playerId)
+	// Конвертируем Set в массив для удобства работы
+	const targets = Array.from(gameState.value.bestMoveTargets)
+	const index = targets.indexOf(playerId)
+	
+	if (index !== -1) {
+	    targets.splice(index, 1)
+	} else if (targets.length < 3) {
+	    targets.push(playerId)
 	}
+	
+	gameState.value.bestMoveTargets = new Set(targets)
     }
 
     const useBestMove = () => {
 	gameState.value.bestMoveUsed = true
+	gameState.value.showBestMove = false
     }
+
+    const nextPhase = () => {
+	if (gameState.value.phase === 'DAY') {
+	    gameState.value.phase = 'NIGHT'
+	    gameState.value.gameSubstatus = GAME_SUBSTATUS.MAFIA_KILL
+	} else {
+	    gameState.value.phase = 'DAY'
+	    gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
+	}
+    }
+
+    // Getters for tests
+    const players = computed(() => gameState.value.players)
+    const phase = computed(() => gameState.value.phase)
+    const round = computed(() => gameState.value.round)
+    const game = computed(() => ({
+	noCandidatesRounds: gameState.value.noCandidatesRounds,
+	bestMoveUsed: gameState.value.bestMoveUsed
+    }))
+    const showBestMove = computed(() => gameState.value.showBestMove)
+    const firstEliminatedPlayer = computed(() => gameState.value.firstEliminatedPlayer)
+    const bestMoveTargets = computed(() => Array.from(gameState.value.bestMoveTargets))
+    
+    // Критический раунд - когда за столом 3 или 4 живых игрока
+    const isCriticalRound = computed(() => {
+	const alivePlayers = gameState.value.players.filter(p => p.isAlive && !p.isEliminated).length
+	return alivePlayers === 3 || alivePlayers === 4
+    })
 
     return {
 	// State
@@ -432,6 +554,19 @@ export const useGameStore = defineStore('game', () => {
 	setNightKill,
 	applyNightKill,
 	toggleBestMoveTarget,
-	useBestMove
+	useBestMove,
+	initializeGame,
+	addPlayer,
+	nextPhase,
+	
+	// Computed for tests
+	players,
+	phase,
+	round,
+	game,
+	showBestMove,
+	firstEliminatedPlayer,
+	bestMoveTargets,
+	isCriticalRound
     }
 })
