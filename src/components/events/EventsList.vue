@@ -101,11 +101,11 @@
 
   const getLanguageTagType = (language) => {
       const types = {
-	  'ru': '',
+	  'ru': 'info',
 	  'en': 'success',
 	  'am': 'warning'
       }
-      return types[language] || ''
+      return types[language] || 'info'
   }
 
   const getStatusLabel = (status) => {
@@ -119,11 +119,11 @@
 
   const getStatusTagType = (status) => {
       const types = {
-	  'planned': '',
+	  'planned': 'info',
 	  'active': 'success',
 	  'completed': 'info'
       }
-      return types[status] || ''
+      return types[status] || 'info'
   }
 
   const getCategoryLabel = (category) => {

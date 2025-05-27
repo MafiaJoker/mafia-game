@@ -77,7 +77,7 @@
       case PLAYER_ROLES.SHERIFF: return 'primary'
       case PLAYER_ROLES.MAFIA: return 'danger'
       case PLAYER_ROLES.DON: return 'warning'
-      default: return 'default'
+      default: return 'info'
       }
   }
 

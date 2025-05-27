@@ -355,12 +355,13 @@
   }
 
   const getStatusTagType = (status) => {
+      if (!status) return 'info'
       const types = {
-	  'planned': '',
+	  'planned': 'info',
 	  'active': 'success',
 	  'completed': 'info'
       }
-      return types[status] || ''
+      return types[status] || 'info'
   }
 
   const getCategoryLabel = (category) => {
@@ -402,12 +403,13 @@
   }
 
   const getGameStatusType = (status) => {
+      if (!status) return 'info'
       const types = {
-	  'not_started': '',
+	  'not_started': 'info',
 	  'in_progress': 'primary',
 	  'finished': 'success'
       }
-      return types[status] || ''
+      return types[status] || 'info'
   }
 
   const getResultLabel = (result) => {
@@ -420,6 +422,7 @@
   }
 
   const getResultType = (result) => {
+      if (!result) return 'info'
       const types = {
 	  'city_win': 'success',
 	  'mafia_win': 'danger',

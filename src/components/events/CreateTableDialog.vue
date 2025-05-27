@@ -16,8 +16,8 @@
 
       <el-form-item label="Тип рассадки" prop="seatingType">
         <el-radio-group v-model="form.seatingType">
-          <el-radio label="free">Свободная рассадка</el-radio>
-          <el-radio label="fixed">Заданная рассадка</el-radio>
+          <el-radio value="free">Свободная рассадка</el-radio>
+          <el-radio value="fixed">Заданная рассадка</el-radio>
         </el-radio-group>
       </el-form-item>
     </el-form>

@@ -134,7 +134,7 @@
 
   const getVoteButtonType = (playerId, votes) => {
       const currentVotes = gameStore.gameState.votingResults[playerId]
-      return currentVotes === votes ? 'primary' : 'default'
+      return currentVotes === votes ? 'primary' : 'info'
   }
 
   const getAvailableVotes = (playerId) => {

@@ -63,9 +63,9 @@
           :model-value="event.status" 
           @change="handleStatusChange"
           >
-          <el-radio-button label="planned">В планах</el-radio-button>
-          <el-radio-button label="active">Активно</el-radio-button>
-          <el-radio-button label="completed">Завершено</el-radio-button>
+          <el-radio-button value="planned">В планах</el-radio-button>
+          <el-radio-button value="active">Активно</el-radio-button>
+          <el-radio-button value="completed">Завершено</el-radio-button>
         </el-radio-group>
       </div>
 

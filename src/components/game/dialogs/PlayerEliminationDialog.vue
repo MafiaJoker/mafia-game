@@ -40,10 +40,10 @@
       <div v-if="selectedPlayer" class="elimination-reason mt-4">
         <h6>Причина удаления:</h6>
         <el-radio-group v-model="eliminationReason">
-          <el-radio label="foul_limit">Превышение лимита фолов</el-radio>
-          <el-radio label="misbehavior">Нарушение правил</el-radio>
-          <el-radio label="technical">Технические причины</el-radio>
-          <el-radio label="other">Другое</el-radio>
+          <el-radio value="foul_limit">Превышение лимита фолов</el-radio>
+          <el-radio value="misbehavior">Нарушение правил</el-radio>
+          <el-radio value="technical">Технические причины</el-radio>
+          <el-radio value="other">Другое</el-radio>
         </el-radio-group>
         
         <el-input

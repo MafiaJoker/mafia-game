@@ -167,15 +167,15 @@
   })
 
   const getMafiaTargetType = (playerId) => {
-      return gameStore.gameState.mafiaTarget === playerId ? 'danger' : 'default'
+      return gameStore.gameState.mafiaTarget === playerId ? 'danger' : 'info'
   }
 
   const getDonTargetType = (playerId) => {
-      return gameStore.gameState.donTarget === playerId ? 'warning' : 'default'
+      return gameStore.gameState.donTarget === playerId ? 'warning' : 'info'
   }
 
   const getSheriffTargetType = (playerId) => {
-      return gameStore.gameState.sheriffTarget === playerId ? 'primary' : 'default'
+      return gameStore.gameState.sheriffTarget === playerId ? 'primary' : 'info'
   }
 
   const selectMafiaTarget = (playerId) => {

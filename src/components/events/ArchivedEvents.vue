@@ -42,7 +42,7 @@
               <el-tag type="info" effect="plain">
                 {{ getCategoryLabel(event.category) }}
               </el-tag>
-              <el-tag type="default" effect="plain">
+              <el-tag type="info" effect="plain">
                 Завершено
               </el-tag>
             </div>
@@ -114,11 +114,11 @@
 
   const getLanguageTagType = (language) => {
       const types = {
-	  'ru': '',
+	  'ru': 'info',
 	  'en': 'success',
 	  'am': 'warning'
       }
-      return types[language] || ''
+      return types[language] || 'info'
   }
 
   const getCategoryLabel = (category) => {

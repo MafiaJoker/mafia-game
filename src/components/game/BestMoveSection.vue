@@ -86,7 +86,7 @@
   })
 
   const getPlayerButtonType = (playerId) => {
-      return gameStore.gameState.bestMoveTargets.has(playerId) ? 'success' : 'default'
+      return gameStore.gameState.bestMoveTargets.has(playerId) ? 'success' : 'info'
   }
 
   const canSelectPlayer = (playerId) => {
