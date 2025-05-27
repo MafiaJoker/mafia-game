@@ -19,7 +19,7 @@ export const useJudgesStore = defineStore('judges', () => {
     }
 
     const getJudgeById = (judgeId) => {
-	return judges.value.find(judge => judge.id === judgeId)
+	return judges.value.find(judge => judge.id === Number(judgeId) || judge.id === String(judgeId))
     }
 
     return {

@@ -95,8 +95,13 @@
       loading.value = true
       
       try {
+	  // Загружаем список ведущих, если он еще не загружен
+	  if (judgesStore.judges.length === 0) {
+	      await judgesStore.loadJudges()
+	  }
+	  
 	  // Получаем данные о ведущем
-	  const judge = judgesStore.getJudgeById(props.judgeId)
+	  const judge = judgesStore.getJudgeById(Number(props.judgeId))
 	  if (!judge) {
 	      throw new Error('Ведущий не найден')
 	  }
