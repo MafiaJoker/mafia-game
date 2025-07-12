@@ -5,6 +5,9 @@ import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import { createI18n } from 'vue-i18n'
 
+// Глобальные стили
+import './assets/global.css'
+
 import App from './App.vue'
 import router from './router'
 import { messages } from './locales'

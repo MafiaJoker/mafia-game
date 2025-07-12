@@ -180,6 +180,7 @@
       height: 100%;
   }
 
+
   .card-header {
       display: flex;
       align-items: center;

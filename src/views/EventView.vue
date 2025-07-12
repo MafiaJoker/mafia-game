@@ -458,9 +458,6 @@
       height: 100%;
   }
 
-  .event-header h1 {
-      margin: 0;
-  }
 
   .card-header {
       display: flex;

@@ -1,0 +1,62 @@
+/* Глобальные стили для заголовков */
+h1, h2, h3, h4, h5, h6 {
+  font-size: inherit;
+  margin: 0;
+  font-weight: inherit;
+  color: inherit;
+}
+
+/* Специфичные размеры заголовков */
+h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0.5rem 0;
+}
+
+h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0.4rem 0;
+}
+
+h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0.3rem 0;
+}
+
+h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0.25rem 0;
+}
+
+h5 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0.2rem 0;
+}
+
+h6 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 0.15rem 0;
+}
+
+/* Сброс стилей для заголовков внутри компонентов Element Plus */
+.el-card h1,
+.el-card h2,
+.el-card h3,
+.el-card h4,
+.el-card h5,
+.el-card h6 {
+  color: #303133;
+}
+
+/* Заголовки в header-ах */
+.el-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #303133;
+}
