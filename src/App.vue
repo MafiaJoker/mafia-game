@@ -14,6 +14,9 @@
 
     <!-- Глобальные уведомления -->
     <div id="toast-container" class="toast-container"></div>
+    
+    <!-- Панель разработчика (только в dev режиме) -->
+    <DevToolsPanel />
   </div>
 </template>
 
@@ -21,6 +24,7 @@
   import { computed } from 'vue'
   import { useRoute } from 'vue-router'
   import AppHeader from '@/components/common/AppHeader.vue'
+  import DevToolsPanel from '@/components/dev/DevToolsPanel.vue'
 
   const route = useRoute()
 

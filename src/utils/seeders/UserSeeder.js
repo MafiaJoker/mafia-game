@@ -52,4 +52,256 @@ export class UserSeeder extends BaseSeeder {
             registrationDate: faker.date.between('2020-01-01', new Date()).toISOString(),
             lastLoginDate: faker.date.recent(30).toISOString(),
             bio: faker.lorem.sentence(),
-            achievements: this.generateAchievements(),\n            preferences: {\n                notifications: {\n                    email: this.randomBoolean(),\n                    telegram: this.randomBoolean(),\n                    push: this.randomBoolean()\n                },\n                privacy: {\n                    showRealName: this.randomBoolean(),\n                    showStats: this.randomBoolean(),\n                    showLocation: this.randomBoolean()\n                },\n                gameSettings: {\n                    autoReady: this.randomBoolean(),\n                    soundEffects: this.randomBoolean(),\n                    darkTheme: this.randomBoolean()\n                }\n            }\n        }\n    }\n    \n    // Генерация достижений пользователя\n    generateAchievements() {\n        const possibleAchievements = [\n            'first_game', 'first_win', 'veteran', 'lucky', 'strategist',\n            'survivor', 'detective', 'don_master', 'sheriff_ace', 'peaceful_winner',\n            'tournament_winner', 'judge_novice', 'judge_expert', 'social_player'\n        ]\n        \n        const achievementCount = this.randomInt(0, 5)\n        const userAchievements = []\n        \n        for (let i = 0; i < achievementCount; i++) {\n            const achievement = this.randomFromArray(possibleAchievements)\n            if (!userAchievements.includes(achievement)) {\n                userAchievements.push(achievement)\n            }\n        }\n        \n        return userAchievements\n    }\n    \n    // Генерация профиля судьи\n    generateJudgeProfile() {\n        const judgeData = this.generateUser()\n        \n        // Модифицируем данные для судьи\n        judgeData.role = 'judge'\n        judgeData.rating = this.randomInt(1200, 2800) // Судьи обычно более опытные\n        judgeData.gamesPlayed = this.randomInt(100, 1000)\n        judgeData.isActive = true // Все судьи активны\n        \n        // Добавляем специфичные для судьи поля\n        judgeData.judgeInfo = {\n            experience: this.randomInt(1, 15), // Лет опыта\n            gamesJudged: this.randomInt(50, 800),\n            certification: this.randomFromArray(['novice', 'intermediate', 'expert', 'master']),\n            specializations: this.randomFromArray([\n                ['классическая мафия'],\n                ['спортивная мафия'],\n                ['турнирная мафия'],\n                ['классическая мафия', 'спортивная мафия'],\n                ['все виды']\n            ]),\n            languages: this.randomFromArray([\n                ['ru'],\n                ['en'],\n                ['am'],\n                ['ru', 'en'],\n                ['ru', 'am'],\n                ['ru', 'en', 'am']\n            ]),\n            availability: {\n                weekdays: this.randomBoolean(),\n                weekends: true,\n                evenings: this.randomBoolean(),\n                tournaments: this.randomBoolean()\n            },\n            contactPreference: this.randomFromArray(['telegram', 'email', 'phone'])\n        }\n        \n        return judgeData\n    }\n    \n    // Создание обычных пользователей\n    async seedUsers() {\n        this.log(`👥 Создание ${this.profile.users} пользователей...`)\n        \n        for (let i = 0; i < this.profile.users; i++) {\n            try {\n                const userData = this.generateUser()\n                \n                // Вычисляем winRate\n                if (userData.gamesPlayed > 0) {\n                    userData.winRate = Math.round((userData.gamesWon / userData.gamesPlayed) * 100)\n                }\n                \n                const createdUser = await this.apiCall('post', '/users', userData)\n                \n                this.createdIds.add(`user-${createdUser.id}`)\n                this.log(`Создан пользователь: "${userData.nickname}" (${userData.firstName} ${userData.lastName})`, 'success')\n                \n                // Пауза между запросами\n                await this.delay(150)\n                \n            } catch (error) {\n                this.log(`Ошибка создания пользователя: ${error.message}`, 'error')\n            }\n        }\n    }\n    \n    // Создание судей\n    async seedJudges() {\n        const judgeCount = Math.max(2, Math.ceil(this.profile.users * 0.2)) // 20% от общего числа пользователей\n        \n        this.log(`⚖️ Создание ${judgeCount} судей...`)\n        \n        for (let i = 0; i < judgeCount; i++) {\n            try {\n                const judgeData = this.generateJudgeProfile()\n                const createdJudge = await this.apiCall('post', '/users', judgeData)\n                \n                this.createdIds.add(`judge-${createdJudge.id}`)\n                this.log(`Создан судья: "${judgeData.nickname}" (${judgeData.judgeInfo.certification})`, 'success')\n                \n                await this.delay(150)\n                \n            } catch (error) {\n                this.log(`Ошибка создания судьи: ${error.message}`, 'error')\n            }\n        }\n    }\n    \n    // Создание администраторов\n    async seedAdmins() {\n        this.log('👑 Создание администраторов...')\n        \n        const adminProfiles = [\n            {\n                firstName: 'Админ',\n                lastName: 'Главный',\n                nickname: 'admin',\n                email: 'admin@jokermafia.am'\n            },\n            {\n                firstName: 'Модератор',\n                lastName: 'Системный',\n                nickname: 'moderator',\n                email: 'moderator@jokermafia.am'\n            }\n        ]\n        \n        for (const profile of adminProfiles) {\n            try {\n                const adminData = this.generateUser()\n                \n                // Переопределяем ключевые поля\n                adminData.firstName = profile.firstName\n                adminData.lastName = profile.lastName\n                adminData.nickname = profile.nickname\n                adminData.email = profile.email\n                adminData.role = 'admin'\n                adminData.isActive = true\n                adminData.rating = 2500 // Высокий рейтинг\n                adminData.gamesPlayed = this.randomInt(200, 1000)\n                adminData.telegramUsername = '@' + profile.nickname\n                \n                const createdAdmin = await this.apiCall('post', '/users', adminData)\n                \n                this.createdIds.add(`admin-${createdAdmin.id}`)\n                this.log(`Создан администратор: "${adminData.nickname}"`, 'success')\n                \n            } catch (error) {\n                this.log(`Ошибка создания администратора: ${error.message}`, 'error')\n            }\n        }\n    }\n    \n    // Главный метод для запуска seeding\n    async seed() {\n        await this.seedAdmins()\n        await this.seedJudges()\n        await this.seedUsers()\n    }\n    \n    // Очистка созданных пользователей\n    async clean() {\n        this.log('🧹 Очистка созданных пользователей...')\n        \n        try {\n            const users = await this.apiCall('get', '/users')\n            \n            if (users && users.length > 0) {\n                for (const user of users) {\n                    try {\n                        // Не удаляем системных пользователей\n                        if (user.email && (\n                            user.email.includes('admin@') || \n                            user.email.includes('system@') ||\n                            user.nickname === 'admin'\n                        )) {\n                            this.log(`Пропуск системного пользователя: ${user.nickname}`, 'warn')\n                            continue\n                        }\n                        \n                        await this.apiCall('delete', `/users/${user.id}`)\n                        this.log(`Удалён пользователь: "${user.nickname}" (ID: ${user.id})`, 'success')\n                        \n                    } catch (error) {\n                        this.log(`Ошибка удаления пользователя ${user.id}: ${error.message}`, 'error')\n                    }\n                }\n            } else {\n                this.log('Пользователи для удаления не найдены')\n            }\n            \n        } catch (error) {\n            this.log(`Ошибка при очистке пользователей: ${error.message}`, 'error')\n        }\n    }\n    \n    // Быстрое создание одного тестового пользователя\n    async createTestUser(role = 'player') {\n        this.log(`🎯 Создание тестового пользователя (${role})...`)\n        \n        try {\n            let userData\n            \n            switch (role) {\n                case 'judge':\n                    userData = this.generateJudgeProfile()\n                    break\n                case 'admin':\n                    userData = this.generateUser()\n                    userData.role = 'admin'\n                    userData.isActive = true\n                    break\n                default:\n                    userData = this.generateUser()\n                    userData.role = 'player'\n            }\n            \n            const createdUser = await this.apiCall('post', '/users', userData)\n            \n            this.log(`Создан тестовый пользователь: "${userData.nickname}" (${role})`, 'success')\n            \n            return createdUser\n        } catch (error) {\n            this.log(`Ошибка создания тестового пользователя: ${error.message}`, 'error')\n            throw error\n        }\n    }\n}
+            achievements: this.generateAchievements(),
+            preferences: {
+                notifications: {
+                    email: this.randomBoolean(),
+                    telegram: this.randomBoolean(),
+                    push: this.randomBoolean()
+                },
+                privacy: {
+                    showRealName: this.randomBoolean(),
+                    showStats: this.randomBoolean(),
+                    showLocation: this.randomBoolean()
+                },
+                gameSettings: {
+                    autoReady: this.randomBoolean(),
+                    soundEffects: this.randomBoolean(),
+                    darkTheme: this.randomBoolean()
+                }
+            }
+        }
+    }
+    
+    // Генерация достижений пользователя
+    generateAchievements() {
+        const possibleAchievements = [
+            'first_game', 'first_win', 'veteran', 'lucky', 'strategist',
+            'survivor', 'detective', 'don_master', 'sheriff_ace', 'peaceful_winner',
+            'tournament_winner', 'judge_novice', 'judge_expert', 'social_player'
+        ]
+        
+        const achievementCount = this.randomInt(0, 5)
+        const userAchievements = []
+        
+        for (let i = 0; i < achievementCount; i++) {
+            const achievement = this.randomFromArray(possibleAchievements)
+            if (!userAchievements.includes(achievement)) {
+                userAchievements.push(achievement)
+            }
+        }
+        
+        return userAchievements
+    }
+    
+    // Генерация профиля судьи
+    generateJudgeProfile() {
+        const judgeData = this.generateUser()
+        
+        // Модифицируем данные для судьи
+        judgeData.role = 'judge'
+        judgeData.rating = this.randomInt(1200, 2800) // Судьи обычно более опытные
+        judgeData.gamesPlayed = this.randomInt(100, 1000)
+        judgeData.isActive = true // Все судьи активны
+        
+        // Добавляем специфичные для судьи поля
+        judgeData.judgeInfo = {
+            experience: this.randomInt(1, 15), // Лет опыта
+            gamesJudged: this.randomInt(50, 800),
+            certification: this.randomFromArray(['novice', 'intermediate', 'expert', 'master']),
+            specializations: this.randomFromArray([
+                ['классическая мафия'],
+                ['спортивная мафия'],
+                ['турнирная мафия'],
+                ['классическая мафия', 'спортивная мафия'],
+                ['все виды']
+            ]),
+            languages: this.randomFromArray([
+                ['ru'],
+                ['en'],
+                ['am'],
+                ['ru', 'en'],
+                ['ru', 'am'],
+                ['ru', 'en', 'am']
+            ]),
+            availability: {
+                weekdays: this.randomBoolean(),
+                weekends: true,
+                evenings: this.randomBoolean(),
+                tournaments: this.randomBoolean()
+            },
+            contactPreference: this.randomFromArray(['telegram', 'email', 'phone'])
+        }
+        
+        return judgeData
+    }
+    
+    // Создание обычных пользователей
+    async seedUsers() {
+        this.log(`👥 Создание ${this.profile.users} пользователей...`)
+        
+        for (let i = 0; i < this.profile.users; i++) {
+            try {
+                const userData = this.generateUser()
+                
+                // Вычисляем winRate
+                if (userData.gamesPlayed > 0) {
+                    userData.winRate = Math.round((userData.gamesWon / userData.gamesPlayed) * 100)
+                }
+                
+                const createdUser = await this.apiCall('post', '/users', userData)
+                
+                this.createdIds.add(`user-${createdUser.id}`)
+                this.log(`Создан пользователь: "${userData.nickname}" (${userData.firstName} ${userData.lastName})`, 'success')
+                
+                // Пауза между запросами
+                await this.delay(150)
+                
+            } catch (error) {
+                this.log(`Ошибка создания пользователя: ${error.message}`, 'error')
+            }
+        }
+    }
+    
+    // Создание судей
+    async seedJudges() {
+        const judgeCount = Math.max(2, Math.ceil(this.profile.users * 0.2)) // 20% от общего числа пользователей
+        
+        this.log(`⚖️ Создание ${judgeCount} судей...`)
+        
+        for (let i = 0; i < judgeCount; i++) {
+            try {
+                const judgeData = this.generateJudgeProfile()
+                const createdJudge = await this.apiCall('post', '/users', judgeData)
+                
+                this.createdIds.add(`judge-${createdJudge.id}`)
+                this.log(`Создан судья: "${judgeData.nickname}" (${judgeData.judgeInfo.certification})`, 'success')
+                
+                await this.delay(150)
+                
+            } catch (error) {
+                this.log(`Ошибка создания судьи: ${error.message}`, 'error')
+            }
+        }
+    }
+    
+    // Создание администраторов
+    async seedAdmins() {
+        this.log('👑 Создание администраторов...')
+        
+        const adminProfiles = [
+            {
+                firstName: 'Админ',
+                lastName: 'Главный',
+                nickname: 'admin',
+                email: 'admin@jokermafia.am'
+            },
+            {
+                firstName: 'Модератор',
+                lastName: 'Системный',
+                nickname: 'moderator',
+                email: 'moderator@jokermafia.am'
+            }
+        ]
+        
+        for (const profile of adminProfiles) {
+            try {
+                const adminData = this.generateUser()
+                
+                // Переопределяем ключевые поля
+                adminData.firstName = profile.firstName
+                adminData.lastName = profile.lastName
+                adminData.nickname = profile.nickname
+                adminData.email = profile.email
+                adminData.role = 'admin'
+                adminData.isActive = true
+                adminData.rating = 2500 // Высокий рейтинг
+                adminData.gamesPlayed = this.randomInt(200, 1000)
+                adminData.telegramUsername = '@' + profile.nickname
+                
+                const createdAdmin = await this.apiCall('post', '/users', adminData)
+                
+                this.createdIds.add(`admin-${createdAdmin.id}`)
+                this.log(`Создан администратор: "${adminData.nickname}"`, 'success')
+                
+            } catch (error) {
+                this.log(`Ошибка создания администратора: ${error.message}`, 'error')
+            }
+        }
+    }
+    
+    // Главный метод для запуска seeding
+    async seed() {
+        await this.seedAdmins()
+        await this.seedJudges()
+        await this.seedUsers()
+    }
+    
+    // Очистка созданных пользователей
+    async clean() {
+        this.log('🧹 Очистка созданных пользователей...')
+        
+        try {
+            const users = await this.apiCall('get', '/users')
+            
+            if (users && users.length > 0) {
+                for (const user of users) {
+                    try {
+                        // Не удаляем системных пользователей
+                        if (user.email && (
+                            user.email.includes('admin@') || 
+                            user.email.includes('system@') ||
+                            user.nickname === 'admin'
+                        )) {
+                            this.log(`Пропуск системного пользователя: ${user.nickname}`, 'warn')
+                            continue
+                        }
+                        
+                        await this.apiCall('delete', `/users/${user.id}`)
+                        this.log(`Удалён пользователь: "${user.nickname}" (ID: ${user.id})`, 'success')
+                        
+                    } catch (error) {
+                        this.log(`Ошибка удаления пользователя ${user.id}: ${error.message}`, 'error')
+                    }
+                }
+            } else {
+                this.log('Пользователи для удаления не найдены')
+            }
+            
+        } catch (error) {
+            this.log(`Ошибка при очистке пользователей: ${error.message}`, 'error')
+        }
+    }
+    
+    // Быстрое создание одного тестового пользователя
+    async createTestUser(role = 'player') {
+        this.log(`🎯 Создание тестового пользователя (${role})...`)
+        
+        try {
+            let userData
+            
+            switch (role) {
+                case 'judge':
+                    userData = this.generateJudgeProfile()
+                    break
+                case 'admin':
+                    userData = this.generateUser()
+                    userData.role = 'admin'
+                    userData.isActive = true
+                    break
+                default:
+                    userData = this.generateUser()
+                    userData.role = 'player'
+            }
+            
+            const createdUser = await this.apiCall('post', '/users', userData)
+            
+            this.log(`Создан тестовый пользователь: "${userData.nickname}" (${role})`, 'success')
+            
+            return createdUser
+        } catch (error) {
+            this.log(`Ошибка создания тестового пользователя: ${error.message}`, 'error')
+            throw error
+        }
+    }
+}

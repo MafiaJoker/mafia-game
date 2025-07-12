@@ -6,7 +6,7 @@
           <el-icon><Tools /></el-icon>
           <span>Инструменты разработчика</span>
           <el-button
-            type="text"
+            link
             size="small"
             @click="collapsed = !collapsed"
             >
@@ -132,7 +132,7 @@
                 {{ apiStatus === 'online' ? 'Онлайн' : 'Офлайн' }}
               </el-tag>
               <el-button 
-                type="text" 
+                link 
                 size="small"
                 @click="checkApiStatus"
                 :loading="loading.apiCheck"
@@ -173,7 +173,7 @@
             </div>
           </div>
           <el-button 
-            type="text" 
+            link 
             size="small"
             @click="clearLogs"
             >
