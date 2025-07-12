@@ -10,5 +10,17 @@
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
+    <script>
+      // Скрыть предупреждения о source maps в development
+      if (import.meta.env.DEV) {
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+          if (args[0] && args[0].includes('Source map error')) {
+            return;
+          }
+          originalWarn.apply(console, args);
+        };
+      }
+    </script>
   </body>
 </html>
