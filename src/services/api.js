@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE_URL = 'http://localhost:3000/api'
+const API_BASE_URL = 'https://dev.api.jokermafia.am/api/v1'
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -27,7 +27,7 @@ export const apiService = {
     },
 
     async updateEvent(eventId, eventData) {
-	const response = await api.put(`/events/${eventId}`, eventData)
+	const response = await api.patch(`/events/${eventId}`, eventData)
 	return response.data
     },
 
@@ -35,44 +35,49 @@ export const apiService = {
 	await api.delete(`/events/${eventId}`)
     },
 
-    // Tables
-    async getTables(eventId) {
-	const response = await api.get(`/events/${eventId}/tables`)
+    // Event Types
+    async getEventTypes() {
+	const response = await api.get('/event-types')
 	return response.data
     },
 
-    async createTable(eventId, tableData) {
-	const response = await api.post(`/events/${eventId}/tables`, tableData)
+    async createEventType(eventTypeData) {
+	const response = await api.post('/event-types', eventTypeData)
 	return response.data
     },
 
-    async updateTable(eventId, tableId, tableData) {
-	const response = await api.put(`/events/${eventId}/tables/${tableId}`, tableData)
+    async updateEventType(eventTypeId, eventTypeData) {
+	const response = await api.patch(`/event-types/${eventTypeId}`, eventTypeData)
 	return response.data
     },
 
-    async deleteTable(eventId, tableId) {
-	await api.delete(`/events/${eventId}/tables/${tableId}`)
+    async deleteEventType(eventTypeId) {
+	await api.delete(`/event-types/${eventTypeId}`)
     },
 
     // Games
-    async getGames(eventId, tableId) {
-	const response = await api.get(`/events/${eventId}/tables/${tableId}/games`)
+    async getGames() {
+	const response = await api.get('/games')
 	return response.data
     },
 
-    async createGame(eventId, tableId, gameData) {
-	const response = await api.post(`/events/${eventId}/tables/${tableId}/games`, gameData)
+    async getGame(gameId) {
+	const response = await api.get(`/games/${gameId}`)
 	return response.data
     },
 
-    async updateGame(eventId, tableId, gameId, gameData) {
-	const response = await api.put(`/events/${eventId}/tables/${tableId}/games/${gameId}`, gameData)
+    async createGame(gameData) {
+	const response = await api.post('/games', gameData)
 	return response.data
     },
 
-    async deleteGame(eventId, tableId, gameId) {
-	await api.delete(`/events/${eventId}/tables/${tableId}/games/${gameId}`)
+    async updateGame(gameId, gameData) {
+	const response = await api.patch(`/games/${gameId}`, gameData)
+	return response.data
+    },
+
+    async deleteGame(gameId) {
+	await api.delete(`/games/${gameId}`)
     },
 
     // Game State
@@ -81,19 +86,97 @@ export const apiService = {
 	return response.data
     },
 
-    async saveGameState(gameId, stateData) {
-	const response = await api.put(`/games/${gameId}/state`, stateData)
+    // Game Players
+    async setPlayersPoints(gameId, playersData) {
+	const response = await api.put(`/games/${gameId}/players`, playersData)
 	return response.data
     },
 
-    // Judges
-    async getJudges() {
-	const response = await api.get('/judges')
+    async createGamePlayers(gameId, playersData) {
+	const response = await api.post(`/games/${gameId}/players`, playersData)
 	return response.data
     },
 
-    async getJudge(judgeId) {
-	const response = await api.get(`/judges/${judgeId}`)
+    // Game Phases
+    async updateGamePhase(gameId, phaseData) {
+	const response = await api.put(`/games/${gameId}/phases`, phaseData)
 	return response.data
+    },
+
+    async createGamePhase(gameId, phaseData) {
+	const response = await api.post(`/games/${gameId}/phases`, phaseData)
+	return response.data
+    },
+
+    // Users
+    async getUsers() {
+	const response = await api.get('/users')
+	return response.data
+    },
+
+    async createUser(userData) {
+	const response = await api.post('/users', userData)
+	return response.data
+    },
+
+    async updateUser(userId, userData) {
+	const response = await api.put(`/users/${userId}`, userData)
+	return response.data
+    },
+
+    async addTariffForUser(userId, tariffData) {
+	const response = await api.put(`/users/${userId}/tariff`, tariffData)
+	return response.data
+    },
+
+    // Auth
+    async telegramLogin(authData) {
+	const response = await api.put('/auth/telegram', authData)
+	return response.data
+    },
+
+    // Tariffs
+    async getTariffs() {
+	const response = await api.get('/tariffs')
+	return response.data
+    },
+
+    async createTariff(tariffData) {
+	const response = await api.post('/tariffs', tariffData)
+	return response.data
+    },
+
+    async updateTariff(tariffId, tariffData) {
+	const response = await api.put(`/tariffs/${tariffId}`, tariffData)
+	return response.data
+    },
+
+    async deleteTariff(tariffId) {
+	await api.delete(`/tariffs/${tariffId}`)
+    },
+
+    // Invoices
+    async getInvoices() {
+	const response = await api.get('/invoices')
+	return response.data
+    },
+
+    async getMyInvoices() {
+	const response = await api.get('/invoices/me')
+	return response.data
+    },
+
+    async createInvoice(invoiceData) {
+	const response = await api.post('/invoices', invoiceData)
+	return response.data
+    },
+
+    async closeInvoice(invoiceId, invoiceData) {
+	const response = await api.put(`/invoices/${invoiceId}`, invoiceData)
+	return response.data
+    },
+
+    async deleteInvoice(invoiceId) {
+	await api.delete(`/invoices/${invoiceId}`)
     }
 }

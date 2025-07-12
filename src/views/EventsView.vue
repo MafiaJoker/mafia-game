@@ -4,36 +4,10 @@
       <el-header>
 	<div class="header-content">
 	  <h1>Мероприятия Мафии</h1>
-	  <div class="judge-selector">
-	    <el-select
-	      v-model="selectedJudge"
-	      placeholder="Выберите ведущего"
-	      size="small"
-	      style="width: 200px"
-	      >
-	      <el-option
-		v-for="judge in judges"
-		:key="judge.id"
-		:label="judge.name"
-		:value="judge.id"
-		/>
-	    </el-select>
-	  </div>
 	</div>
       </el-header>
 
       <el-main>
-	<!-- Активные игры текущего ведущего -->
-	<el-card v-if="selectedJudge" class="mb-4">
-	  <template #header>
-	    <div class="card-header">
-	      <el-icon><VideoPlay /></el-icon>
-	      <span>Ваши активные игры</span>
-	    </div>
-	  </template>
-
-	  <ActiveGames :judge-id="selectedJudge" />
-	</el-card>
 
 	<el-row :gutter="20">
 	  <!-- Форма создания мероприятия -->
@@ -112,11 +86,9 @@
 <script setup>
   import { ref, computed, onMounted } from 'vue'
   import { useEventsStore } from '@/stores/events'
-  import { useJudgesStore } from '@/stores/judges'
   import CreateEventForm from '@/components/events/CreateEventForm.vue'
   import EventsList from '@/components/events/EventsList.vue'
   import ArchivedEvents from '@/components/events/ArchivedEvents.vue'
-  import ActiveGames from '@/components/events/ActiveGames.vue'
   import EventDetailsDialog from '@/components/events/EventDetailsDialog.vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { 
@@ -124,15 +96,12 @@
       Calendar, 
       Search, 
       Document, 
-      VideoPlay 
+ 
   } from '@element-plus/icons-vue'
 
   const eventsStore = useEventsStore()
-  const judgesStore = useJudgesStore()
 
   const searchTerm = ref('')
-  const selectedJudge = ref(localStorage.getItem('defaultJudgeId') || null)
-  const judges = ref([])
   const showEventDetails = ref(false)
   const selectedEvent = ref(null)
 
@@ -189,19 +158,10 @@
       }
   }
 
-  watch(selectedJudge, (newJudge) => {
-      if (newJudge) {
-	  localStorage.setItem('defaultJudgeId', newJudge)
-      }
-  })
 
   onMounted(async () => {
       try {
-	  await Promise.all([
-	      eventsStore.loadEvents(),
-	      judgesStore.loadJudges()
-	  ])
-	  judges.value = judgesStore.judges
+	  await eventsStore.loadEvents()
       } catch (error) {
 	  ElMessage.error('Ошибка загрузки данных')
       }
@@ -216,7 +176,6 @@
 
   .header-content {
       display: flex;
-      justify-content: space-between;
       align-items: center;
       height: 100%;
   }
@@ -228,11 +187,6 @@
       font-weight: 600;
   }
 
-  .judge-selector {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-  }
 
   .mb-4 {
       margin-bottom: 16px;

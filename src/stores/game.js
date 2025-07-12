@@ -68,8 +68,6 @@ export const useGameStore = defineStore('game', () => {
             // Обновляем статус игры в API
             if (gameInfo.value) {
 		await apiService.updateGame(
-                    gameInfo.value.eventId, 
-                    gameInfo.value.tableId, 
                     gameInfo.value.gameId, 
                     {
 			status: 'finished',
@@ -386,8 +384,7 @@ export const useGameStore = defineStore('game', () => {
 	if (!gameInfo.value?.gameId && gameInfo.value) {
 	    try {
 		const response = await apiService.createGame({
-		    eventId: gameInfo.value.eventId,
-		    tableId: gameInfo.value.tableId
+		    eventId: gameInfo.value.eventId
 		})
 		if (response?.data?.id) {
 		    gameInfo.value.gameId = response.data.id

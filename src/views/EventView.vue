@@ -301,7 +301,7 @@
 	  const eventId = parseInt(route.params.id)
 	  const tableId = selectedTable.value.id
 	  
-	  await apiService.deleteGame(eventId, tableId, gameId)
+	  await apiService.deleteGame(gameId)
 	  
 	  // Обновляем локальные данные
 	  if (selectedTable.value && selectedTable.value.games) {

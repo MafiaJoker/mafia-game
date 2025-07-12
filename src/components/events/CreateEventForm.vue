@@ -58,21 +58,6 @@
       </el-select>
     </el-form-item>
 
-    <el-form-item label="Ведущий" prop="judgeId">
-      <el-select 
-	v-model="form.judgeId" 
-	placeholder="Выберите ведущего"
-	style="width: 100%"
-	clearable
-	>
-	<el-option
-	  v-for="judge in judges"
-	  :key="judge.id"
-	  :label="judge.name"
-	  :value="judge.id"
-	  />
-      </el-select>
-    </el-form-item>
 
     <el-form-item>
       <el-button 
@@ -90,17 +75,14 @@
 <script setup>
   import { ref, reactive, onMounted } from 'vue'
   import { useEventsStore } from '@/stores/events'
-  import { useJudgesStore } from '@/stores/judges'
   import { ElMessage } from 'element-plus'
 
   const emit = defineEmits(['event-created'])
 
   const eventsStore = useEventsStore()
-  const judgesStore = useJudgesStore()
 
   const formRef = ref()
   const loading = ref(false)
-  const judges = ref([])
 
   const form = reactive({
       name: '',
@@ -109,7 +91,6 @@
       language: 'ru',
       category: 'funky',
       status: 'planned',
-      judgeId: null
   })
 
   const rules = {
@@ -150,11 +131,6 @@
 
       form.description = `Игровой вечер #${gameNumber} за ${monthNames[currentMonth]} ${currentYear} года.`
 
-      // Устанавливаем ведущего по умолчанию
-      const defaultJudgeId = localStorage.getItem('defaultJudgeId')
-      if (defaultJudgeId && judges.value.some(judge => judge.id == defaultJudgeId)) {
-	  form.judgeId = parseInt(defaultJudgeId)
-      }
   }
 
   const handleSubmit = async () => {
@@ -183,7 +159,6 @@
   }
 
   onMounted(async () => {
-      judges.value = judgesStore.judges
       generateDefaultValues()
   })
 </script>

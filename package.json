@@ -8,7 +8,16 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "seed": "node scripts/seed.js",
+    "seed:all": "node scripts/seed.js all",
+    "seed:all:full": "node scripts/seed.js all full",
+    "seed:all:stress": "node scripts/seed.js all stress",
+    "seed:events": "node scripts/seed.js events",
+    "seed:games": "node scripts/seed.js games",
+    "seed:users": "node scripts/seed.js users",
+    "seed:clean": "node scripts/seed.js clean",
+    "seed:quick": "node scripts/seed.js quick"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.0",
@@ -20,6 +29,7 @@
     "vue-router": "^4.2.0"
   },
   "devDependencies": {
+    "@faker-js/faker": "^9.9.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "@vue/test-utils": "^2.4.6",
     "happy-dom": "^17.4.7",

@@ -77,7 +77,7 @@
 	  loading.value = true
 
 	  const tableData = { ...form }
-	  const newTable = await apiService.createTable(props.eventId, tableData)
+	  // TODO: Адаптировать под новое API - концепция "столов" убрана\n\t  // const newTable = await apiService.createTable(props.eventId, tableData)\n\t  throw new Error('Tables API не поддерживается в новой версии')
 	  
 	  emit('table-created', newTable)
 	  handleClose()

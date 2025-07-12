@@ -63,8 +63,11 @@
 	  await formRef.value.validate()
 	  loading.value = true
 
-	  const gameData = { ...form }
-	  const newGame = await apiService.createGame(props.eventId, props.tableId, gameData)
+	  const gameData = { 
+	      ...form,
+	      eventId: props.eventId
+	  }
+	  const newGame = await apiService.createGame(gameData)
 	  
 	  emit('game-created', newGame)
 	  handleClose()

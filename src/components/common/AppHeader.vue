@@ -28,16 +28,12 @@
       </el-menu>
     </div>
 
-    <div class="user-section">
-      <JudgeSelector />
-    </div>
   </div>
 </template>
 
 <script setup>
   import { computed } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  import JudgeSelector from './JudgeSelector.vue'
   import { 
       Trophy, 
       Calendar, 
@@ -101,12 +97,6 @@
       border-bottom: none;
   }
 
-  .user-section {
-      flex-shrink: 0;
-      min-width: 200px;
-      display: flex;
-      justify-content: flex-end;
-  }
 
   @media (max-width: 768px) {
       .app-header-content {
@@ -117,8 +107,5 @@
 	  display: none;
       }
       
-      .user-section {
-	  min-width: auto;
-      }
   }
 </style>
