@@ -1,6 +1,13 @@
 <template>
-  <div v-if="isDev" class="dev-tools-panel">
-    <el-card class="dev-card" shadow="hover">
+  <div v-if="isDev" class="dev-tools-panel" :class="{ collapsed }">
+    <!-- Компактная свернутая версия -->
+    <div v-if="collapsed" class="collapsed-view" @click="collapsed = false">
+      <el-icon><Tools /></el-icon>
+      <span>Dev</span>
+    </div>
+
+    <!-- Развернутая версия -->
+    <el-card v-else class="dev-card" shadow="hover">
       <template #header>
         <div class="dev-header">
           <el-icon><Tools /></el-icon>
@@ -15,7 +22,7 @@
         </div>
       </template>
 
-      <div v-show="!collapsed" class="dev-content">
+      <div class="dev-content">
         <!-- Быстрые действия -->
         <div class="section">
           <h4>⚡ Быстрые действия</h4>
@@ -204,7 +211,7 @@
     return import.meta.env.DEV || import.meta.env.MODE === 'development'
   })
 
-  const collapsed = ref(false)
+  const collapsed = ref(true)
   const selectedProfile = ref('minimal')
   const apiStatus = ref('unknown')
 
@@ -444,8 +451,8 @@
     try {
       const seeder = new EventSeeder()
       const event = await seeder.createTestEvent()
-      addLog(`Создано мероприятие: ${event.name}`, 'success')
-      ElMessage.success(`Создано мероприятие: ${event.name}`)
+      addLog(`Создано мероприятие: ${event.label}`, 'success')
+      ElMessage.success(`Создано мероприятие: ${event.label}`)
     } catch (error) {
       addLog(`Ошибка: ${error.message}`, 'error')
       ElMessage.error('Ошибка создания мероприятия')
@@ -503,9 +510,33 @@
     top: 20px;
     right: 20px;
     z-index: 1000;
+  }
+
+  .dev-tools-panel:not(.collapsed) {
     width: 400px;
     max-height: 80vh;
     overflow-y: auto;
+  }
+
+  /* Компактная свернутая версия */
+  .collapsed-view {
+    background: #409eff;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .collapsed-view:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   }
 
   .dev-card {

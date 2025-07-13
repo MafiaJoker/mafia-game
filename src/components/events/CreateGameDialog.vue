@@ -27,7 +27,7 @@
 
   const props = defineProps({
       modelValue: Boolean,
-      eventId: Number,
+      eventId: String,
       tableId: Number
   })
 

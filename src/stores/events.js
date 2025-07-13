@@ -8,19 +8,33 @@ export const useEventsStore = defineStore('events', () => {
     const loading = ref(false)
 
     const activeEvents = computed(() => {
-	return events.value.filter(event => event.status !== 'completed')
+	return Array.isArray(events.value) ? events.value : []
     })
 
     const archivedEvents = computed(() => {
-	return events.value.filter(event => event.status === 'completed')
+	return []
     })
 
     const loadEvents = async () => {
 	loading.value = true
 	try {
-	    events.value = await apiService.getEvents()
+	    const response = await apiService.getEvents()
+	    // Проверяем структуру ответа и нормализуем данные
+	    if (Array.isArray(response)) {
+		events.value = response
+	    } else if (response && Array.isArray(response.items)) {
+		events.value = response.items
+	    } else if (response && Array.isArray(response.data)) {
+		events.value = response.data
+	    } else if (response && Array.isArray(response.events)) {
+		events.value = response.events
+	    } else {
+		console.warn('API returned unexpected events structure:', response)
+		events.value = []
+	    }
 	} catch (error) {
 	    console.error('Ошибка загрузки мероприятий:', error)
+	    events.value = [] // Обнуляем при ошибке
 	    throw error
 	} finally {
 	    loading.value = false
@@ -28,7 +42,7 @@ export const useEventsStore = defineStore('events', () => {
     }
 
     const getEventById = (eventId) => {
-	return events.value.find(event => event.id === eventId)
+	return Array.isArray(events.value) ? events.value.find(event => event.id === eventId) : null
     }
 
     const createEvent = async (eventData) => {
@@ -59,7 +73,9 @@ export const useEventsStore = defineStore('events', () => {
     const deleteEvent = async (eventId) => {
 	try {
 	    await apiService.deleteEvent(eventId)
-	    events.value = events.value.filter(e => e.id !== eventId)
+	    if (Array.isArray(events.value)) {
+		events.value = events.value.filter(e => e.id !== eventId)
+	    }
 	    return true
 	} catch (error) {
 	    console.error('Ошибка удаления мероприятия:', error)

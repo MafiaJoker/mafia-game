@@ -103,7 +103,7 @@
 	  default: () => []
       },
       eventId: {
-	  type: Number,
+	  type: String,
 	  required: true
       },
       readonly: {

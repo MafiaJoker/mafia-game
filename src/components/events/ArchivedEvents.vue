@@ -10,10 +10,10 @@
           </template>
         </el-empty>
       </div>
-      
+
       <div v-else class="archived-grid">
-        <el-card 
-          v-for="event in events" 
+        <el-card
+          v-for="event in events"
           :key="event.id"
           class="archived-card"
           shadow="hover"
@@ -22,54 +22,54 @@
           <template #header>
             <div class="card-header">
               <h5 class="event-title">
-                {{ event.name }}
-                <el-tag 
-                  :type="getLanguageTagType(event.language)" 
+                {{ event.label }}
+                <el-tag
+                  :type="getLanguageTagType(event.language)"
                   size="small"
                   class="ml-2"
                   >
                   {{ getLanguageLabel(event.language) }}
                 </el-tag>
               </h5>
-              <span class="event-date">{{ formatDate(event.date) }}</span>
+              <span class="event-date">{{ formatDate(event.start_date) }}</span>
             </div>
           </template>
-          
+
           <div class="event-content">
             <p class="event-description">{{ event.description }}</p>
-            
+
             <div class="event-meta">
-              <el-tag type="info" effect="plain">
-                {{ getCategoryLabel(event.category) }}
+              <el-tag type="info" effect="plain" v-if="event.event_type">
+                {{ event.event_type.label }}
               </el-tag>
               <el-tag type="info" effect="plain">
                 Завершено
               </el-tag>
             </div>
-            
+
             <div class="event-stats">
-              <el-tag 
-                type="primary" 
-                effect="plain" 
+              <el-tag
+                type="primary"
+                effect="plain"
                 round
                 >
-                {{ event.tables.length }} {{ getTableNoun(event.tables.length) }}
+                {{ event.tables?.length || 0 }} {{ getTableNoun(event.tables?.length || 0) }}
               </el-tag>
             </div>
           </div>
-          
+
           <template #footer>
             <div class="card-footer">
-              <el-button 
-                type="primary" 
+              <el-button
+                type="primary"
                 size="small"
                 @click.stop="$emit('viewEvent', event)"
                 >
                 <el-icon><View /></el-icon>
                 Детали
               </el-button>
-              <el-button 
-                type="danger" 
+              <el-button
+                type="danger"
                 size="small"
                 @click.stop="$emit('deleteEvent', event.id)"
                 >
@@ -84,10 +84,10 @@
 </template>
 
 <script setup>
-  import { 
-      Document, 
-      View, 
-      Delete 
+  import {
+      Document,
+      View,
+      Delete
   } from '@element-plus/icons-vue'
 
   defineProps({
@@ -105,36 +105,27 @@
 
   const getLanguageLabel = (language) => {
       const labels = {
-	  'ru': 'RU',
-	  'en': 'EN', 
-	  'am': 'AM'
+	  'rus': 'RU',
+	  'eng': 'EN',
+	  'arm': 'AM'
       }
       return labels[language] || 'RU'
   }
 
   const getLanguageTagType = (language) => {
       const types = {
-	  'ru': 'info',
-	  'en': 'success',
-	  'am': 'warning'
+	  'rus': 'info',
+	  'eng': 'success',
+	  'arm': 'warning'
       }
       return types[language] || 'info'
   }
 
-  const getCategoryLabel = (category) => {
-      const labels = {
-	  'funky': 'Фанки',
-	  'minicap': 'Миникап',
-	  'tournament': 'Турнир',
-	  'charity_tournament': 'Благотворительный'
-      }
-      return labels[category] || 'Фанки'
-  }
 
   const getTableNoun = (count) => {
       const n = Math.abs(count) % 100
       if (n >= 5 && n <= 20) return 'столов'
-      
+
       const lastDigit = n % 10
       if (lastDigit === 1) return 'стол'
       if (lastDigit >= 2 && lastDigit <= 4) return 'стола'
@@ -244,13 +235,13 @@
       .archived-grid {
 	  grid-template-columns: 1fr;
       }
-      
+
       .card-header {
 	  flex-direction: column;
 	  align-items: flex-start;
 	  gap: 8px;
       }
-      
+
       .event-date {
 	  align-self: flex-end;
       }

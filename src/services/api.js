@@ -4,16 +4,83 @@ const API_BASE_URL = 'https://dev.api.jokermafia.am/api/v1'
 
 const api = axios.create({
     baseURL: API_BASE_URL,
+    withCredentials: true,
     headers: {
-	'Content-Type': 'application/json'
-    }
+	'Content-Type': 'application/json',
+        "haha": "hoho"
+    },
 })
 
+// ВРЕМЕННО ОТКЛЮЧЕНО - Интерсепторы
+// api.interceptors.request.use((config) => {
+//     config.headers.Cookie = 'session=aeacc22894659123a569c2483be49e646af6804263b49c346649d6d840d3edab; HttpOnly; Max-Age=1209600; Path=/; SameSite=lax'
+//     return config
+// })
+
+// api.interceptors.response.use(
+//     (response) => response,
+//     (error) => {
+//         if (error.response?.status === 401) {
+//             // Очищаем токен при ошибке авторизации
+//             localStorage.removeItem('auth_token')
+//             // Перенаправляем на страницу входа (будет обработано в роутере)
+//             window.location.href = '/login'
+//         }
+//         return Promise.reject(error)
+//     }
+// )
+
 export const apiService = {
+    // Методы авторизации
+    async login(credentials) {
+        const response = await api.post('/auth/login', credentials)
+        return response.data
+    },
+
+    async register(userData) {
+        const response = await api.post('/auth/register', userData)
+        return response.data
+    },
+
+    async logout() {
+        const response = await api.post('/auth/logout')
+        return response.data
+    },
+
+    async getCurrentUser() {
+        const response = await api.get('/auth/me')
+        return response.data
+    },
+
+    async updateProfile(profileData) {
+        const response = await api.patch('/auth/profile', profileData)
+        return response.data
+    },
+
+    async changePassword(passwordData) {
+        const response = await api.patch('/auth/password', passwordData)
+        return response.data
+    },
+
+    // Утилита для установки токена
+    setAuthToken(token) {
+        if (token) {
+            api.defaults.headers.Authorization = `Bearer ${token}`
+        } else {
+            delete api.defaults.headers.Authorization
+        }
+    },
     // Events
     async getEvents() {
 	const response = await api.get('/events')
-	return response.data
+        return response.data
+    },
+
+    async AUTH() {
+        const response = await api.put('https://dev.api.jokermafia.am/api/v1/auth/token',
+                                       {"id": "e6ad1ca2-4a84-4845-ad8d-7f5617d0af5b"},
+                                       {headers: {'Authorization': 'Basic e37bd08d'}});
+        return response.data
     },
 
     async getEvent(eventId) {

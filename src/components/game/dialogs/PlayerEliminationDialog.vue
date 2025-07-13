@@ -24,7 +24,7 @@
           >
           <div class="player-number">{{ player.id }}</div>
           <div class="player-info">
-            <div class="player-name">{{ player.name }}</div>
+            <div class="player-name">{{ player.nickname }}</div>
             <div class="player-role">
               <el-tag 
                 :type="getRoleTagType(player.originalRole)"
@@ -118,7 +118,7 @@
       
       try {
 	  await ElMessageBox.confirm(
-	      `Вы уверены, что хотите удалить игрока ${player.name}?`,
+	      `Вы уверены, что хотите удалить игрока ${player.nickname}?`,
 	      'Подтверждение удаления',
 	      {
 		  confirmButtonText: 'Да, удалить',
@@ -129,7 +129,7 @@
 
 	  gameStore.eliminatePlayer(selectedPlayer.value)
 	  
-	  ElMessage.success(`Игрок ${player.name} удален из игры`)
+	  ElMessage.success(`Игрок ${player.nickname} удален из игры`)
 	  handleClose()
 	  
       } catch {

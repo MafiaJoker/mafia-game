@@ -20,6 +20,11 @@
           <el-icon><Calendar /></el-icon>
           <span>Мероприятия</span>
         </el-menu-item>
+
+        <el-menu-item index="/event-types">
+          <el-icon><Collection /></el-icon>
+          <span>Категории</span>
+        </el-menu-item>
         
         <el-menu-item v-if="currentGameLink" :index="currentGameLink">
           <el-icon><VideoPlay /></el-icon>
@@ -28,22 +33,72 @@
       </el-menu>
     </div>
 
+    <!-- ВРЕМЕННО ОТКЛЮЧЕНО -->
+    <!-- <div class="user-section">
+      <el-dropdown @command="handleUserCommand">
+        <div class="user-info">
+          <el-avatar :size="32">
+            {{ userInitials }}
+          </el-avatar>
+          <span class="user-name">{{ authStore.user?.nickname }}</span>
+          <el-icon><ArrowDown /></el-icon>
+        </div>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="profile">
+              <el-icon><User /></el-icon>
+              Профиль
+            </el-dropdown-item>
+            <el-dropdown-item command="settings">
+              <el-icon><Setting /></el-icon>
+              Настройки
+            </el-dropdown-item>
+            <el-dropdown-item divided command="logout">
+              <el-icon><SwitchButton /></el-icon>
+              Выйти
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+    </div> -->
+
   </div>
 </template>
 
 <script setup>
   import { computed } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
+  // ВРЕМЕННО ОТКЛЮЧЕНО
+  // import { useAuthStore } from '@/stores/auth'
+  // import { ElMessage, ElMessageBox } from 'element-plus'
   import { 
       Trophy, 
-      Calendar, 
-      VideoPlay 
+      Calendar,
+      Collection, 
+      VideoPlay,
+      // User,
+      // Setting,
+      // SwitchButton,
+      // ArrowDown
   } from '@element-plus/icons-vue'
 
   const route = useRoute()
   const router = useRouter()
+  // ВРЕМЕННО ОТКЛЮЧЕНО
+  // const authStore = useAuthStore()
 
   const activeIndex = computed(() => route.path)
+
+  // ВРЕМЕННО ОТКЛЮЧЕНО
+  // Инициалы пользователя для аватара
+  // const userInitials = computed(() => {
+  //     const user = authStore.user
+  //     if (!user) return '?'
+  //     
+  //     const first = user.firstName?.[0] || user.nickname?.[0] || ''
+  //     const last = user.lastName?.[0] || ''
+  //     return (first + last).toUpperCase()
+  // })
 
   // Ссылка на текущую игру (если есть)
   const currentGameLink = computed(() => {
@@ -58,6 +113,38 @@
   const handleSelect = (index) => {
       router.push(index)
   }
+
+  // ВРЕМЕННО ОТКЛЮЧЕНО
+  // const handleUserCommand = async (command) => {
+  //     switch (command) {
+  //         case 'profile':
+  //             ElMessage.info('Профиль будет реализован позже')
+  //             break
+  //             
+  //         case 'settings':
+  //             ElMessage.info('Настройки будут реализованы позже')
+  //             break
+  //             
+  //         case 'logout':
+  //             try {
+  //                 await ElMessageBox.confirm(
+  //                     'Вы уверены, что хотите выйти из системы?',
+  //                     'Подтверждение',
+  //                     {
+  //                         confirmButtonText: 'Выйти',
+  //                         cancelButtonText: 'Отмена',
+  //                         type: 'warning'
+  //                     }
+  //                 )
+  //                 
+  //                 await authStore.logout()
+  //                 ElMessage.success('Вы вышли из системы')
+  //             } catch (error) {
+  //                 // Пользователь отменил действие
+  //             }
+  //             break
+  //     }
+  // }
 </script>
 
 <style scoped>
@@ -97,6 +184,28 @@
       border-bottom: none;
   }
 
+  .user-section {
+      flex-shrink: 0;
+  }
+
+  .user-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+  }
+
+  .user-info:hover {
+      background-color: #f5f7fa;
+  }
+
+  .user-name {
+      font-weight: 500;
+      color: #303133;
+  }
 
   @media (max-width: 768px) {
       .app-header-content {
@@ -107,5 +216,8 @@
 	  display: none;
       }
       
+      .user-name {
+          display: none;
+      }
   }
 </style>

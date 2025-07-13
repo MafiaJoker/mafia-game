@@ -9,7 +9,7 @@
             >
             Назад к мероприятиям
           </el-button>
-          <h1>{{ event?.name || 'Загрузка мероприятия...' }}</h1>
+          <h1>{{ event?.label || 'Загрузка мероприятия...' }}</h1>
         </div>
       </el-header>
 
@@ -26,15 +26,9 @@
               </template>
 
               <div v-if="event" class="event-info">
-                <div class="info-item">
-                  <el-tag 
-                    :type="getStatusTagType(event.status)"
-                    class="mb-2"
-                    >
-                    {{ getStatusLabel(event.status) }}
-                  </el-tag>
-                  <el-tag type="info" class="ml-2">
-                    {{ getCategoryLabel(event.category) }}
+                <div class="info-item" v-if="event.event_type">
+                  <el-tag type="info" class="mb-2">
+                    {{ event.event_type.label }}
                   </el-tag>
                 </div>
 
@@ -45,7 +39,7 @@
 
                 <div class="info-item">
                   <h6>Дата проведения:</h6>
-                  <p>{{ formatDate(event.date) }}</p>
+                  <p>{{ formatDate(event.start_date) }}</p>
                 </div>
 
                 <div class="info-item">
@@ -55,7 +49,7 @@
 
                 <div class="info-item">
                   <h6>Столы:</h6>
-                  <p>{{ event.tables.length }} {{ getTableNoun(event.tables.length) }}</p>
+                  <p>{{ event.tables?.length || 0 }} {{ getTableNoun(event.tables?.length || 0) }}</p>
                 </div>
               </div>
 
@@ -69,7 +63,7 @@
                   <el-icon><Grid /></el-icon>
                   <span>Игровые столы</span>
                   <el-button 
-                    v-if="event && event.status !== 'completed'"
+                    v-if="event"
                     type="primary" 
                     size="small"
                     @click="showCreateTableDialog = true"
@@ -345,34 +339,6 @@
   }
 
   // Вспомогательные функции
-  const getStatusLabel = (status) => {
-      const labels = {
-	  'planned': 'В планах',
-	  'active': 'Активно',
-	  'completed': 'Завершено'
-      }
-      return labels[status] || 'Неизвестно'
-  }
-
-  const getStatusTagType = (status) => {
-      if (!status) return 'info'
-      const types = {
-	  'planned': 'info',
-	  'active': 'success',
-	  'completed': 'info'
-      }
-      return types[status] || 'info'
-  }
-
-  const getCategoryLabel = (category) => {
-      const labels = {
-	  'funky': 'Фанки',
-	  'minicap': 'Миникап',
-	  'tournament': 'Турнир',
-	  'charity_tournament': 'Благотворительный'
-      }
-      return labels[category] || 'Фанки'
-  }
 
   const getLanguageLabel = (language) => {
       const labels = {

@@ -129,7 +129,7 @@
 
   const getPlayerName = (playerId) => {
       const player = gameStore.currentPlayer(playerId)
-      return player ? player.name : `Игрок ${playerId}`
+      return player ? player.nickname : `Игрок ${playerId}`
   }
 
   const getVoteButtonType = (playerId, votes) => {

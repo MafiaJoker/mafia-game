@@ -114,7 +114,7 @@
               </div>
               
               <div class="player-info">
-                <span class="player-name">{{ player.name }}</span>
+                <span class="player-name">{{ player.nickname }}</span>
                 <span class="player-role">({{ player.originalRole }})</span>
               </div>
               

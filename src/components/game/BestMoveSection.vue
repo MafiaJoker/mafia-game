@@ -35,7 +35,7 @@
             >
             <div class="player-info">
               <div class="player-number">{{ player.id }}</div>
-              <div class="player-name">{{ player.name }}</div>
+              <div class="player-name">{{ player.nickname }}</div>
             </div>
           </el-button>
         </div>

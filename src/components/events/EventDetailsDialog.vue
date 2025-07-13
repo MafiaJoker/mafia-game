@@ -10,14 +10,8 @@
       <el-row :gutter="20" class="mb-4">
         <el-col :md="16">
           <div class="event-badges mb-3">
-            <el-tag 
-              :type="getStatusTagType(event.status)" 
-              class="mr-2"
-              >
-              {{ getStatusLabel(event.status) }}
-            </el-tag>
             <el-tag type="info">
-              {{ getCategoryLabel(event.category) }}
+              {{ event.event_type?.label || 'Без категории' }}
             </el-tag>
           </div>
           
@@ -31,7 +25,7 @@
               <el-icon><Calendar /></el-icon>
               <div>
                 <div class="info-label">Дата проведения</div>
-                <div class="info-value">{{ formatDate(event.date) }}</div>
+                <div class="info-value">{{ formatDate(event.start_date) }}</div>
               </div>
             </div>
             
@@ -43,15 +37,6 @@
               </div>
             </div>
             
-            <div class="info-item">
-              <el-icon><User /></el-icon>
-              <div>
-                <div class="info-label">Столы</div>
-                <div class="info-value">
-                  {{ event.tables.length }} {{ getTableNoun(event.tables.length) }}
-                </div>
-              </div>
-            </div>
           </el-card>
         </el-col>
       </el-row>
@@ -149,53 +134,16 @@
       set: (value) => emit('update:modelValue', value)
   })
 
-  // Те же вспомогательные функции, что и в EventsList
-  const getStatusLabel = (status) => {
-      const labels = {
-	  'planned': 'В планах',
-	  'active': 'Активно', 
-	  'completed': 'Завершено'
-      }
-      return labels[status] || 'Неизвестно'
-  }
-
-  const getStatusTagType = (status) => {
-      const types = {
-	  'planned': '',
-	  'active': 'success',
-	  'completed': 'info'
-      }
-      return types[status] || ''
-  }
-
-  const getCategoryLabel = (category) => {
-      const labels = {
-	  'funky': 'Фанки',
-	  'minicap': 'Миникап', 
-	  'tournament': 'Турнир',
-	  'charity_tournament': 'Благотворительный'
-      }
-      return labels[category] || 'Фанки'
-  }
 
   const getLanguageLabel = (language) => {
       const labels = {
-	  'ru': 'Русский',
-	  'en': 'English',
-	  'am': 'Հայերեն'
+	  'rus': 'Русский',
+	  'eng': 'English',
+	  'arm': 'Հայերեն'
       }
       return labels[language] || 'Русский'
   }
 
-  const getTableNoun = (count) => {
-      const n = Math.abs(count) % 100
-      if (n >= 5 && n <= 20) return 'столов'
-      
-      const lastDigit = n % 10
-      if (lastDigit === 1) return 'стол'
-      if (lastDigit >= 2 && lastDigit <= 4) return 'стола'
-      return 'столов'
-  }
 
   const formatDate = (dateString) => {
       const date = new Date(dateString)

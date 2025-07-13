@@ -54,7 +54,7 @@
             <el-option
               v-for="player in gameStore.gameState.players"
               :key="player.id"
-              :label="`${player.id}: ${player.name}`"
+              :label="`${player.id}: ${player.nickname}`"
               :value="player.id"
               />
           </el-select>

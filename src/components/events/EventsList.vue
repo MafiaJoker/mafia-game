@@ -6,10 +6,10 @@
           <el-button type="primary">Создать мероприятие</el-button>
         </el-empty>
       </div>
-      
+
       <div v-else class="events-container">
-        <div 
-          v-for="event in events" 
+        <div
+          v-for="event in events"
           :key="event.id"
           class="event-item"
           @click="$emit('viewEvent', event)"
@@ -17,49 +17,36 @@
           <div class="event-content">
             <div class="event-header">
               <h4 class="event-title">
-                {{ event.name }}
-                <el-tag 
-                  :type="getLanguageTagType(event.language)" 
+                {{ event.label }}
+                <el-tag
+                  :type="getLanguageTagType(event.language)"
                   size="small"
                   class="ml-2"
                   >
                   {{ getLanguageLabel(event.language) }}
                 </el-tag>
-                <el-tag 
-                  :type="getStatusTagType(event.status)" 
+                <el-tag
+                  type="info"
                   size="small"
                   class="ml-1"
+                  v-if="event.event_type"
                   >
-                  {{ getStatusLabel(event.status) }}
-                </el-tag>
-                <el-tag 
-                  type="info" 
-                  size="small"
-                  class="ml-1"
-                  >
-                  {{ getCategoryLabel(event.category) }}
+                  {{ event.event_type.label }}
                 </el-tag>
               </h4>
             </div>
-            
+
             <p class="event-description">{{ event.description }}</p>
-            
+
             <div class="event-footer">
               <div class="event-info">
-                <el-tag 
-                  type="primary" 
-                  effect="plain" 
-                  round
-                  >
-                  {{ event.tables.length }} {{ getTableNoun(event.tables.length) }}
-                </el-tag>
-                <span class="event-date">{{ formatDate(event.date) }}</span>
+                <span class="event-date">{{ formatDate(event.start_date) }}</span>
               </div>
-              
+
               <div class="event-actions">
-                <el-button 
-                  type="danger" 
-                  size="small" 
+                <el-button
+                  type="danger"
+                  size="small"
                   circle
                   @click.stop="$emit('deleteEvent', event.id)"
                   >
@@ -92,59 +79,23 @@
 
   const getLanguageLabel = (language) => {
       const labels = {
-	  'ru': 'RU',
-	  'en': 'EN', 
-	  'am': 'AM'
+	  'rus': 'RU',
+	  'eng': 'EN',
+	  'arm': 'AM'
       }
       return labels[language] || 'RU'
   }
 
   const getLanguageTagType = (language) => {
       const types = {
-	  'ru': 'info',
-	  'en': 'success',
-	  'am': 'warning'
+	  'rus': 'info',
+	  'eng': 'success',
+	  'arm': 'warning'
       }
       return types[language] || 'info'
   }
 
-  const getStatusLabel = (status) => {
-      const labels = {
-	  'planned': 'В планах',
-	  'active': 'Активно',
-	  'completed': 'Завершено'
-      }
-      return labels[status] || 'Неизвестно'
-  }
 
-  const getStatusTagType = (status) => {
-      const types = {
-	  'planned': 'info',
-	  'active': 'success',
-	  'completed': 'info'
-      }
-      return types[status] || 'info'
-  }
-
-  const getCategoryLabel = (category) => {
-      const labels = {
-	  'funky': 'Фанки',
-	  'minicap': 'Миникап',
-	  'tournament': 'Турнир',
-	  'charity_tournament': 'Благотворительный'
-      }
-      return labels[category] || 'Фанки'
-  }
-
-  const getTableNoun = (count) => {
-      const n = Math.abs(count) % 100
-      if (n >= 5 && n <= 20) return 'столов'
-      
-      const lastDigit = n % 10
-      if (lastDigit === 1) return 'стол'
-      if (lastDigit >= 2 && lastDigit <= 4) return 'стола'
-      return 'столов'
-  }
 
   const formatDate = (dateString) => {
       const date = new Date(dateString)
@@ -249,17 +200,17 @@
       .event-item {
 	  padding: 12px;
       }
-      
+
       .event-title {
 	  font-size: 16px;
       }
-      
+
       .event-footer {
 	  flex-direction: column;
 	  gap: 8px;
 	  align-items: flex-start;
       }
-      
+
       .event-info {
 	  width: 100%;
 	  justify-content: space-between;

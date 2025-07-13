@@ -38,7 +38,7 @@
 
   const props = defineProps({
       modelValue: Boolean,
-      eventId: Number
+      eventId: String
   })
 
   const emit = defineEmits(['update:modelValue', 'table-created'])

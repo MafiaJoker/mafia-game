@@ -141,7 +141,7 @@
       const player = gameStore.currentPlayer(playerId)
       if (player) {
 	  player.fouls = 0
-	  ElMessage.success(`Фолы игрока ${player.name} сброшены`)
+	  ElMessage.success(`Фолы игрока ${player.nickname} сброшены`)
       }
   }
 
@@ -149,7 +149,7 @@
       const newRole = gameStore.changePlayerRole(playerId)
       if (newRole) {
 	  const player = gameStore.currentPlayer(playerId)
-	  ElMessage.info(`Роль игрока ${player.name} изменена на ${newRole}`)
+	  ElMessage.info(`Роль игрока ${player.nickname} изменена на ${newRole}`)
       }
   }
 
@@ -161,7 +161,7 @@
       const player = gameStore.currentPlayer(playerId)
       if (player) {
 	  player.isSilent = true
-	  ElMessage.warning(`Игрок ${player.name} молчит на этом кругу`)
+	  ElMessage.warning(`Игрок ${player.nickname} молчит на этом кругу`)
       }
   }
 
@@ -169,7 +169,7 @@
       const player = gameStore.currentPlayer(playerId)
       if (player) {
 	  player.silentNextRound = true
-	  ElMessage.warning(`Игрок ${player.name} будет молчать на следующем кругу`)
+	  ElMessage.warning(`Игрок ${player.nickname} будет молчать на следующем кругу`)
       }
   }
 
@@ -185,7 +185,7 @@
       ).then(() => {
 	  gameStore.eliminatePlayer(playerId)
 	  const player = gameStore.currentPlayer(playerId)
-	  ElMessage.success(`Игрок ${player.name} удален из игры`)
+	  ElMessage.success(`Игрок ${player.nickname} удален из игры`)
       }).catch(() => {
 	  // Отмена
       })

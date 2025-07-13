@@ -1,30 +1,30 @@
 <template>
-  <el-form 
+  <el-form
     ref="formRef"
-    :model="form" 
-    :rules="rules" 
+    :model="form"
+    :rules="rules"
     label-width="140px"
     @submit.prevent="handleSubmit"
     >
-    <el-form-item label="Название" prop="name">
-      <el-input 
-	v-model="form.name" 
+    <el-form-item label="Название" prop="label">
+      <el-input
+	v-model="form.label"
 	placeholder="Игровой вечер #1"
 	/>
     </el-form-item>
 
     <el-form-item label="Описание" prop="description">
-      <el-input 
-	v-model="form.description" 
-	type="textarea" 
+      <el-input
+	v-model="form.description"
+	type="textarea"
 	:rows="3"
 	placeholder="Описание мероприятия"
 	/>
     </el-form-item>
 
-    <el-form-item label="Дата" prop="date">
+    <el-form-item label="Дата" prop="start_date">
       <el-date-picker
-	v-model="form.date"
+	v-model="form.start_date"
 	type="date"
 	placeholder="Выберите дату"
 	format="DD.MM.YYYY"
@@ -35,33 +35,27 @@
 
     <el-form-item label="Язык" prop="language">
       <el-select v-model="form.language" style="width: 100%">
-	<el-option label="Русский" value="ru" />
-	<el-option label="English" value="en" />
-	<el-option label="Հայերեն" value="am" />
+	<el-option label="Русский" value="rus" />
+	<el-option label="English" value="eng" />
+	<el-option label="Հայերեն" value="arm" />
       </el-select>
     </el-form-item>
 
-    <el-form-item label="Категория" prop="category">
-      <el-select v-model="form.category" style="width: 100%">
-	<el-option label="Фанки" value="funky" />
-	<el-option label="Миникап" value="minicap" />
-	<el-option label="Турнир" value="tournament" />
-	<el-option label="Благотворительный турнир" value="charity_tournament" />
-      </el-select>
-    </el-form-item>
-
-    <el-form-item label="Статус" prop="status">
-      <el-select v-model="form.status" style="width: 100%">
-	<el-option label="В планах" value="planned" />
-	<el-option label="Активно" value="active" />
-	<el-option label="Завершено" value="completed" />
+    <el-form-item label="Категория" prop="event_type_id" v-if="eventTypes.length > 0">
+      <el-select v-model="form.event_type_id" style="width: 100%" placeholder="Выберите категорию">
+	<el-option 
+	  v-for="eventType in eventTypes" 
+	  :key="eventType.id" 
+	  :label="eventType.label" 
+	  :value="eventType.id" 
+	/>
       </el-select>
     </el-form-item>
 
 
     <el-form-item>
-      <el-button 
-	type="primary" 
+      <el-button
+	type="primary"
 	@click="handleSubmit"
 	:loading="loading"
 	style="width: 100%"
@@ -75,29 +69,31 @@
 <script setup>
   import { ref, reactive, onMounted } from 'vue'
   import { useEventsStore } from '@/stores/events'
+  import { useEventTypesStore } from '@/stores/eventTypes'
   import { ElMessage } from 'element-plus'
 
   const emit = defineEmits(['event-created'])
 
   const eventsStore = useEventsStore()
+  const eventTypesStore = useEventTypesStore()
+  const eventTypes = ref([])
 
   const formRef = ref()
   const loading = ref(false)
 
   const form = reactive({
-      name: '',
+      label: '',
       description: '',
-      date: new Date().toISOString().split('T')[0],
-      language: 'ru',
-      category: 'funky',
-      status: 'planned',
+      start_date: new Date().toISOString().split('T')[0],
+      language: 'rus',
+      event_type_id: ''
   })
 
   const rules = {
-      name: [
+      label: [
 	  { required: true, message: 'Введите название мероприятия', trigger: 'blur' }
       ],
-      date: [
+      start_date: [
 	  { required: true, message: 'Выберите дату', trigger: 'change' }
       ],
       language: [
@@ -107,30 +103,25 @@
 
   const generateDefaultValues = () => {
       // Генерируем название по умолчанию
-      const funkyEvents = eventsStore.events.filter(event => event.category === 'funky')
-      form.name = `Игровой вечер #${funkyEvents.length + 1}`
+      const eventsCount = eventsStore.events.length
+      form.label = `Игровой вечер #${eventsCount + 1}`
 
       // Генерируем описание
       const today = new Date()
       const currentMonth = today.getMonth()
       const currentYear = today.getFullYear()
 
-      const currentMonthFunkyEvents = eventsStore.events.filter(event => {
-	  if (event.category !== 'funky') return false
-
-	  const eventDate = new Date(event.date)
-	  return eventDate.getMonth() === currentMonth && 
-	      eventDate.getFullYear() === currentYear
-      })
-
-      const gameNumber = currentMonthFunkyEvents.length + 1
       const monthNames = [
 	  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
 	  'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'
       ]
 
-      form.description = `Игровой вечер #${gameNumber} за ${monthNames[currentMonth]} ${currentYear} года.`
+      form.description = `Игровой вечер за ${monthNames[currentMonth]} ${currentYear} года.`
 
+      // Устанавливаем первый доступный тип события
+      if (eventTypes.value.length > 0) {
+          form.event_type_id = eventTypes.value[0].id
+      }
   }
 
   const handleSubmit = async () => {
@@ -159,6 +150,12 @@
   }
 
   onMounted(async () => {
-      generateDefaultValues()
+      try {
+          await eventTypesStore.loadEventTypes()
+          eventTypes.value = eventTypesStore.eventTypes
+          generateDefaultValues()
+      } catch (error) {
+          console.error('Ошибка загрузки типов событий:', error)
+      }
   })
 </script>

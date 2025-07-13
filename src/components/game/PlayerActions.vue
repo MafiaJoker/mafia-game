@@ -59,7 +59,7 @@
   const handleEliminate = async () => {
       try {
 	  await ElMessageBox.confirm(
-	      `Вы уверены, что хотите удалить игрока ${props.player.name}?`,
+	      `Вы уверены, что хотите удалить игрока ${props.player.nickname}?`,
 	      'Подтверждение',
 	      {
 		  confirmButtonText: 'Да',

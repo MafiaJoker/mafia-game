@@ -110,7 +110,7 @@
 
       const term = searchTerm.value.toLowerCase()
       return eventsStore.activeEvents.filter(event =>
-	  event.name.toLowerCase().includes(term) ||
+	  event.label.toLowerCase().includes(term) ||
 	      (event.description && event.description.toLowerCase().includes(term))
       )
   })

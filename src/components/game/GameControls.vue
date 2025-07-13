@@ -159,7 +159,7 @@
 	  const playerId = gameState.value.nominatedPlayers[0]
 	  const player = gameStore.currentPlayer(playerId)
 	  
-	  ElMessage.warning(`Игрок ${player.name} автоматически выбывает как единственная кандидатура`)
+	  ElMessage.warning(`Игрок ${player.nickname} автоматически выбывает как единственная кандидатура`)
 	  gameStore.eliminatePlayer(playerId)
 	  
 	  gameState.value.nominatedPlayers = []

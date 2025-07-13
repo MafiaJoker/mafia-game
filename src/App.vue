@@ -5,7 +5,7 @@
       <el-header v-if="showHeader" class="app-header">
         <AppHeader />
       </el-header>
-      
+
       <el-main class="app-main">
         <!-- Основной контент -->
         <router-view />
@@ -14,7 +14,7 @@
 
     <!-- Глобальные уведомления -->
     <div id="toast-container" class="toast-container"></div>
-    
+
     <!-- Панель разработчика (только в dev режиме) -->
     <DevToolsPanel />
   </div>
@@ -23,14 +23,29 @@
 <script setup>
   import { computed } from 'vue'
   import { useRoute } from 'vue-router'
+  import { apiService } from '@/services/api.js'
   import AppHeader from '@/components/common/AppHeader.vue'
   import DevToolsPanel from '@/components/dev/DevToolsPanel.vue'
 
+  apiService.AUTH().then(result => {
+    console.log('Auth success:', result)
+    // Сессия успешно инициализирована
+  }).catch(error => {
+    console.error('Auth failed:', error)
+    // Обработка ошибки авторизации
+  })
+
   const route = useRoute()
 
-  // Скрываем заголовок на странице игры для экономии места
+  // Скрываем заголовок на страницах авторизации и игры
   const showHeader = computed(() => {
-      return route.name !== 'Game'
+      // Не показываем заголовок на страницах авторизации
+      if (route.name === 'Login' || route.name === 'Register') return false
+
+      // Не показываем заголовок на странице игры для экономии места
+      if (route.name === 'Game') return false
+
+      return true
   })
 </script>
 
@@ -44,7 +59,7 @@
 
   html, body {
       height: 100%;
-      font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 
+      font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
 		   'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
   }
 
