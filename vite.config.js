@@ -6,7 +6,7 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
 export default defineConfig(({ command }) => {
   const isDev = command === 'serve'
-  
+
   return {
     plugins: [
       vue(),
@@ -43,6 +43,12 @@ export default defineConfig(({ command }) => {
       exclude: []
     },
     server: {
+        allowedHosts: [
+            'dev.jokermafia.am',
+        'localhost',
+        '.ngrok.io',
+        '.ngrok-free.app'
+      ],
       hmr: {
         overlay: {
           warnings: false,

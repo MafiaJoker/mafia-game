@@ -33,11 +33,10 @@
       </el-menu>
     </div>
 
-    <!-- ВРЕМЕННО ОТКЛЮЧЕНО -->
-    <!-- <div class="user-section">
+    <div class="user-section">
       <el-dropdown @command="handleUserCommand">
         <div class="user-info">
-          <el-avatar :size="32">
+          <el-avatar :size="32" :src="authStore.user?.photo_url">
             {{ userInitials }}
           </el-avatar>
           <span class="user-name">{{ authStore.user?.nickname }}</span>
@@ -60,7 +59,7 @@
           </el-dropdown-menu>
         </template>
       </el-dropdown>
-    </div> -->
+    </div>
 
   </div>
 </template>
@@ -68,37 +67,34 @@
 <script setup>
   import { computed } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
-  // ВРЕМЕННО ОТКЛЮЧЕНО
-  // import { useAuthStore } from '@/stores/auth'
-  // import { ElMessage, ElMessageBox } from 'element-plus'
+  import { useAuthStore } from '@/stores/auth'
+  import { ElMessage, ElMessageBox } from 'element-plus'
   import { 
       Trophy, 
       Calendar,
       Collection, 
       VideoPlay,
-      // User,
-      // Setting,
-      // SwitchButton,
-      // ArrowDown
+      User,
+      Setting,
+      SwitchButton,
+      ArrowDown
   } from '@element-plus/icons-vue'
 
   const route = useRoute()
   const router = useRouter()
-  // ВРЕМЕННО ОТКЛЮЧЕНО
-  // const authStore = useAuthStore()
+  const authStore = useAuthStore()
 
   const activeIndex = computed(() => route.path)
 
-  // ВРЕМЕННО ОТКЛЮЧЕНО
   // Инициалы пользователя для аватара
-  // const userInitials = computed(() => {
-  //     const user = authStore.user
-  //     if (!user) return '?'
-  //     
-  //     const first = user.firstName?.[0] || user.nickname?.[0] || ''
-  //     const last = user.lastName?.[0] || ''
-  //     return (first + last).toUpperCase()
-  // })
+  const userInitials = computed(() => {
+      const user = authStore.user
+      if (!user) return '?'
+      
+      const first = user.first_name?.[0] || user.nickname?.[0] || ''
+      const last = user.last_name?.[0] || ''
+      return (first + last).toUpperCase() || '?'
+  })
 
   // Ссылка на текущую игру (если есть)
   const currentGameLink = computed(() => {
@@ -114,37 +110,36 @@
       router.push(index)
   }
 
-  // ВРЕМЕННО ОТКЛЮЧЕНО
-  // const handleUserCommand = async (command) => {
-  //     switch (command) {
-  //         case 'profile':
-  //             ElMessage.info('Профиль будет реализован позже')
-  //             break
-  //             
-  //         case 'settings':
-  //             ElMessage.info('Настройки будут реализованы позже')
-  //             break
-  //             
-  //         case 'logout':
-  //             try {
-  //                 await ElMessageBox.confirm(
-  //                     'Вы уверены, что хотите выйти из системы?',
-  //                     'Подтверждение',
-  //                     {
-  //                         confirmButtonText: 'Выйти',
-  //                         cancelButtonText: 'Отмена',
-  //                         type: 'warning'
-  //                     }
-  //                 )
-  //                 
-  //                 await authStore.logout()
-  //                 ElMessage.success('Вы вышли из системы')
-  //             } catch (error) {
-  //                 // Пользователь отменил действие
-  //             }
-  //             break
-  //     }
-  // }
+  const handleUserCommand = async (command) => {
+      switch (command) {
+          case 'profile':
+              ElMessage.info('Профиль будет реализован позже')
+              break
+              
+          case 'settings':
+              ElMessage.info('Настройки будут реализованы позже')
+              break
+              
+          case 'logout':
+              try {
+                  await ElMessageBox.confirm(
+                      'Вы уверены, что хотите выйти из системы?',
+                      'Подтверждение',
+                      {
+                          confirmButtonText: 'Выйти',
+                          cancelButtonText: 'Отмена',
+                          type: 'warning'
+                      }
+                  )
+                  
+                  await authStore.logout()
+                  ElMessage.success('Вы вышли из системы')
+              } catch (error) {
+                  // Пользователь отменил действие
+              }
+              break
+      }
+  }
 </script>
 
 <style scoped>

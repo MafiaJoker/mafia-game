@@ -6,165 +6,94 @@ import router from '@/router'
 export const useAuthStore = defineStore('auth', () => {
     // State
     const user = ref(null)
-    const token = ref(localStorage.getItem('auth_token') || null)
     const loading = ref(false)
     const error = ref(null)
 
     // Getters
-    const isAuthenticated = computed(() => !!token.value && !!user.value)
+    const isAuthenticated = computed(() => !!user.value)
     const userRole = computed(() => user.value?.role || 'guest')
     const isAdmin = computed(() => userRole.value === 'admin')
-    const isJudge = computed(() => userRole.value === 'judge')
+    const isJudge = computed(() => userRole.value === 'judge') 
     const isPlayer = computed(() => userRole.value === 'player')
 
     // Actions
-    const login = async (credentials) => {
+    
+    // Авторизация через Telegram
+    const telegramLogin = async (telegramData) => {
         loading.value = true
         error.value = null
         
         try {
-            const response = await apiService.login(credentials)
+            // Отправляем данные Telegram на сервер для авторизации
+            const response = await apiService.telegramLogin(telegramData)
             
-            // Сохраняем токен
-            token.value = response.token
-            localStorage.setItem('auth_token', response.token)
+            // При успешной авторизации сохраняем данные пользователя из Telegram
+            user.value = {
+                telegram_id: telegramData.telegram_id,
+                first_name: telegramData.first_name,
+                last_name: telegramData.last_name,
+                nickname: telegramData.nickname,
+                photo_url: telegramData.photo_url
+            }
             
-            // Устанавливаем токен в API сервис
-            apiService.setAuthToken(response.token)
-            
-            // Сохраняем пользователя
-            user.value = response.user
-            
-            // Перенаправляем на главную
-            router.push('/')
+            console.log('User data saved:', user.value)
             
             return { success: true }
         } catch (err) {
-            error.value = err.response?.data?.message || 'Ошибка входа'
+            error.value = err.response?.data?.detail || 'Ошибка авторизации через Telegram'
+            console.error('Telegram login error:', err)
             return { success: false, error: error.value }
         } finally {
             loading.value = false
         }
     }
 
-    const register = async (userData) => {
+
+    // Выход из системы
+    const logout = async () => {
         loading.value = true
-        error.value = null
         
         try {
-            const response = await apiService.register(userData)
-            
-            // После регистрации сразу логиним
-            if (response.token) {
-                token.value = response.token
-                localStorage.setItem('auth_token', response.token)
-                apiService.setAuthToken(response.token)
-                user.value = response.user
-                
-                router.push('/')
-                return { success: true }
-            }
-            
-            // Если токен не вернулся, перенаправляем на страницу входа
-            router.push('/login')
-            return { success: true, message: 'Регистрация успешна! Войдите в систему.' }
-            
+            await apiService.logout()
         } catch (err) {
-            error.value = err.response?.data?.message || 'Ошибка регистрации'
-            return { success: false, error: error.value }
+            console.error('Logout error:', err)
         } finally {
-            loading.value = false
-        }
-    }
-
-    const logout = async () => {
-        try {
-            // Отправляем запрос на сервер (опционально)
-            await apiService.logout().catch(() => {})
-        } finally {
-            // Очищаем локальные данные
-            token.value = null
+            // Очищаем локальное состояние независимо от результата API
             user.value = null
-            localStorage.removeItem('auth_token')
-            
-            // Очищаем токен в API сервисе
-            apiService.setAuthToken(null)
+            error.value = null
+            loading.value = false
             
             // Перенаправляем на страницу входа
             router.push('/login')
         }
     }
 
-    const fetchUser = async () => {
-        if (!token.value) return
-        
-        loading.value = true
-        try {
-            // Устанавливаем токен перед запросом
-            apiService.setAuthToken(token.value)
-            
-            const response = await apiService.getCurrentUser()
-            user.value = response
-        } catch (err) {
-            // Если токен невалидный, очищаем данные
-            if (err.response?.status === 401) {
-                await logout()
-            }
-        } finally {
-            loading.value = false
-        }
+    // Проверка аутентификации при запуске приложения
+    const checkAuth = async () => {
+        // В случае с сессионными cookie просто проверяем, есть ли пользователь
+        return !!user.value
     }
 
+    // Обновление профиля пользователя
     const updateProfile = async (profileData) => {
         loading.value = true
         error.value = null
         
         try {
             const response = await apiService.updateProfile(profileData)
-            user.value = response
+            user.value = { ...user.value, ...response }
             return { success: true }
         } catch (err) {
-            error.value = err.response?.data?.message || 'Ошибка обновления профиля'
+            error.value = err.response?.data?.detail || 'Ошибка обновления профиля'
             return { success: false, error: error.value }
         } finally {
             loading.value = false
-        }
-    }
-
-    const changePassword = async (passwordData) => {
-        loading.value = true
-        error.value = null
-        
-        try {
-            await apiService.changePassword(passwordData)
-            return { success: true, message: 'Пароль успешно изменен' }
-        } catch (err) {
-            error.value = err.response?.data?.message || 'Ошибка изменения пароля'
-            return { success: false, error: error.value }
-        } finally {
-            loading.value = false
-        }
-    }
-
-    // Инициализация при загрузке
-    const initialize = async () => {
-        if (token.value) {
-            try {
-                await fetchUser()
-            } catch (error) {
-                // Если ошибка при получении пользователя, очищаем токен
-                console.warn('Ошибка инициализации auth:', error)
-                token.value = null
-                user.value = null
-                localStorage.removeItem('auth_token')
-            }
         }
     }
 
     return {
         // State
         user,
-        token,
         loading,
         error,
         
@@ -176,12 +105,9 @@ export const useAuthStore = defineStore('auth', () => {
         isPlayer,
         
         // Actions
-        login,
-        register,
+        telegramLogin,
         logout,
-        fetchUser,
-        updateProfile,
-        changePassword,
-        initialize
+        checkAuth,
+        updateProfile
     }
 })

@@ -27,13 +27,6 @@
   import AppHeader from '@/components/common/AppHeader.vue'
   import DevToolsPanel from '@/components/dev/DevToolsPanel.vue'
 
-  apiService.AUTH().then(result => {
-    console.log('Auth success:', result)
-    // Сессия успешно инициализирована
-  }).catch(error => {
-    console.error('Auth failed:', error)
-    // Обработка ошибки авторизации
-  })
 
   const route = useRoute()
 

@@ -32,13 +32,8 @@ const api = axios.create({
 
 export const apiService = {
     // Методы авторизации
-    async login(credentials) {
-        const response = await api.post('/auth/login', credentials)
-        return response.data
-    },
-
-    async register(userData) {
-        const response = await api.post('/auth/register', userData)
+    async telegramLogin(telegramData) {
+        const response = await api.put('/auth/telegram', telegramData)
         return response.data
     },
 
@@ -47,28 +42,10 @@ export const apiService = {
         return response.data
     },
 
-    async getCurrentUser() {
-        const response = await api.get('/auth/me')
-        return response.data
-    },
 
     async updateProfile(profileData) {
         const response = await api.patch('/auth/profile', profileData)
         return response.data
-    },
-
-    async changePassword(passwordData) {
-        const response = await api.patch('/auth/password', passwordData)
-        return response.data
-    },
-
-    // Утилита для установки токена
-    setAuthToken(token) {
-        if (token) {
-            api.defaults.headers.Authorization = `Bearer ${token}`
-        } else {
-            delete api.defaults.headers.Authorization
-        }
     },
     // Events
     async getEvents() {
@@ -196,11 +173,6 @@ export const apiService = {
 	return response.data
     },
 
-    // Auth
-    async telegramLogin(authData) {
-	const response = await api.put('/auth/telegram', authData)
-	return response.data
-    },
 
     // Tariffs
     async getTariffs() {
