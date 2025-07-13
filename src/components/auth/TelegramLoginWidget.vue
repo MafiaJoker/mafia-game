@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-  import { ref, onMounted, onUnmounted } from 'vue'
+  import { ref, onMounted, onUnmounted, getCurrentInstance } from 'vue'
   import { useAuthStore } from '@/stores/auth'
   import { useRouter } from 'vue-router'
   import { ElMessage } from 'element-plus'
@@ -62,9 +62,15 @@
     }
   })
 
+  // Проверяем, что компонент используется в правильном контексте
+  const instance = getCurrentInstance()
+  if (!instance) {
+    throw new Error('TelegramLoginWidget must be used within a Vue component instance')
+  }
+
   const authStore = useAuthStore()
   const router = useRouter()
-  const telegramWidgetRef = ref()
+  const telegramWidgetRef = ref(null)
   const showFallback = ref(false)
   const isAuthenticating = ref(false)
   const loadTimeout = ref(null)
@@ -200,8 +206,11 @@
   }
 
   onMounted(() => {
-    setupTelegramCallback()
-    loadTelegramWidget()
+    // Добавляем небольшую задержку для правильной инициализации
+    setTimeout(() => {
+      setupTelegramCallback()
+      loadTelegramWidget()
+    }, 100)
   })
 
   onUnmounted(() => {

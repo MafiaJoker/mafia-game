@@ -113,7 +113,7 @@
   const handleUserCommand = async (command) => {
       switch (command) {
           case 'profile':
-              ElMessage.info('Профиль будет реализован позже')
+              router.push('/profile')
               break
               
           case 'settings':

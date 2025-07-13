@@ -33,8 +33,8 @@
             <!-- Тестовая авторизация (только в dev режиме) -->
             <div v-if="isDev" class="test-auth-section">
               <el-divider>или</el-divider>
-              <el-button 
-                type="primary" 
+              <el-button
+                type="primary"
                 plain
                 @click="loginAsTestUser"
                 :loading="isTestLogin"
@@ -77,7 +77,7 @@
 </template>
 
 <script setup>
-  import { computed, ref } from 'vue'
+  import { computed, ref, onMounted } from 'vue'
   import { useRouter } from 'vue-router'
   import { useAuthStore } from '@/stores/auth'
   import TelegramLoginWidget from '@/components/auth/TelegramLoginWidget.vue'
@@ -93,32 +93,34 @@
   const isDev = import.meta.env.DEV
   const isTestLogin = ref(false)
 
-  // Перенаправляем авторизованных пользователей
-  if (authStore.isAuthenticated) {
-    router.push('/')
-  }
+  // Перенаправляем авторизованных пользователей (после монтирования)
+  onMounted(() => {
+    if (authStore.isAuthenticated) {
+      router.push('/')
+    }
+  })
 
   // Функция для тестовой авторизации
   const loginAsTestUser = async () => {
     isTestLogin.value = true
-    
+
     try {
       // Эмулируем данные от Telegram для тестового пользователя
-      const testUserData = {
-        telegram_id: 1903186808,
-        first_name: 'Test',
-        last_name: 'User',
-        nickname: 'testuser',
-        photo_url: 'https://t.me/i/userpic/320/test.jpg',
-        auth_date: 1752423751,
-        hash: '4db9e4ecef4a15d7015d3f605473da64106eb680df611448731692ed1f48e3ca'
+        const testUserData = {
+            "telegram_id": 1903186808,
+            "first_name": "Third",
+            "last_name": "Child",
+            "photo_url": "https://t.me/i/userpic/320/cEb6YEsbSrR70HNfx-deIs7QZjniHlA8q59HIxxyjv4.jpg",
+            "auth_date": 1752423751,
+            "nickname": "ShiranaiTenjouDa",
+            "hash": "4db9e4ecef4a15d7015d3f605473da64106eb680df611448731692ed1f48e3ca"
       }
-      
+
       console.log('Test user login:', testUserData)
-      
+
       // Используем тот же метод авторизации
       const result = await authStore.telegramLogin(testUserData)
-      
+
       if (result.success) {
         ElMessage.success('Вход выполнен как тестовый пользователь')
         router.push('/')

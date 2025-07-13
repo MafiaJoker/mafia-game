@@ -50,6 +50,8 @@ export default defineConfig(({ command }) => {
         '.ngrok-free.app'
       ],
       hmr: {
+        host: 'localhost',
+        port: 24678,
         overlay: {
           warnings: false,
           errors: false

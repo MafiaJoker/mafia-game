@@ -37,10 +37,6 @@ export const apiService = {
         return response.data
     },
 
-    async logout() {
-        const response = await api.post('/auth/logout')
-        return response.data
-    },
 
 
     async updateProfile(profileData) {

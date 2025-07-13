@@ -54,11 +54,13 @@ export const useAuthStore = defineStore('auth', () => {
         loading.value = true
         
         try {
-            await apiService.logout()
+            // Поскольку используем session cookies, просто очищаем локальные данные
+            // Сервер автоматически очистит cookie при истечении сессии
+            console.log('Logging out user')
         } catch (err) {
             console.error('Logout error:', err)
         } finally {
-            // Очищаем локальное состояние независимо от результата API
+            // Очищаем локальное состояние
             user.value = null
             error.value = null
             loading.value = false
