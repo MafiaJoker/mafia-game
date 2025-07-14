@@ -29,7 +29,7 @@
         <el-table-column prop="tournament" label="Турнир" min-width="150">
           <template #default="{ row }">
             <div class="tournament-cell">
-              <el-tag size="small" effect="plain">
+              <el-tag type="info" size="small" effect="plain">
                 {{ row.tournament }}
               </el-tag>
             </div>
@@ -132,12 +132,12 @@
   // Определение типа тега для роли
   const getRoleType = (role) => {
     const roleTypes = {
-      'Мирный житель': '',
+      'Мирный житель': 'info',
       'Шериф': 'warning',
       'Мафия': 'danger',
       'Дон': 'danger'
     }
-    return roleTypes[role] || ''
+    return roleTypes[role] || 'info'
   }
 
   // Просмотр детальной информации об игре

@@ -25,6 +25,11 @@
           <el-icon><Collection /></el-icon>
           <span>Категории</span>
         </el-menu-item>
+
+        <el-menu-item index="/users">
+          <el-icon><UserFilled /></el-icon>
+          <span>Пользователи</span>
+        </el-menu-item>
         
         <el-menu-item v-if="currentGameLink" :index="currentGameLink">
           <el-icon><VideoPlay /></el-icon>
@@ -75,6 +80,7 @@
       Collection, 
       VideoPlay,
       User,
+      UserFilled,
       Setting,
       SwitchButton,
       ArrowDown
@@ -83,6 +89,7 @@
   const route = useRoute()
   const router = useRouter()
   const authStore = useAuthStore()
+
 
   const activeIndex = computed(() => route.path)
 

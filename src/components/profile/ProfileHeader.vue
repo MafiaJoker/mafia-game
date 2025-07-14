@@ -20,7 +20,6 @@
           </p>
           <div class="user-badges">
             <el-tag type="primary" size="small">
-              <el-icon><Trophy /></el-icon>
               Активный игрок
             </el-tag>
           </div>

@@ -33,7 +33,8 @@ export const useAuthStore = defineStore('auth', () => {
                 first_name: telegramData.first_name,
                 last_name: telegramData.last_name,
                 nickname: telegramData.nickname,
-                photo_url: telegramData.photo_url
+                photo_url: telegramData.photo_url,
+                role: response.role || 'guest'
             }
             
             console.log('User data saved:', user.value)
@@ -93,6 +94,20 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
+    // Проверка прав доступа
+    const hasPermission = (permission) => {
+        if (!user.value) return false
+        
+        const permissions = {
+            admin: ['admin'],
+            judge: ['admin', 'judge'],
+            player: ['admin', 'judge', 'player']
+        }
+        
+        const allowedRoles = permissions[permission] || []
+        return allowedRoles.includes(user.value.role || 'guest')
+    }
+
     return {
         // State
         user,
@@ -110,6 +125,7 @@ export const useAuthStore = defineStore('auth', () => {
         telegramLogin,
         logout,
         checkAuth,
-        updateProfile
+        updateProfile,
+        hasPermission
     }
 })
