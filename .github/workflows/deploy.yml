@@ -1,18 +1,79 @@
-name: Deploy to GitHub Pages
+name: Deploy to dev.jokermafia.am
 
 on:
   push:
-    branches: [ main ]  # или master, в зависимости от вашей основной ветки
+    branches: [ master ]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        
-      - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          folder: .  # Деплоим все файлы из корня репозитория
-          branch: gh-pages  # Ветка для GitHub Pages
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build application
+      run: npm run build
+      env:
+        NODE_ENV: production
+    
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: ${{ secrets.PORT || 22 }}
+        script: |
+          # Создаем директорию для бэкапа
+          sudo mkdir -p /var/backups/mafia-frontend
+          
+          # Бэкапим текущую версию
+          sudo cp -r /var/www/html/mafia-frontend /var/backups/mafia-frontend/backup-$(date +%Y%m%d_%H%M%S) || true
+          
+          # Создаем директорию для приложения
+          sudo mkdir -p /var/www/html/mafia-frontend
+          
+          # Очищаем старые файлы
+          sudo rm -rf /var/www/html/mafia-frontend/*
+    
+    - name: Copy files to server
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: ${{ secrets.PORT || 22 }}
+        source: "dist/*"
+        target: "/var/www/html/mafia-frontend/"
+        strip_components: 1
+    
+    - name: Set permissions
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: ${{ secrets.PORT || 22 }}
+        script: |
+          # Устанавливаем права доступа
+          sudo chown -R www-data:www-data /var/www/html/mafia-frontend
+          sudo chmod -R 755 /var/www/html/mafia-frontend
+          
+          # Перезапускаем nginx (если нужно)
+          sudo systemctl reload nginx || true
+    
+    - name: Notify deployment success
+      run: |
+        echo "✅ Deployment completed successfully!"
+        echo "🌐 Application is available at: https://dev.jokermafia.am"
