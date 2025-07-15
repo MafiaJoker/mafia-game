@@ -219,6 +219,20 @@ chmod -R 755 /home/aladdin/frontend
 
 **Проблемы с маршрутизацией**: Убедитесь, что Nginx настроен для SPA с `try_files`
 
+**Ошибка MIME type "text/html" для JS файлов**: Nginx возвращает HTML вместо JS файлов:
+```bash
+# Проверяем логи
+sudo tail -f /var/log/nginx/dev.jokermafia.am.access.log
+
+# Проверяем существование файлов
+ls -la /home/aladdin/frontend/assets/
+
+# Убедитесь, что в конфигурации Nginx статические файлы обрабатываются ДО location /
+# Правильный порядок в конфигурации:
+# 1. location ~* \.(js|css|...)$ { try_files $uri =404; }
+# 2. location / { try_files $uri $uri/ /index.html; }
+```
+
 **Ошибка 403 Forbidden**: Проблема с правами доступа к файлам:
 
 ```bash
