@@ -88,9 +88,9 @@
   const authStore = useAuthStore()
 
   // Конфигурация
-  const telegramBotUsername = 'dev_mafia_joker_widget_bot' // Тестовый бот для проверки
+  const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'dev_mafia_joker_widget_bot'
   const currentYear = computed(() => new Date().getFullYear())
-  const isDev = import.meta.env.DEV
+  const isDev = import.meta.env.VITE_SHOW_TEST_LOGIN === 'true'
   const isTestLogin = ref(false)
 
   // Перенаправляем авторизованных пользователей (после монтирования)
