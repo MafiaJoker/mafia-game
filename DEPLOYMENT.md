@@ -56,8 +56,8 @@ ssh -i ~/.ssh/id_rsa aladdin@dev.jokermafia.am
 ### Структура директорий на сервере
 
 ```
-/home/aladdin/frontend/          # Рабочая директория
-/home/aladdin/backups/frontend/  # Бэкапы
+/usr/share/nginx/html/           # Рабочая директория (стандартная для Nginx)
+/var/backups/dev.jokermafia.am/  # Бэкапы
 ```
 
 ### Настройка Nginx
@@ -76,7 +76,7 @@ server {
     listen 80;
     server_name dev.jokermafia.am;
     
-    root /home/aladdin/frontend;
+    root /usr/share/nginx/html;
     index index.html;
     
     # Логи
@@ -88,9 +88,9 @@ server {
         try_files $uri $uri/ /index.html;
     }
     
-    # API проксирование (если нужно)
+    # API проксирование
     location /api/ {
-        proxy_pass http://localhost:8000;
+        proxy_pass https://api.dev.jokermafia.am;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -181,7 +181,7 @@ npm install
 npm run build
 
 # Копируем на сервер
-rsync -avz --delete dist/ aladdin@dev.jokermafia.am:/home/aladdin/frontend/
+rsync -avz --delete dist/ aladdin@dev.jokermafia.am:/usr/share/nginx/html/
 ```
 
 ### Environment Variables
@@ -221,65 +221,67 @@ chmod -R 755 /home/aladdin/frontend
 
 **Ошибка MIME type "text/html" для JS файлов**: Nginx возвращает HTML вместо JS файлов:
 ```bash
-# Проверяем логи
+# 1. Проверяем существование файлов
+ls -la /usr/share/nginx/html/
+ls -la /usr/share/nginx/html/assets/
+
+# 2. Проверяем логи Nginx
 sudo tail -f /var/log/nginx/dev.jokermafia.am.access.log
+sudo tail -f /var/log/nginx/dev.jokermafia.am.error.log
 
-# Проверяем существование файлов
-ls -la /home/aladdin/frontend/assets/
+# 3. Проверяем что именно возвращает сервер
+curl -I https://dev.jokermafia.am/assets/index-8zlEzrEL.js
 
-# Убедитесь, что в конфигурации Nginx статические файлы обрабатываются ДО location /
-# Правильный порядок в конфигурации:
-# 1. location ~* \.(js|css|...)$ { try_files $uri =404; }
-# 2. location / { try_files $uri $uri/ /index.html; }
+# 4. Проверяем конфигурацию Nginx
+sudo nginx -t
+cat /etc/nginx/sites-enabled/dev.jokermafia.am
+
+# 5. Проверяем права доступа
+sudo -u www-data ls -la /usr/share/nginx/html/assets/
+```
+
+**Возможные причины:**
+1. **Файлы не существуют** - проверьте содержимое `/usr/share/nginx/html/assets/`
+2. **Нет прав доступа** - Nginx не может прочитать файлы
+3. **Неправильная конфигурация** - статические файлы не обрабатываются правильно
+4. **Файлы не скопированы** - деплой не завершился успешно
+
+**Быстрое решение**:
+```bash
+# Убедиться что файлы скопированы правильно
+sudo ls -la /usr/share/nginx/html/
+sudo ls -la /usr/share/nginx/html/assets/
+
+# Установить правильные права доступа
+sudo chown -R www-data:www-data /usr/share/nginx/html/
+sudo chmod -R 755 /usr/share/nginx/html/
+
+# Перезапустить Nginx
+sudo systemctl restart nginx
 ```
 
 **Ошибка 403 Forbidden**: Проблема с правами доступа к файлам:
 
 ```bash
 # 1. Проверяем права доступа к файлам
-ls -la /home/aladdin/frontend/
+ls -la /usr/share/nginx/html/
 
-# 2. Проверяем права доступа к домашней папке
-ls -la /home/aladdin/
-
-# 3. Устанавливаем правильные права
-sudo chmod 755 /home/aladdin
-sudo chmod 755 /home/aladdin/frontend
-sudo chmod -R 644 /home/aladdin/frontend/*
-sudo chmod -R 755 /home/aladdin/frontend/*/
-
-# 4. Проверяем под каким пользователем работает Nginx
+# 2. Проверяем под каким пользователем работает Nginx
 ps aux | grep nginx
 
-# 5. Если Nginx работает под www-data, даем доступ
-sudo usermod -a -G aladdin www-data
+# 3. Устанавливаем правильные права
+sudo chown -R www-data:www-data /usr/share/nginx/html/
+sudo chmod -R 755 /usr/share/nginx/html/
 
-# 6. Перезапускаем Nginx
+# 4. Перезапускаем Nginx
 sudo systemctl restart nginx
 ```
 
-**Альтернативное решение - изменить владельца файлов**:
+**Настройка стандартного пути** (используется по умолчанию):
 ```bash
-# Делаем www-data владельцем файлов
-sudo chown -R www-data:www-data /home/aladdin/frontend/
-
-# Или создаем общую группу
-sudo groupadd webusers
-sudo usermod -a -G webusers aladdin
-sudo usermod -a -G webusers www-data
-sudo chown -R aladdin:webusers /home/aladdin/frontend/
-sudo chmod -R 755 /home/aladdin/frontend/
-```
-
-**Если проблемы с домашней папкой продолжаются**:
-```bash
-# Переместить файлы в стандартное место
-sudo mkdir -p /var/www/dev.jokermafia.am
-sudo chown -R www-data:www-data /var/www/dev.jokermafia.am
-
-# Обновить конфигурацию Nginx
-sudo nano /etc/nginx/sites-available/dev.jokermafia.am
-# Изменить: root /var/www/dev.jokermafia.am;
+# Стандартная директория Nginx уже настроена
+# Файлы деплоятся в /usr/share/nginx/html/
+# Права доступа автоматически устанавливаются в workflow
 ```
 
 **Ошибки в логах Nginx**: Смотрите логи для диагностики:
