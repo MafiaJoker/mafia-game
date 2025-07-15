@@ -13,6 +13,7 @@ jobs:
       DEPLOY_HOST: dev.jokermafia.am
       DEPLOY_USER: aladdin
       DEPLOY_PORT: 22
+      DEPLOY_PATH: /usr/share/nginx/html
     
     steps:
     - name: Checkout code
@@ -48,16 +49,13 @@ jobs:
         port: ${{ env.DEPLOY_PORT }}
         script: |
           # Создаем директорию для бэкапа
-          mkdir -p /home/aladdin/backups/frontend
+          sudo mkdir -p /var/backups/dev.jokermafia.am
           
           # Бэкапим текущую версию
-          cp -r /home/aladdin/frontend /home/aladdin/backups/frontend/backup-$(date +%Y%m%d_%H%M%S) || true
-          
-          # Создаем директорию для приложения
-          mkdir -p /home/aladdin/frontend
+          sudo cp -r ${{ env.DEPLOY_PATH }} /var/backups/dev.jokermafia.am/backup-$(date +%Y%m%d_%H%M%S) || true
           
           # Очищаем старые файлы
-          rm -rf /home/aladdin/frontend/*
+          sudo rm -rf ${{ env.DEPLOY_PATH }}/*
     
     - name: Copy files to server
       uses: appleboy/scp-action@v0.1.4
@@ -67,7 +65,7 @@ jobs:
         key: ${{ secrets.SSH_KEY }}
         port: ${{ env.DEPLOY_PORT }}
         source: "dist/*"
-        target: "/home/aladdin/frontend/"
+        target: "${{ env.DEPLOY_PATH }}/"
         strip_components: 1
     
     - name: Set permissions
@@ -79,7 +77,8 @@ jobs:
         port: ${{ env.DEPLOY_PORT }}
         script: |
           # Устанавливаем права доступа
-          chmod -R 755 /home/aladdin/frontend
+          sudo chmod -R 755 ${{ env.DEPLOY_PATH }}
+          sudo chown -R www-data:www-data ${{ env.DEPLOY_PATH }}
           
           # Перезапускаем nginx (если нужно)
           sudo systemctl reload nginx || true
