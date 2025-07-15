@@ -58,6 +58,7 @@ ssh -i ~/.ssh/id_rsa aladdin@dev.jokermafia.am
 ```
 /usr/share/nginx/html/           # Рабочая директория (стандартная для Nginx)
 /var/backups/dev.jokermafia.am/  # Бэкапы
+/tmp/frontend-deploy/            # Временная директория для деплоя
 ```
 
 ### Настройка Nginx
@@ -180,8 +181,9 @@ npm install
 # Собираем для production
 npm run build
 
-# Копируем на сервер
-rsync -avz --delete dist/ aladdin@dev.jokermafia.am:/usr/share/nginx/html/
+# Копируем на сервер через временную директорию
+rsync -avz --delete dist/ aladdin@dev.jokermafia.am:/tmp/frontend-deploy/
+ssh aladdin@dev.jokermafia.am "sudo cp -r /tmp/frontend-deploy/* /usr/share/nginx/html/ && sudo chown -R www-data:www-data /usr/share/nginx/html/ && rm -rf /tmp/frontend-deploy"
 ```
 
 ### Environment Variables

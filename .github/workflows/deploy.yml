@@ -65,10 +65,10 @@ jobs:
         key: ${{ secrets.SSH_KEY }}
         port: ${{ env.DEPLOY_PORT }}
         source: "dist/*"
-        target: "${{ env.DEPLOY_PATH }}/"
+        target: "/tmp/frontend-deploy/"
         strip_components: 1
     
-    - name: Set permissions
+    - name: Move files and set permissions
       uses: appleboy/ssh-action@v0.1.5
       with:
         host: ${{ env.DEPLOY_HOST }}
@@ -76,9 +76,18 @@ jobs:
         key: ${{ secrets.SSH_KEY }}
         port: ${{ env.DEPLOY_PORT }}
         script: |
+          # Создаем временную директорию если не существует
+          mkdir -p /tmp/frontend-deploy
+          
+          # Перемещаем файлы в финальную директорию с sudo
+          sudo cp -r /tmp/frontend-deploy/* ${{ env.DEPLOY_PATH }}/
+          
           # Устанавливаем права доступа
           sudo chmod -R 755 ${{ env.DEPLOY_PATH }}
           sudo chown -R www-data:www-data ${{ env.DEPLOY_PATH }}
+          
+          # Очищаем временную директорию
+          rm -rf /tmp/frontend-deploy
           
           # Перезапускаем nginx (если нужно)
           sudo systemctl reload nginx || true
