@@ -11,13 +11,40 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Getters
     const isAuthenticated = computed(() => !!user.value)
-    const userRole = computed(() => user.value?.role || 'guest')
+    const userRole = computed(() => user.value?.roles?.[0] || 'guest')
+    const userName = computed(() => user.value?.nickname || 'Unknown User')
     const isAdmin = computed(() => userRole.value === 'admin')
     const isJudge = computed(() => userRole.value === 'judge') 
     const isPlayer = computed(() => userRole.value === 'player')
 
     // Actions
     
+    // Загрузка текущего пользователя
+    const loadCurrentUser = async () => {
+        loading.value = true
+        error.value = null
+        
+        try {
+            const userData = await apiService.getCurrentUser()
+            user.value = userData
+            console.log('Current user loaded:', userData)
+            return { success: true, user: userData }
+        } catch (err) {
+            // Если ошибка 401, значит пользователь не авторизован
+            if (err.response?.status === 401) {
+                user.value = null
+                console.log('User not authenticated')
+                return { success: false, error: 'Not authenticated', status: 401 }
+            }
+            
+            error.value = err.response?.data?.detail || 'Ошибка загрузки пользователя'
+            console.error('Load current user error:', err)
+            return { success: false, error: error.value }
+        } finally {
+            loading.value = false
+        }
+    }
+
     // Авторизация через Telegram
     const telegramLogin = async (telegramData) => {
         loading.value = true
@@ -27,19 +54,15 @@ export const useAuthStore = defineStore('auth', () => {
             // Отправляем данные Telegram на сервер для авторизации
             const response = await apiService.telegramLogin(telegramData)
             
-            // При успешной авторизации сохраняем данные пользователя из Telegram
-            user.value = {
-                telegram_id: telegramData.telegram_id,
-                first_name: telegramData.first_name,
-                last_name: telegramData.last_name,
-                nickname: telegramData.nickname,
-                photo_url: telegramData.photo_url,
-                role: response.role || 'guest'
+            // После успешной авторизации загружаем данные пользователя
+            const result = await loadCurrentUser()
+            
+            if (result.success) {
+                console.log('Telegram user logged in successfully')
+                return { success: true }
+            } else {
+                return { success: false, error: 'Failed to load user data after login' }
             }
-            
-            console.log('User data saved:', user.value)
-            
-            return { success: true }
         } catch (err) {
             error.value = err.response?.data?.detail || 'Ошибка авторизации через Telegram'
             console.error('Telegram login error:', err)
@@ -58,18 +81,15 @@ export const useAuthStore = defineStore('auth', () => {
             // Отправляем запрос на авторизацию тестового пользователя
             const response = await apiService.testUserLogin()
             
-            // При успешной авторизации сохраняем данные тестового пользователя
-            user.value = {
-                id: response.id || 'test-user',
-                first_name: 'Test',
-                last_name: 'User',
-                nickname: 'TestUser',
-                role: response.role || 'admin'
+            // После успешной авторизации загружаем данные пользователя
+            const result = await loadCurrentUser()
+            
+            if (result.success) {
+                console.log('Test user logged in successfully')
+                return { success: true }
+            } else {
+                return { success: false, error: 'Failed to load user data after login' }
             }
-            
-            console.log('Test user data saved:', user.value)
-            
-            return { success: true }
         } catch (err) {
             error.value = err.response?.data?.detail || 'Ошибка авторизации тестового пользователя'
             console.error('Test user login error:', err)
@@ -85,20 +105,20 @@ export const useAuthStore = defineStore('auth', () => {
         loading.value = true
         
         try {
-            // Поскольку используем session cookies, просто очищаем локальные данные
-            // Сервер автоматически очистит cookie при истечении сессии
-            console.log('Logging out user')
+            // Вызываем API для выхода из системы (удаляем куку)
+            await apiService.logout()
+            console.log('Logged out from server')
         } catch (err) {
             console.error('Logout error:', err)
-        } finally {
-            // Очищаем локальное состояние
-            user.value = null
-            error.value = null
-            loading.value = false
-            
-            // Перенаправляем на страницу входа
-            router.push('/login')
         }
+        
+        // Очищаем локальное состояние
+        user.value = null
+        error.value = null
+        loading.value = false
+        
+        // Перенаправляем на страницу входа
+        router.push('/login')
     }
 
     // Проверка аутентификации при запуске приложения
@@ -147,11 +167,13 @@ export const useAuthStore = defineStore('auth', () => {
         // Getters
         isAuthenticated,
         userRole,
+        userName,
         isAdmin,
         isJudge,
         isPlayer,
         
         // Actions
+        loadCurrentUser,
         telegramLogin,
         testUserLogin,
         logout,
