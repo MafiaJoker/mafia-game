@@ -17,10 +17,9 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: '18'
-        cache: 'npm'
     
     - name: Install dependencies
-      run: npm ci
+      run: npm install
     
     - name: Build application
       run: npm run build
@@ -36,16 +35,16 @@ jobs:
         port: ${{ secrets.PORT || 22 }}
         script: |
           # Создаем директорию для бэкапа
-          sudo mkdir -p /var/backups/mafia-frontend
+          mkdir -p /home/aladdin/backups/frontend
           
           # Бэкапим текущую версию
-          sudo cp -r /var/www/html/mafia-frontend /var/backups/mafia-frontend/backup-$(date +%Y%m%d_%H%M%S) || true
+          cp -r /home/aladdin/frontend /home/aladdin/backups/frontend/backup-$(date +%Y%m%d_%H%M%S) || true
           
           # Создаем директорию для приложения
-          sudo mkdir -p /var/www/html/mafia-frontend
+          mkdir -p /home/aladdin/frontend
           
           # Очищаем старые файлы
-          sudo rm -rf /var/www/html/mafia-frontend/*
+          rm -rf /home/aladdin/frontend/*
     
     - name: Copy files to server
       uses: appleboy/scp-action@v0.1.4
@@ -55,7 +54,7 @@ jobs:
         key: ${{ secrets.SSH_KEY }}
         port: ${{ secrets.PORT || 22 }}
         source: "dist/*"
-        target: "/var/www/html/mafia-frontend/"
+        target: "/home/aladdin/frontend/"
         strip_components: 1
     
     - name: Set permissions
@@ -67,8 +66,7 @@ jobs:
         port: ${{ secrets.PORT || 22 }}
         script: |
           # Устанавливаем права доступа
-          sudo chown -R www-data:www-data /var/www/html/mafia-frontend
-          sudo chmod -R 755 /var/www/html/mafia-frontend
+          chmod -R 755 /home/aladdin/frontend
           
           # Перезапускаем nginx (если нужно)
           sudo systemctl reload nginx || true

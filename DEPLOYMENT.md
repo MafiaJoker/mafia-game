@@ -29,8 +29,8 @@ cat ~/.ssh/id_rsa
 ### Структура директорий на сервере
 
 ```
-/var/www/html/mafia-frontend/    # Рабочая директория
-/var/backups/mafia-frontend/     # Бэкапы
+/home/aladdin/frontend/          # Рабочая директория
+/home/aladdin/backups/frontend/  # Бэкапы
 ```
 
 ### Настройка Nginx
@@ -42,7 +42,7 @@ server {
     listen 80;
     server_name dev.jokermafia.am;
     
-    root /var/www/html/mafia-frontend;
+    root /home/aladdin/frontend;
     index index.html;
     
     # Для SPA - все роуты перенаправляем на index.html
@@ -82,7 +82,7 @@ npm install
 npm run build
 
 # Копируем на сервер
-rsync -avz --delete dist/ deploy@dev.jokermafia.am:/var/www/html/mafia-frontend/
+rsync -avz --delete dist/ aladdin@dev.jokermafia.am:/home/aladdin/frontend/
 ```
 
 ### Environment Variables
@@ -107,8 +107,7 @@ rsync -avz --delete dist/ deploy@dev.jokermafia.am:/var/www/html/mafia-frontend/
 
 **Ошибка 403/404**: Проверьте права доступа к файлам
 ```bash
-sudo chown -R www-data:www-data /var/www/html/mafia-frontend
-sudo chmod -R 755 /var/www/html/mafia-frontend
+chmod -R 755 /home/aladdin/frontend
 ```
 
 **Ошибки API**: Убедитесь, что `VITE_API_BASE_URL` указывает на правильный адрес
