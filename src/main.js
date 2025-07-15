@@ -11,6 +11,7 @@ import './assets/global.css'
 import App from './App.vue'
 import router from './router'
 import { messages } from './locales'
+import { useAuthStore } from './stores/auth'
 
 const i18n = createI18n({
   locale: 'ru',
@@ -30,5 +31,11 @@ app.use(pinia)
 app.use(router)
 app.use(ElementPlus)
 app.use(i18n)
+
+// Инициализация загрузки текущего пользователя
+const authStore = useAuthStore()
+authStore.loadCurrentUser().catch((error) => {
+    console.log('No user session found on startup:', error)
+})
 
 app.mount('#app')

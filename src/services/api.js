@@ -214,5 +214,23 @@ export const apiService = {
 
     async deleteInvoice(invoiceId) {
 	await api.delete(`/invoices/${invoiceId}`)
+    },
+
+    // Users
+    async getCurrentUser() {
+	const response = await api.get('/users/me')
+	return response.data
+    },
+
+    // Logout
+    async logout() {
+	try {
+	    console.log('Deleting session via DELETE /auth/token')
+	    await api.delete('/auth/token')
+	    console.log('Session deleted successfully')
+	} catch (error) {
+	    console.error('Logout failed:', error)
+	    throw error
+	}
     }
 }
