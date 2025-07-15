@@ -225,9 +225,7 @@ export const apiService = {
     // Logout
     async logout() {
 	try {
-	    console.log('Deleting session via DELETE /auth/token')
-	    await api.delete('/auth/token')
-	    console.log('Session deleted successfully')
+	    await api.delete('/auth/logout')
 	} catch (error) {
 	    console.error('Logout failed:', error)
 	    throw error
