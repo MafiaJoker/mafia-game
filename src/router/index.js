@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const routes = [
     {
@@ -53,6 +54,37 @@ const routes = [
 const router = createRouter({
     history: createWebHistory(),
     routes
+})
+
+// Настройка гарда для проверки авторизации
+router.beforeEach(async (to, from, next) => {
+    const authStore = useAuthStore()
+    
+    // Если пользователь идет на страницу авторизации, пропускаем
+    if (to.path === '/login') {
+        next()
+        return
+    }
+    
+    // Проверяем авторизацию пользователя
+    if (!authStore.isAuthenticated) {
+        // Пытаемся загрузить текущего пользователя только если переходим не со страницы логина
+        // (чтобы избежать автоматического создания сессии)
+        if (from.path !== '/login') {
+            const result = await authStore.loadCurrentUser()
+            
+            if (result.success) {
+                next()
+                return
+            }
+        }
+        
+        // Если не удалось загрузить пользователя, редиректим на логин
+        next('/login')
+        return
+    }
+    
+    next()
 })
 
 // Заглушка для совместимости с main.js
