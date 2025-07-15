@@ -23,14 +23,30 @@
 ### Генерация SSH ключа
 
 ```bash
-# Создаем новый SSH ключ
-ssh-keygen -t rsa -b 4096 -C "deploy@jokermafia.am"
+# Создаем новый SSH ключ в формате PEM (важно для GitHub Actions)
+ssh-keygen -t rsa -b 4096 -m PEM -C "aladdin@jokermafia.am"
 
 # Копируем публичный ключ на сервер
-ssh-copy-id -i ~/.ssh/id_rsa.pub deploy@dev.jokermafia.am
+ssh-copy-id -i ~/.ssh/id_rsa.pub aladdin@dev.jokermafia.am
 
-# Копируем приватный ключ в GitHub Secrets
+# Копируем приватный ключ в GitHub Secrets (весь файл целиком)
 cat ~/.ssh/id_rsa
+```
+
+**Важно**: При добавлении SSH_KEY в GitHub Secrets:
+1. Копируйте весь файл включая заголовки `-----BEGIN RSA PRIVATE KEY-----` и `-----END RSA PRIVATE KEY-----`
+2. Не добавляйте лишних пробелов или символов
+3. Убедитесь, что ключ создан в формате PEM (`-m PEM`)
+
+### Проверка SSH ключа
+
+```bash
+# Проверяем что ключ в правильном формате
+head -n 1 ~/.ssh/id_rsa
+# Должно быть: -----BEGIN RSA PRIVATE KEY-----
+
+# Проверяем подключение
+ssh -i ~/.ssh/id_rsa aladdin@dev.jokermafia.am
 ```
 
 ### Структура директорий на сервере
@@ -112,6 +128,12 @@ rsync -avz --delete dist/ aladdin@dev.jokermafia.am:/home/aladdin/frontend/
 
 ### Troubleshooting
 
+**Ошибка "ssh: no key found"**: 
+1. Убедитесь, что SSH ключ создан в формате PEM (`ssh-keygen -m PEM`)
+2. Проверьте, что ключ начинается с `-----BEGIN RSA PRIVATE KEY-----`
+3. Копируйте весь ключ включая заголовки
+4. Не добавляйте лишних пробелов в GitHub Secrets
+
 **Ошибка 403/404**: Проверьте права доступа к файлам
 ```bash
 chmod -R 755 /home/aladdin/frontend
@@ -120,3 +142,12 @@ chmod -R 755 /home/aladdin/frontend
 **Ошибки API**: Убедитесь, что `VITE_API_BASE_URL` указывает на правильный адрес
 
 **Проблемы с маршрутизацией**: Убедитесь, что Nginx настроен для SPA с `try_files`
+
+**Альтернативный формат SSH ключа**: Если PEM не работает, попробуйте:
+```bash
+# Создаем ключ в формате OpenSSH
+ssh-keygen -t ed25519 -C "aladdin@jokermafia.am"
+
+# Конвертируем в PEM если нужно
+ssh-keygen -p -m PEM -f ~/.ssh/id_ed25519
+```
