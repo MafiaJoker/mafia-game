@@ -9,6 +9,11 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     
+    env:
+      DEPLOY_HOST: dev.jokermafia.am
+      DEPLOY_USER: aladdin
+      DEPLOY_PORT: 22
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -29,10 +34,10 @@ jobs:
     - name: Deploy to server
       uses: appleboy/ssh-action@v0.1.5
       with:
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USERNAME }}
+        host: ${{ env.DEPLOY_HOST }}
+        username: ${{ env.DEPLOY_USER }}
         key: ${{ secrets.SSH_KEY }}
-        port: ${{ secrets.PORT || 22 }}
+        port: ${{ env.DEPLOY_PORT }}
         script: |
           # Создаем директорию для бэкапа
           mkdir -p /home/aladdin/backups/frontend
@@ -49,10 +54,10 @@ jobs:
     - name: Copy files to server
       uses: appleboy/scp-action@v0.1.4
       with:
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USERNAME }}
+        host: ${{ env.DEPLOY_HOST }}
+        username: ${{ env.DEPLOY_USER }}
         key: ${{ secrets.SSH_KEY }}
-        port: ${{ secrets.PORT || 22 }}
+        port: ${{ env.DEPLOY_PORT }}
         source: "dist/*"
         target: "/home/aladdin/frontend/"
         strip_components: 1
@@ -60,10 +65,10 @@ jobs:
     - name: Set permissions
       uses: appleboy/ssh-action@v0.1.5
       with:
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USERNAME }}
+        host: ${{ env.DEPLOY_HOST }}
+        username: ${{ env.DEPLOY_USER }}
         key: ${{ secrets.SSH_KEY }}
-        port: ${{ secrets.PORT || 22 }}
+        port: ${{ env.DEPLOY_PORT }}
         script: |
           # Устанавливаем права доступа
           chmod -R 755 /home/aladdin/frontend
