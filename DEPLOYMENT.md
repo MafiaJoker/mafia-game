@@ -6,12 +6,19 @@
 
 ### Настройка GitHub Secrets
 
-В настройках репозитория GitHub добавьте следующие secrets:
+В настройках репозитория GitHub добавьте следующий secret:
 
-1. **HOST** - IP адрес или домен сервера (например: `dev.jokermafia.am`)
-2. **USERNAME** - имя пользователя для SSH (например: `deploy`)
-3. **SSH_KEY** - приватный SSH ключ для подключения к серверу
-4. **PORT** - порт SSH (по умолчанию 22, можно не указывать)
+1. **SSH_KEY** - приватный SSH ключ для подключения к серверу
+
+### Настройка Environment Variables
+
+Основные настройки вынесены в environment variables в файле workflow:
+
+- **DEPLOY_HOST**: `dev.jokermafia.am`
+- **DEPLOY_USER**: `aladdin`
+- **DEPLOY_PORT**: `22`
+
+Эти значения можно изменить прямо в файле `.github/workflows/deploy.yml`
 
 ### Генерация SSH ключа
 
