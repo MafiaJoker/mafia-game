@@ -62,7 +62,14 @@ ssh -i ~/.ssh/id_rsa aladdin@dev.jokermafia.am
 
 ### Настройка Nginx
 
-Пример конфигурации Nginx для SPA:
+#### Шаг 1: Создание конфигурационного файла
+
+```bash
+# Создаем конфигурацию для сайта
+sudo nano /etc/nginx/sites-available/dev.jokermafia.am
+```
+
+#### Шаг 2: Конфигурация для SPA
 
 ```nginx
 server {
@@ -72,9 +79,22 @@ server {
     root /home/aladdin/frontend;
     index index.html;
     
+    # Логи
+    access_log /var/log/nginx/dev.jokermafia.am.access.log;
+    error_log /var/log/nginx/dev.jokermafia.am.error.log;
+    
     # Для SPA - все роуты перенаправляем на index.html
     location / {
         try_files $uri $uri/ /index.html;
+    }
+    
+    # API проксирование (если нужно)
+    location /api/ {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
     
     # Кэширование статических файлов
@@ -83,10 +103,62 @@ server {
         add_header Cache-Control "public, no-transform";
     }
     
+    # Отключаем логирование для favicon
+    location = /favicon.ico {
+        log_not_found off;
+        access_log off;
+    }
+    
     # Gzip сжатие
     gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/json
+        application/javascript
+        application/xml+rss
+        application/atom+xml
+        image/svg+xml;
 }
+```
+
+#### Шаг 3: Активация конфигурации
+
+```bash
+# Создаем символическую ссылку для активации сайта
+sudo ln -s /etc/nginx/sites-available/dev.jokermafia.am /etc/nginx/sites-enabled/
+
+# Проверяем конфигурацию
+sudo nginx -t
+
+# Перезапускаем Nginx
+sudo systemctl restart nginx
+
+# Проверяем статус
+sudo systemctl status nginx
+```
+
+#### Шаг 4: Настройка SSL (опционально)
+
+```bash
+# Устанавливаем Certbot для Let's Encrypt
+sudo apt update
+sudo apt install certbot python3-certbot-nginx
+
+# Получаем SSL сертификат
+sudo certbot --nginx -d dev.jokermafia.am
+
+# Автоматическое обновление сертификата
+sudo crontab -e
+# Добавляем строку:
+# 0 12 * * * /usr/bin/certbot renew --quiet
+```
 ```
 
 ### Деплой
@@ -146,6 +218,21 @@ chmod -R 755 /home/aladdin/frontend
 **Ошибки API**: Убедитесь, что `VITE_API_BASE_URL` указывает на правильный адрес
 
 **Проблемы с маршрутизацией**: Убедитесь, что Nginx настроен для SPA с `try_files`
+
+**Проблемы с доступом к файлам**: Убедитесь, что Nginx может читать файлы:
+```bash
+# Проверяем права доступа
+ls -la /home/aladdin/frontend/
+
+# Nginx должен иметь доступ к домашней папке пользователя
+sudo usermod -a -G aladdin www-data
+```
+
+**Ошибки в логах Nginx**: Смотрите логи для диагностики:
+```bash
+sudo tail -f /var/log/nginx/dev.jokermafia.am.error.log
+sudo tail -f /var/log/nginx/dev.jokermafia.am.access.log
+```
 
 **Альтернативный тип SSH ключа**: Если RSA не работает, попробуйте:
 ```bash
