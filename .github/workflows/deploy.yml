@@ -33,11 +33,11 @@ jobs:
     
     - name: Debug SSH key format
       run: |
-        echo "SSH key starts with:"
-        echo "${{ secrets.SSH_KEY }}" | head -c 50
-        echo "..."
-        echo "SSH key ends with:"
-        echo "${{ secrets.SSH_KEY }}" | tail -c 50
+        echo "SSH key length: $(echo '${{ secrets.SSH_KEY }}' | wc -c)"
+        echo "SSH key first line:"
+        echo "${{ secrets.SSH_KEY }}" | head -n 1
+        echo "SSH key last line:"
+        echo "${{ secrets.SSH_KEY }}" | tail -n 1
     
     - name: Deploy to server
       uses: appleboy/ssh-action@v0.1.5
