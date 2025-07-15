@@ -105,21 +105,8 @@
     isTestLogin.value = true
 
     try {
-      // Эмулируем данные от Telegram для тестового пользователя
-      const testUserData = {
-        "telegram_id": 1903186808,
-        "first_name": "Third",
-        "last_name": "Child",
-        "photo_url": "https://t.me/i/userpic/320/cEb6YEsbSrR70HNfx-deIs7QZjniHlA8q59HIxxyjv4.jpg",
-        "auth_date": 1752423751,
-        "nickname": "ShiranaiTenjouDa",
-        "hash": "4db9e4ecef4a15d7015d3f605473da64106eb680df611448731692ed1f48e3ca"
-      }
-
-      console.log('Test user login:', testUserData)
-
-      // Используем тот же метод авторизации
-      const result = await authStore.telegramLogin(testUserData)
+      // Используем новый метод авторизации тестового пользователя
+      const result = await authStore.testUserLogin()
 
       if (result.success) {
         ElMessage.success('Вход выполнен как тестовый пользователь')

@@ -49,6 +49,36 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
+    // Авторизация тестового пользователя
+    const testUserLogin = async () => {
+        loading.value = true
+        error.value = null
+        
+        try {
+            // Отправляем запрос на авторизацию тестового пользователя
+            const response = await apiService.testUserLogin()
+            
+            // При успешной авторизации сохраняем данные тестового пользователя
+            user.value = {
+                id: response.id || 'test-user',
+                first_name: 'Test',
+                last_name: 'User',
+                nickname: 'TestUser',
+                role: response.role || 'admin'
+            }
+            
+            console.log('Test user data saved:', user.value)
+            
+            return { success: true }
+        } catch (err) {
+            error.value = err.response?.data?.detail || 'Ошибка авторизации тестового пользователя'
+            console.error('Test user login error:', err)
+            return { success: false, error: error.value }
+        } finally {
+            loading.value = false
+        }
+    }
+
 
     // Выход из системы
     const logout = async () => {
@@ -123,6 +153,7 @@ export const useAuthStore = defineStore('auth', () => {
         
         // Actions
         telegramLogin,
+        testUserLogin,
         logout,
         checkAuth,
         updateProfile,

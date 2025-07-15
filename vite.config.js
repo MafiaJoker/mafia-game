@@ -49,14 +49,7 @@ export default defineConfig(({ command }) => {
         '.ngrok.io',
         '.ngrok-free.app'
       ],
-      hmr: {
-        host: 'localhost',
-        port: 24678,
-        overlay: {
-          warnings: false,
-          errors: false
-        }
-      }
+      hmr: false
     },
     define: {
       __VUE_PROD_DEVTOOLS__: false,

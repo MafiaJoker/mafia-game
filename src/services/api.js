@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE_URL = 'https://dev.api.jokermafia.am/api/v1'
+const API_BASE_URL = 'http://localhost:8000/api/v1'
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -49,10 +49,11 @@ export const apiService = {
         return response.data
     },
 
-    async AUTH() {
-        const response = await api.put('https://dev.api.jokermafia.am/api/v1/auth/token',
-                                       {"id": "e6ad1ca2-4a84-4845-ad8d-7f5617d0af5b"},
-                                       {headers: {'Authorization': 'Basic e37bd08d'}});
+    async testUserLogin() {
+        const response = await api.put('/auth/token',
+                                       {"id": "e6ad1ca2-4a84-4845-ad8d-7f5617d0af5a", "role": "game_master"},
+                                       {headers: {'Authorization': 'Basic e37bd08d'}}
+        )
         return response.data
     },
 

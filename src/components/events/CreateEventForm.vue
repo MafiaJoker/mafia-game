@@ -132,18 +132,24 @@
 	  loading.value = true
 
 	  const eventData = { ...form }
+	  // Ожидаем ответ от сервера перед любыми действиями
 	  const newEvent = await eventsStore.createEvent(eventData)
 
-	  ElMessage.success('Мероприятие успешно создано!')
-	  emit('event-created', newEvent)
+	  // Проверяем, что событие успешно создано
+	  if (newEvent && newEvent.id) {
+	      ElMessage.success('Мероприятие успешно создано!')
+	      emit('event-created', newEvent)
 
-	  // Сбрасываем форму и генерируем новые значения по умолчанию
-	  formRef.value.resetFields()
-	  generateDefaultValues()
+	      // Сбрасываем форму и генерируем новые значения по умолчанию
+	      formRef.value.resetFields()
+	      generateDefaultValues()
+	  } else {
+	      ElMessage.error('Не удалось создать мероприятие')
+	  }
 
       } catch (error) {
 	  console.error('Ошибка создания мероприятия:', error)
-	  ElMessage.error('Ошибка при создании мероприятия')
+	  ElMessage.error(error.response?.data?.message || 'Ошибка при создании мероприятия')
       } finally {
 	  loading.value = false
       }

@@ -116,7 +116,8 @@
   })
 
   const handleEventCreated = (event) => {
-      ElMessage.success('Мероприятие успешно создано!')
+      // Уведомление уже показано в CreateEventForm
+      // Можно добавить дополнительную логику, если нужно
   }
 
   const handleViewEvent = (event) => {
