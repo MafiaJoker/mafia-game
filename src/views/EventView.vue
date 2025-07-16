@@ -75,11 +75,11 @@
               </template>
 
               <div v-if="event">
-                <div v-if="event.tables.length === 0" class="no-tables">
+                <div v-if="!event.tables || event.tables.length === 0" class="no-tables">
                   <el-empty description="У этого мероприятия еще нет столов" />
                 </div>
 
-		<div class="tables-list">
+		<div v-if="event.tables && event.tables.length > 0" class="tables-list">
 		  <div
 		    v-for="table in event.tables"
 		    :key="table.id"
@@ -231,14 +231,14 @@
     <!-- Диалог создания стола -->
     <CreateTableDialog
       v-model="showCreateTableDialog"
-      :event-id="parseInt($route.params.id)"
+      :event-id="$route.params.id"
       @table-created="handleTableCreated"
       />
 
     <!-- Диалог создания игры -->
     <CreateGameDialog
       v-model="showCreateGameDialog"
-      :event-id="parseInt($route.params.id)"
+      :event-id="$route.params.id"
       :table-id="selectedTable?.id"
       @game-created="handleGameCreated"
       />
@@ -275,7 +275,7 @@
   }
 
   const openGame = (gameId) => {
-      const eventId = parseInt(route.params.id)
+      const eventId = route.params.id
       const tableId = selectedTable.value.id
       router.push(`/game?eventId=${eventId}&tableId=${tableId}&gameId=${gameId}`)
   }
@@ -292,7 +292,7 @@
 	      }
 	  )
 
-	  const eventId = parseInt(route.params.id)
+	  const eventId = route.params.id
 	  const tableId = selectedTable.value.id
 	  
 	  await apiService.deleteGame(gameId)
@@ -325,15 +325,19 @@
 
   const loadEvent = async () => {
       try {
-	  const eventId = parseInt(route.params.id)
+	  const eventId = route.params.id  // Убираем parseInt, чтобы сохранить UUID
+	  console.log('Loading event with ID:', eventId)
+	  console.log('Route params:', route.params)
 	  event.value = await apiService.getEvent(eventId)
+	  console.log('Event loaded:', event.value)
 	  
 	  // Выбираем первый стол по умолчанию
-	  if (event.value.tables.length > 0) {
+	  if (event.value.tables && event.value.tables.length > 0) {
 	      selectedTable.value = event.value.tables[0]
 	  }
       } catch (error) {
-	  ElMessage.error('Ошибка загрузки мероприятия')
+	  console.error('Error loading event:', error)
+	  ElMessage.error(`Ошибка загрузки мероприятия: ${error.message}`)
 	  router.push('/')
       }
   }
