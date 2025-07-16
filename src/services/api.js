@@ -58,25 +58,8 @@ export const apiService = {
     },
 
     async getEvent(eventId) {
-	// Временное решение: получаем все события и фильтруем по ID
-	// TODO: Исправить когда на бэкенде будет готов GET /events/{id}
-	const response = await api.get('/events')
-	const events = response.data.items || response.data
-	
-	// Проверяем, что events - это массив
-	if (!Array.isArray(events)) {
-	    throw new Error(`Expected array but got ${typeof events}: ${JSON.stringify(events)}`)
-	}
-	
-	console.log('Looking for event ID:', eventId)
-	console.log('Available events:', events.map(e => ({ id: e.id, label: e.label })))
-	
-	// Конвертируем eventId в строку для сравнения, так как ID может быть UUID
-	const event = events.find(e => String(e.id) === String(eventId))
-	
-	if (!event) {
-	    throw new Error(`Event with ID ${eventId} not found. Available IDs: ${events.map(e => e.id).join(', ')}`)
-	}
+	const response = await api.get(`/events/${eventId}`)
+	const event = response.data
 	
 	// Инициализируем tables как пустой массив, если его нет
 	if (!event.tables) {
