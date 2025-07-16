@@ -10,6 +10,8 @@
         <!-- Основной контент -->
         <router-view />
       </el-main>
+      
+      <AppFooter v-if="showFooter" />
     </el-container>
 
     <!-- Глобальные уведомления -->
@@ -25,6 +27,7 @@
   import { useRoute } from 'vue-router'
   import { apiService } from '@/services/api.js'
   import AppHeader from '@/components/common/AppHeader.vue'
+  import AppFooter from '@/components/common/AppFooter.vue'
   import DevToolsPanel from '@/components/dev/DevToolsPanel.vue'
 
 
@@ -38,6 +41,12 @@
       // Не показываем заголовок на странице игры для экономии места
       if (route.name === 'Game') return false
 
+      return true
+  })
+
+  // Скрываем футер на странице игры для экономии места
+  const showFooter = computed(() => {
+      if (route.name === 'Game') return false
       return true
   })
 </script>

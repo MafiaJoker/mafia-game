@@ -3,9 +3,21 @@ import vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+import { execSync } from 'child_process'
 
 export default defineConfig(({ command }) => {
   const isDev = command === 'serve'
+
+  // Получаем информацию о коммите
+  let commitHash = ''
+  let buildTime = ''
+  
+  try {
+    commitHash = execSync('git rev-parse HEAD').toString().trim()
+    buildTime = new Date().toISOString()
+  } catch (error) {
+    console.warn('Could not retrieve git commit hash:', error.message)
+  }
 
   return {
     plugins: [
@@ -53,7 +65,10 @@ export default defineConfig(({ command }) => {
     },
     define: {
       __VUE_PROD_DEVTOOLS__: false,
-      __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false
+      __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
+      'import.meta.env.VITE_APP_COMMIT_HASH': JSON.stringify(commitHash),
+      'import.meta.env.VITE_APP_BUILD_TIME': JSON.stringify(buildTime),
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.npm_package_version || '1.0.0')
     },
     test: {
       environment: 'happy-dom',
