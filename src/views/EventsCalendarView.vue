@@ -62,8 +62,8 @@
                     :class="getEventTypeClass(event.event_type?.label)"
                     @click="openEvent(event)"
                   >
-                    <span class="event-title">{{ event.label }}</span>
-                    <span class="event-time">{{ formatTime(event.start_date) }}</span>
+                    <div class="event-title">{{ event.label }}</div>
+                    <div class="event-time">{{ formatTime(event.start_date) }}</div>
                   </div>
                   
                   <div 
@@ -348,9 +348,9 @@ onMounted(() => {
 }
 
 .calendar-day {
-  min-height: 110px;
+  min-height: 130px;
   background-color: white;
-  padding: 4px;
+  padding: 6px;
   border: 1px solid #e9ecef;
   transition: all 0.2s ease;
   cursor: pointer;
@@ -394,19 +394,18 @@ onMounted(() => {
 .event-item {
   background-color: #409eff;
   color: white;
-  padding: 2px 4px;
-  border-radius: 3px;
-  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-bottom: 1px;
-  width: 100%;
-  height: 16px;
-  display: flex;
-  align-items: center;
+  margin-bottom: 2px;
+  width: 120px;
+  min-height: 18px;
+  display: block;
   box-sizing: border-box;
   font-weight: 500;
-  line-height: 1;
+  line-height: 1.2;
   overflow: hidden;
 }
 
@@ -421,16 +420,16 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 500;
-  font-size: 9px;
-  flex: 1;
+  font-size: 10px;
+  line-height: 1.1;
 }
 
 .event-time {
-  font-size: 7px;
+  font-size: 8px;
   opacity: 0.8;
-  margin-left: 4px;
+  margin-top: 1px;
   white-space: nowrap;
-  flex-shrink: 0;
+  line-height: 1;
 }
 
 /* Цвета для разных типов мероприятий */
@@ -548,17 +547,18 @@ onMounted(() => {
   }
 
   .event-item {
-    font-size: 8px;
-    padding: 1px 3px;
-    height: 14px;
+    font-size: 9px;
+    padding: 2px 4px;
+    width: 100px;
+    min-height: 16px;
   }
 
   .event-title {
-    font-size: 8px;
+    font-size: 9px;
   }
 
   .event-time {
-    font-size: 6px;
+    font-size: 7px;
   }
 
   .weekday-header {
