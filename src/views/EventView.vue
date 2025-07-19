@@ -27,7 +27,14 @@
 
               <div v-if="event" class="event-info">
                 <div class="info-item" v-if="event.event_type">
-                  <el-tag type="info" class="mb-2">
+                  <el-tag 
+                    class="mb-2"
+                    :style="{ 
+                      backgroundColor: event.event_type.color || '#409eff', 
+                      color: 'white',
+                      border: 'none'
+                    }"
+                  >
                     {{ event.event_type.label }}
                   </el-tag>
                 </div>
