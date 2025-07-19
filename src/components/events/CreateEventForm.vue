@@ -52,6 +52,15 @@
       </el-select>
     </el-form-item>
 
+    <el-form-item label="Количество столов" prop="tables_count">
+      <el-input-number
+	v-model="form.tables_count"
+	:min="1"
+	:max="20"
+	controls-position="right"
+	style="width: 100%"
+	/>
+    </el-form-item>
 
     <el-form-item>
       <el-button
@@ -86,7 +95,8 @@
       description: '',
       start_date: new Date().toISOString().split('T')[0],
       language: 'rus',
-      event_type_id: ''
+      event_type_id: '',
+      tables_count: 1
   })
 
   const rules = {
@@ -98,6 +108,10 @@
       ],
       language: [
 	  { required: true, message: 'Выберите язык', trigger: 'change' }
+      ],
+      tables_count: [
+	  { required: true, message: 'Укажите количество столов', trigger: 'blur' },
+	  { type: 'number', min: 1, max: 20, message: 'Количество столов должно быть от 1 до 20', trigger: 'blur' }
       ]
   }
 
