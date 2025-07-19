@@ -30,6 +30,11 @@
           <el-icon><UserFilled /></el-icon>
           <span>Пользователи</span>
         </el-menu-item>
+
+        <el-menu-item index="/tariffs">
+          <el-icon><CreditCard /></el-icon>
+          <span>Тарифы</span>
+        </el-menu-item>
         
         <el-menu-item v-if="currentGameLink" :index="currentGameLink">
           <el-icon><VideoPlay /></el-icon>
@@ -83,7 +88,8 @@
       UserFilled,
       Setting,
       SwitchButton,
-      ArrowDown
+      ArrowDown,
+      CreditCard
   } from '@element-plus/icons-vue'
 
   const route = useRoute()
