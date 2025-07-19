@@ -274,7 +274,7 @@ const getEventTypeTagType = (eventType) => {
 }
 
 onMounted(() => {
-  eventsStore.fetchEvents()
+  eventsStore.loadEvents()
 })
 </script>
 
