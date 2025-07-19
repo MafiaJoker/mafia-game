@@ -29,19 +29,31 @@
 	    <el-card>
 	      <template #header>
 		<div class="card-header">
-		  <el-icon><Calendar /></el-icon>
-		  <span>Активные мероприятия</span>
-		  <el-input
-		    v-model="searchTerm"
-		    placeholder="Поиск..."
-		    size="small"
-		    style="width: 200px"
-		    clearable
+		  <div class="header-left">
+		    <el-icon><Calendar /></el-icon>
+		    <span>Активные мероприятия</span>
+		  </div>
+		  <div class="header-right">
+		    <el-button 
+		      type="primary" 
+		      size="small"
+		      @click="openCalendar"
+		      :icon="Calendar"
 		    >
-		    <template #prefix>
-		      <el-icon><Search /></el-icon>
-		    </template>
-		  </el-input>
+		      Календарь мероприятий
+		    </el-button>
+		    <el-input
+		      v-model="searchTerm"
+		      placeholder="Поиск..."
+		      size="small"
+		      style="width: 200px"
+		      clearable
+		      >
+		      <template #prefix>
+			<el-icon><Search /></el-icon>
+		      </template>
+		    </el-input>
+		  </div>
 		</div>
 	      </template>
 
@@ -85,6 +97,7 @@
 
 <script setup>
   import { ref, computed, onMounted } from 'vue'
+  import { useRouter } from 'vue-router'
   import { useEventsStore } from '@/stores/events'
   import CreateEventForm from '@/components/events/CreateEventForm.vue'
   import EventsList from '@/components/events/EventsList.vue'
@@ -99,6 +112,7 @@
  
   } from '@element-plus/icons-vue'
 
+  const router = useRouter()
   const eventsStore = useEventsStore()
 
   const searchTerm = ref('')
@@ -114,6 +128,10 @@
 	      (event.description && event.description.toLowerCase().includes(term))
       )
   })
+
+  const openCalendar = () => {
+      router.push('/calendar')
+  }
 
   const handleEventCreated = (event) => {
       // Уведомление уже показано в CreateEventForm
@@ -184,9 +202,22 @@
 
   .card-header {
       display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      font-weight: 600;
+  }
+
+  .header-left {
+      display: flex;
       align-items: center;
       gap: 8px;
-      font-weight: 600;
+  }
+
+  .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
   }
 
 
