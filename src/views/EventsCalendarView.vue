@@ -56,22 +56,22 @@
                 
                 <div v-if="day.events.length > 0" class="day-events">
                   <div 
-                    v-for="event in day.events.slice(0, 3)" 
+                    v-for="event in day.events.slice(0, 5)" 
                     :key="event.id"
                     class="event-item"
                     :class="getEventTypeClass(event.event_type?.label)"
                     @click="openEvent(event)"
                   >
-                    <div class="event-title">{{ event.label }}</div>
-                    <div class="event-time">{{ formatTime(event.start_date) }}</div>
+                    <span class="event-title">{{ event.label }}</span>
+                    <span class="event-time">{{ formatTime(event.start_date) }}</span>
                   </div>
                   
                   <div 
-                    v-if="day.events.length > 3" 
+                    v-if="day.events.length > 5" 
                     class="more-events"
                     @click="showDayEvents(day)"
                   >
-                    +{{ day.events.length - 3 }} еще
+                    +{{ day.events.length - 5 }} еще
                   </div>
                 </div>
               </div>
@@ -348,9 +348,9 @@ onMounted(() => {
 }
 
 .calendar-day {
-  min-height: 130px;
+  min-height: 110px;
   background-color: white;
-  padding: 6px;
+  padding: 4px;
   border: 1px solid #e9ecef;
   transition: all 0.2s ease;
   cursor: pointer;
@@ -378,8 +378,8 @@ onMounted(() => {
 
 .day-number {
   font-weight: 600;
-  margin-bottom: 6px;
-  font-size: 13px;
+  margin-bottom: 3px;
+  font-size: 12px;
   flex-shrink: 0;
 }
 
@@ -394,17 +394,20 @@ onMounted(() => {
 .event-item {
   background-color: #409eff;
   color: white;
-  padding: 3px 6px;
-  border-radius: 4px;
-  font-size: 10px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 9px;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
   width: 100%;
-  display: block;
+  height: 16px;
+  display: flex;
+  align-items: center;
   box-sizing: border-box;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: 1;
+  overflow: hidden;
 }
 
 .event-item:hover {
@@ -418,13 +421,16 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 500;
-  font-size: 10px;
+  font-size: 9px;
+  flex: 1;
 }
 
 .event-time {
-  font-size: 8px;
+  font-size: 7px;
   opacity: 0.8;
-  margin-top: 1px;
+  margin-left: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Цвета для разных типов мероприятий */
@@ -542,16 +548,17 @@ onMounted(() => {
   }
 
   .event-item {
-    font-size: 9px;
-    padding: 2px 4px;
+    font-size: 8px;
+    padding: 1px 3px;
+    height: 14px;
   }
 
   .event-title {
-    font-size: 9px;
+    font-size: 8px;
   }
 
   .event-time {
-    font-size: 7px;
+    font-size: 6px;
   }
 
   .weekday-header {
