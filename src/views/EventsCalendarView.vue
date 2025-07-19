@@ -259,7 +259,10 @@ const getEventTypeClass = (eventType) => {
   const type = eventType.toLowerCase()
   if (type.includes('турнир')) return 'event-tournament'
   if (type.includes('чемпионат')) return 'event-championship'
-  if (type.includes('тренировка')) return 'event-training'
+  if (type.includes('тренировка') || type.includes('тренинг')) return 'event-training'
+  if (type.includes('соревнование')) return 'event-competition'
+  if (type.includes('фестиваль')) return 'event-festival'
+  if (type.includes('мастер-класс')) return 'event-masterclass'
   return 'event-default'
 }
 
@@ -269,7 +272,10 @@ const getEventTypeTagType = (eventType) => {
   const type = eventType.toLowerCase()
   if (type.includes('турнир')) return 'danger'
   if (type.includes('чемпионат')) return 'warning'
-  if (type.includes('тренировка')) return 'success'
+  if (type.includes('тренировка') || type.includes('тренинг')) return 'success'
+  if (type.includes('соревнование')) return ''
+  if (type.includes('фестиваль')) return 'danger'
+  if (type.includes('мастер-класс')) return 'info'
   return 'info'
 }
 
@@ -342,12 +348,14 @@ onMounted(() => {
 }
 
 .calendar-day {
-  min-height: 120px;
+  min-height: 130px;
   background-color: white;
-  padding: 8px;
+  padding: 6px;
   border: 1px solid #e9ecef;
   transition: all 0.2s ease;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
 }
 
 .calendar-day:hover {
@@ -370,57 +378,82 @@ onMounted(() => {
 
 .day-number {
   font-weight: 600;
-  margin-bottom: 4px;
-  font-size: 14px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  flex-shrink: 0;
 }
 
 .day-events {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+  flex: 1;
+  overflow: hidden;
 }
 
 .event-item {
   background-color: #409eff;
   color: white;
-  padding: 2px 6px;
+  padding: 3px 6px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
+  margin-bottom: 2px;
+  width: 100%;
+  display: block;
+  box-sizing: border-box;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
 .event-item:hover {
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.event-tournament {
-  background-color: #f56565;
-}
-
-.event-championship {
-  background-color: #ed8936;
-}
-
-.event-training {
-  background-color: #48bb78;
-}
-
-.event-default {
-  background-color: #409eff;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+  opacity: 0.9;
 }
 
 .event-title {
-  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 500;
+  font-size: 10px;
 }
 
 .event-time {
-  font-size: 10px;
-  opacity: 0.9;
+  font-size: 8px;
+  opacity: 0.8;
+  margin-top: 1px;
+}
+
+/* Цвета для разных типов мероприятий */
+.event-tournament {
+  background: linear-gradient(135deg, #e53e3e, #c53030);
+}
+
+.event-championship {
+  background: linear-gradient(135deg, #dd6b20, #c05621);
+}
+
+.event-training {
+  background: linear-gradient(135deg, #38a169, #2f855a);
+}
+
+.event-competition {
+  background: linear-gradient(135deg, #805ad5, #6b46c1);
+}
+
+.event-festival {
+  background: linear-gradient(135deg, #d53f8c, #b83280);
+}
+
+.event-masterclass {
+  background: linear-gradient(135deg, #0987a0, #0987a0);
+}
+
+.event-default {
+  background: linear-gradient(135deg, #3182ce, #2c5282);
 }
 
 .more-events {
@@ -499,17 +532,26 @@ onMounted(() => {
   }
 
   .calendar-day {
-    min-height: 80px;
+    min-height: 90px;
     padding: 4px;
   }
 
   .day-number {
-    font-size: 12px;
+    font-size: 11px;
+    margin-bottom: 4px;
   }
 
   .event-item {
-    font-size: 10px;
-    padding: 1px 4px;
+    font-size: 9px;
+    padding: 2px 4px;
+  }
+
+  .event-title {
+    font-size: 9px;
+  }
+
+  .event-time {
+    font-size: 7px;
   }
 
   .weekday-header {
