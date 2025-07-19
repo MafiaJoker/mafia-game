@@ -6,8 +6,9 @@
       
       <!-- Основной контент -->
       <el-row :gutter="24" class="profile-content">
-        <!-- Статистика -->
+        <!-- Статистика и тариф -->
         <el-col :xs="24" :sm="24" :md="8" :lg="8">
+          <ProfileTariff :user-tariffs="userTariffs" />
           <ProfileStats :stats="userStats" />
         </el-col>
         
@@ -34,9 +35,17 @@
   import ProfileStats from '@/components/profile/ProfileStats.vue'
   import ProfileHistory from '@/components/profile/ProfileHistory.vue'
   import ProfileSettings from '@/components/profile/ProfileSettings.vue'
+  import ProfileTariff from '@/components/profile/ProfileTariff.vue'
 
   const authStore = useAuthStore()
   const activeTab = ref('history')
+
+  // Мок-данные для тарифов пользователя
+  const userTariffs = computed(() => {
+    // В реальном приложении это будет браться через API
+    // Пока возвращаем пустой массив, так как у пользователей нет прямой связи с тарифами
+    return []
+  })
 
   // Мок-данные для статистики
   const userStats = computed(() => ({

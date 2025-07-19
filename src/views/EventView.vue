@@ -49,7 +49,7 @@
 
                 <div class="info-item">
                   <h6>Столы:</h6>
-                  <p>{{ event.tables?.length || 0 }} {{ getTableNoun(event.tables?.length || 0) }}</p>
+                  <p>{{ tableCount }} {{ getTableNoun(tableCount) }}</p>
                 </div>
               </div>
 
@@ -62,47 +62,33 @@
                 <div class="card-header">
                   <el-icon><Grid /></el-icon>
                   <span>Игровые столы</span>
-                  <el-button 
-                    v-if="event"
-                    type="primary" 
-                    size="small"
-                    @click="showCreateTableDialog = true"
-                    >
-                    <el-icon><Plus /></el-icon>
-                    Добавить
-                  </el-button>
                 </div>
               </template>
 
               <div v-if="event">
-                <div v-if="!event.tables || event.tables.length === 0" class="no-tables">
-                  <el-empty description="У этого мероприятия еще нет столов" />
+                <div v-if="tableCount === 0" class="no-tables">
+                  <el-empty description="У этого мероприятия нет столов" />
                 </div>
 
-		<div v-if="event.tables && event.tables.length > 0" class="tables-list">
-		  <div
-		    v-for="table in event.tables"
-		    :key="table.id"
-		    class="table-item"
-		    :class="{ active: selectedTable?.id === table.id }"
-		    @click="selectTable(table)"
-		    >
-		    <div class="table-content">
-		      <div class="table-name">{{ table.name }}</div>
-		      <div class="table-meta">
-			<el-tag 
-			  :type="table.seatingType === 'free' ? 'success' : 'primary'"
-			  size="small"
-			  >
-			  {{ table.seatingType === 'free' ? 'Свободная рассадка' : 'Заданная рассадка' }}
-			</el-tag>
-			<span v-if="table.judge" class="judge-info">
-			  Судья: {{ table.judge }}
-			</span>
-		      </div>
-		    </div>
-		  </div>
-		</div>
+                <div v-else class="tables-list">
+                  <div
+                    v-for="(table, index) in tables"
+                    :key="index"
+                    class="table-item"
+                    :class="{ active: selectedTable === table }"
+                    @click="selectTable(table)"
+                    >
+                    <div class="table-content">
+                      <div class="table-name">{{ table.table_name }}</div>
+                      <div v-if="table.game_masters && table.game_masters.length > 0" class="table-masters">
+                        <small class="text-muted">Судьи:</small>
+                        <div v-for="master in table.game_masters" :key="master.id" class="master-name">
+                          {{ master.nickname }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <el-skeleton v-else :rows="3" animated />
@@ -114,8 +100,8 @@
             <el-card>
               <template #header>
                 <div class="card-header">
-                  <el-icon><Grid /></el-icon>
-                  <span>{{ selectedTable ? selectedTable.name : 'Выберите стол' }}</span>
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>{{ selectedTable ? selectedTable.table_name : 'Выберите стол' }}</span>
                   <el-button 
                     v-if="selectedTable && event?.status !== 'completed'"
                     type="success" 
@@ -132,7 +118,7 @@
                 <el-empty description="Выберите стол из списка слева">
                   <template #image>
                     <el-icon size="100" color="#c0c4cc">
-                      <Grid />
+                      <InfoFilled />
                     </el-icon>
                   </template>
                 </el-empty>
@@ -143,20 +129,15 @@
                 <div class="table-info mb-4">
                   <el-descriptions :column="2" border>
                     <el-descriptions-item label="Название">
-                      {{ selectedTable.name }}
+                      {{ selectedTable.table_name }}
                     </el-descriptions-item>
-                    <el-descriptions-item label="Тип рассадки">
-                      <el-tag 
-                        :type="selectedTable.seatingType === 'free' ? 'success' : 'primary'"
-                        >
-                        {{ selectedTable.seatingType === 'free' ? 'Свободная' : 'Заданная' }}
-                      </el-tag>
-                    </el-descriptions-item>
-                    <el-descriptions-item v-if="selectedTable.judge" label="Судья">
-                      {{ selectedTable.judge }}
+                    <el-descriptions-item label="Судьи" v-if="selectedTable.game_masters && selectedTable.game_masters.length > 0">
+                      <span v-for="(master, idx) in selectedTable.game_masters" :key="master.id">
+                        {{ master.nickname }}<span v-if="idx < selectedTable.game_masters.length - 1">, </span>
+                      </span>
                     </el-descriptions-item>
                     <el-descriptions-item label="Количество игр">
-                      {{ selectedTable.games?.length || 0 }}
+                      {{ games.length }}
                     </el-descriptions-item>
                   </el-descriptions>
                 </div>
@@ -165,19 +146,19 @@
                 <div class="games-section">
                   <h5 class="section-title">Игры</h5>
 
-                  <div v-if="!selectedTable.games || selectedTable.games.length === 0" class="no-games">
+                  <div v-if="games.length === 0" class="no-games">
                     <el-empty description="У этого стола еще нет игр" />
                   </div>
 
                   <div v-else class="games-grid">
                     <el-card 
-                      v-for="game in selectedTable.games"
+                      v-for="game in games"
                       :key="game.id"
                       class="game-card"
                       shadow="hover"
                       >
                       <div class="game-header">
-                        <h6 class="game-name">{{ game.name }}</h6>
+                        <h6 class="game-name">{{ game.label }}</h6>
                         <div class="game-actions">
                           <el-button 
                             type="danger" 
@@ -192,17 +173,13 @@
 
                       <div class="game-info">
                         <div class="game-meta">
-                          <span class="game-date">{{ formatDate(game.created) }}</span>
-                          <el-tag :type="getGameStatusType(game.status)">
-                            {{ getGameStatusLabel(game.status) }}
-                          </el-tag>
+                          <span class="game-date">{{ formatDate(game.started_at) }}</span>
+                          <div v-if="game.game_master" class="game-master">
+                            <small>Судья: {{ game.game_master.nickname }}</small>
+                          </div>
                         </div>
 
-                        <div v-if="game.status === 'in_progress'" class="game-progress">
-                          <el-tag type="info">Круг: {{ game.currentRound }}</el-tag>
-                        </div>
-
-                        <div v-if="game.status === 'finished' && game.result" class="game-result">
+                        <div v-if="game.result" class="game-result">
                           <el-tag :type="getResultType(game.result)">
                             {{ getResultLabel(game.result) }}
                           </el-tag>
@@ -228,37 +205,21 @@
       </el-main>
     </el-container>
 
-    <!-- Диалог создания стола -->
-    <CreateTableDialog
-      v-model="showCreateTableDialog"
-      :event-id="$route.params.id"
-      @table-created="handleTableCreated"
-      />
-
-    <!-- Диалог создания игры -->
-    <CreateGameDialog
-      v-model="showCreateGameDialog"
-      :event-id="$route.params.id"
-      :table-id="selectedTable?.id"
-      @game-created="handleGameCreated"
-      />
   </div>
 </template>
 
 <script setup>
-  import { ref, onMounted } from 'vue'
+  import { ref, computed, onMounted } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useEventsStore } from '@/stores/events'
   import { apiService } from '@/services/api'
-  import CreateTableDialog from '@/components/events/CreateTableDialog.vue'
-  import CreateGameDialog from '@/components/events/CreateGameDialog.vue'
-  import { ElMessage, ElMessageBox } from 'element-plus'
+  import { ElMessage } from 'element-plus'
   import { 
       ArrowLeft, 
-      InfoFilled, 
-      Grid, 
-      Plus, 
-      Delete 
+      InfoFilled,
+      Plus,
+      Delete,
+      Grid
   } from '@element-plus/icons-vue'
 
   const route = useRoute()
@@ -267,61 +228,41 @@
 
   const event = ref(null)
   const selectedTable = ref(null)
-  const showCreateTableDialog = ref(false)
+  const games = ref([])
   const showCreateGameDialog = ref(false)
 
+  const tables = computed(() => {
+    return event.value?.tables || []
+  })
+
+  const tableCount = computed(() => {
+    return tables.value.length
+  })
+
   const selectTable = (table) => {
-      selectedTable.value = table
+    selectedTable.value = table
+    games.value = table.games || []
   }
 
+
   const openGame = (gameId) => {
-      const eventId = route.params.id
-      const tableId = selectedTable.value.id
-      router.push(`/game?eventId=${eventId}&tableId=${tableId}&gameId=${gameId}`)
+    const eventId = route.params.id
+    const tableIndex = tables.value.indexOf(selectedTable.value) + 1
+    router.push(`/game?eventId=${eventId}&tableId=${tableIndex}&gameId=${gameId}`)
   }
 
   const deleteGame = async (gameId) => {
-      try {
-	  await ElMessageBox.confirm(
-	      'Вы уверены, что хотите удалить эту игру?',
-	      'Подтверждение',
-	      {
-		  confirmButtonText: 'Да',
-		  cancelButtonText: 'Отмена',
-		  type: 'warning'
-	      }
-	  )
-
-	  const eventId = route.params.id
-	  const tableId = selectedTable.value.id
-	  
-	  await apiService.deleteGame(gameId)
-	  
-	  // Обновляем локальные данные
-	  if (selectedTable.value && selectedTable.value.games) {
-	      selectedTable.value.games = selectedTable.value.games.filter(g => g.id !== gameId)
-	  }
-	  
-	  ElMessage.success('Игра удалена!')
-	  
-      } catch (error) {
-	  if (error !== 'cancel') {
-	      ElMessage.error('Ошибка при удалении игры')
-	  }
-      }
+    try {
+      await apiService.deleteGame(gameId)
+      await loadGames() // Перезагружаем список игр
+      ElMessage.success('Игра удалена!')
+    } catch (error) {
+      console.error('Ошибка при удалении игры:', error)
+      ElMessage.error('Не удалось удалить игру')
+    }
   }
 
-  const handleTableCreated = () => {
-      loadEvent()
-      showCreateTableDialog.value = false
-      ElMessage.success('Стол создан!')
-  }
 
-  const handleGameCreated = () => {
-      loadEvent()
-      showCreateGameDialog.value = false
-      ElMessage.success('Игра создана!')
-  }
 
   const loadEvent = async () => {
       try {
@@ -331,9 +272,9 @@
 	  event.value = await apiService.getEvent(eventId)
 	  console.log('Event loaded:', event.value)
 	  
-	  // Выбираем первый стол по умолчанию
-	  if (event.value.tables && event.value.tables.length > 0) {
-	      selectedTable.value = event.value.tables[0]
+	  // Автоматически выбираем первый стол, если есть столы
+	  if (tables.value.length > 0) {
+	    selectTable(tables.value[0])
 	  }
       } catch (error) {
 	  console.error('Error loading event:', error)
@@ -373,33 +314,34 @@
   }
 
   const getGameStatusType = (status) => {
-      if (!status) return 'info'
-      const types = {
-	  'not_started': 'info',
-	  'in_progress': 'primary',
-	  'finished': 'success'
-      }
-      return types[status] || 'info'
+    if (!status) return 'info'
+    const types = {
+      'not_started': 'info',
+      'in_progress': 'primary',
+      'finished': 'success'
+    }
+    return types[status] || 'info'
   }
 
   const getResultLabel = (result) => {
-      const labels = {
-	  'city_win': 'Победа города',
-	  'mafia_win': 'Победа мафии',
-	  'draw': 'Ничья'
-      }
-      return labels[result] || result
+    const labels = {
+      'city_win': 'Победа города',
+      'mafia_win': 'Победа мафии',
+      'draw': 'Ничья'
+    }
+    return labels[result] || result
   }
 
   const getResultType = (result) => {
-      if (!result) return 'info'
-      const types = {
-	  'city_win': 'success',
-	  'mafia_win': 'danger',
-	  'draw': 'warning'
-      }
-      return types[result] || 'info'
+    if (!result) return 'info'
+    const types = {
+      'city_win': 'success',
+      'mafia_win': 'danger',
+      'draw': 'warning'
+    }
+    return types[result] || 'info'
   }
+
 
   const formatDate = (dateString) => {
       const date = new Date(dateString)
@@ -436,6 +378,7 @@
       gap: 8px;
       font-weight: 600;
   }
+
 
   .event-info .info-item {
       margin-bottom: 16px;
@@ -485,6 +428,21 @@
   .table-name {
       font-weight: 600;
       margin-bottom: 8px;
+  }
+
+  .table-masters {
+      margin-top: 8px;
+  }
+
+  .master-name {
+      font-size: 12px;
+      color: #606266;
+      margin-top: 2px;
+  }
+
+  .text-muted {
+      color: #909399;
+      font-size: 11px;
   }
 
   .table-meta {
@@ -545,6 +503,12 @@
   .game-date {
       font-size: 12px;
       color: #909399;
+  }
+
+  .game-master {
+      font-size: 12px;
+      color: #606266;
+      margin-top: 4px;
   }
 
   .game-progress, .game-result {
