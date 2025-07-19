@@ -23,7 +23,7 @@
           show-alpha
           size="large"
         />
-        <div class="color-preview" :style="{ backgroundColor: form.color }">
+        <div class="color-preview" :style="{ backgroundColor: normalizedColor }">
           <span class="preview-text">{{ form.label || 'Пример' }}</span>
         </div>
       </div>
@@ -39,7 +39,7 @@
 </template>
 
 <script setup>
-  import { ref, reactive, watch } from 'vue'
+  import { ref, reactive, watch, computed } from 'vue'
   import { ElMessage } from 'element-plus'
 
   const props = defineProps({
@@ -88,6 +88,12 @@
     ]
   }
 
+  // Вычисляемое свойство для нормализации цвета в hex формат
+  const normalizedColor = computed(() => {
+    if (!form.color) return '#409eff'
+    return form.color.startsWith('#') ? form.color : '#' + form.color
+  })
+
 
   // Заполняем форму при редактировании
   watch(() => props.eventType, (newEventType) => {
@@ -114,7 +120,14 @@
   const handleSubmit = async () => {
     try {
       await formRef.value.validate()
-      emit('submit', { ...form })
+      
+      // Отправляем данные с нормализованным hex цветом
+      const formData = { 
+        ...form,
+        color: normalizedColor.value
+      }
+      
+      emit('submit', formData)
     } catch (error) {
       ElMessage.error('Проверьте правильность заполнения формы')
     }
