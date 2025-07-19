@@ -26,10 +26,14 @@
                   {{ getLanguageLabel(event.language) }}
                 </el-tag>
                 <el-tag
-                  type="info"
                   size="small"
                   class="ml-1"
                   v-if="event.event_type"
+                  :style="{ 
+                    backgroundColor: event.event_type.color || '#409eff', 
+                    color: 'white',
+                    border: 'none'
+                  }"
                   >
                   {{ event.event_type.label }}
                 </el-tag>

@@ -39,7 +39,14 @@
             <p class="event-description">{{ event.description }}</p>
 
             <div class="event-meta">
-              <el-tag type="info" effect="plain" v-if="event.event_type">
+              <el-tag 
+                v-if="event.event_type"
+                :style="{ 
+                  backgroundColor: event.event_type.color || '#409eff', 
+                  color: 'white',
+                  border: 'none'
+                }"
+              >
                 {{ event.event_type.label }}
               </el-tag>
               <el-tag type="info" effect="plain">

@@ -59,7 +59,8 @@
                     v-for="event in day.events.slice(0, 5)" 
                     :key="event.id"
                     class="event-item"
-                    :class="getEventTypeClass(event.event_type?.label)"
+                    :class="getEventTypeClass(event.event_type)"
+                    :style="{ backgroundColor: getEventTypeColor(event.event_type) }"
                     @click="openEvent(event)"
                   >
                     <div class="event-title">{{ event.label }}</div>
@@ -254,9 +255,15 @@ const showDayEvents = (day) => {
 }
 
 const getEventTypeClass = (eventType) => {
+  // Если у типа события есть цвет из API, используем его
+  if (eventType?.color) {
+    return 'event-custom'
+  }
+  
+  // Fallback на старую логику, если цвета нет
   if (!eventType) return 'event-default'
   
-  const type = eventType.toLowerCase()
+  const type = eventType.label?.toLowerCase() || ''
   if (type.includes('турнир')) return 'event-tournament'
   if (type.includes('чемпионат')) return 'event-championship'
   if (type.includes('тренировка') || type.includes('тренинг')) return 'event-training'
@@ -264,6 +271,23 @@ const getEventTypeClass = (eventType) => {
   if (type.includes('фестиваль')) return 'event-festival'
   if (type.includes('мастер-класс')) return 'event-masterclass'
   return 'event-default'
+}
+
+const getEventTypeColor = (eventType) => {
+  // Возвращаем цвет из API если есть
+  if (eventType?.color) {
+    return eventType.color
+  }
+  
+  // Fallback цвета для старых типов
+  const type = eventType?.label?.toLowerCase() || ''
+  if (type.includes('турнир')) return '#e53e3e'
+  if (type.includes('чемпионат')) return '#dd6b20'
+  if (type.includes('тренировка') || type.includes('тренинг')) return '#38a169'
+  if (type.includes('соревнование')) return '#805ad5'
+  if (type.includes('фестиваль')) return '#d53f8c'
+  if (type.includes('мастер-класс')) return '#0987a0'
+  return '#3182ce'
 }
 
 const getEventTypeTagType = (eventType) => {
@@ -327,7 +351,7 @@ onMounted(() => {
 
 .weekdays-header {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(160px, 1fr));
   gap: 1px;
   margin-bottom: 1px;
 }
@@ -342,7 +366,7 @@ onMounted(() => {
 
 .calendar-days {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(160px, 1fr));
   gap: 1px;
   background-color: #e9ecef;
 }
@@ -461,6 +485,11 @@ onMounted(() => {
   background: linear-gradient(135deg, #3182ce, #2c5282);
 }
 
+.event-custom {
+  /* Цвет будет задан через style */
+  color: white;
+}
+
 .more-events {
   font-size: 10px;
   color: #666;
@@ -564,6 +593,14 @@ onMounted(() => {
   .weekday-header {
     padding: 8px 4px;
     font-size: 12px;
+  }
+
+  .weekdays-header {
+    grid-template-columns: repeat(7, minmax(120px, 1fr));
+  }
+
+  .calendar-days {
+    grid-template-columns: repeat(7, minmax(120px, 1fr));
   }
 }
 </style>
