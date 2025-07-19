@@ -53,7 +53,7 @@
                 effect="plain"
                 round
                 >
-                {{ event.tables?.length || 0 }} {{ getTableNoun(event.tables?.length || 0) }}
+                {{ event.tables_count ?? 0 }} {{ getTableNoun(event.tables_count ?? 0) }}
               </el-tag>
             </div>
           </div>

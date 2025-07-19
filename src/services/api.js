@@ -51,7 +51,7 @@ export const apiService = {
 
     async testUserLogin() {
         const response = await api.put('/auth/token',
-                                       {"id": "e6ad1ca2-4a84-4845-ad8d-7f5617d0af5a", "role": "game_master"},
+                                       {"id": "e6ad1ca2-4a84-4845-ad8d-7f5617d0af5a", "role": "cacher"},
                                        {headers: {'Authorization': 'Basic e37bd08d'}}
         )
         return response.data
@@ -59,14 +59,7 @@ export const apiService = {
 
     async getEvent(eventId) {
 	const response = await api.get(`/events/${eventId}`)
-	const event = response.data
-	
-	// Инициализируем tables как пустой массив, если его нет
-	if (!event.tables) {
-	    event.tables = []
-	}
-	
-	return event
+	return response.data
     },
 
     async createEvent(eventData) {
@@ -111,6 +104,11 @@ export const apiService = {
 
     async getGame(gameId) {
 	const response = await api.get(`/games/${gameId}`)
+	return response.data
+    },
+
+    async getGamesByEventAndTable(eventId, tableId) {
+	const response = await api.get(`/games?eventId=${eventId}&table_id=${tableId}`)
 	return response.data
     },
 
