@@ -151,26 +151,9 @@
                         class="mb-4"
                       />
 
-                      <!-- Информация о столе -->
-                      <div class="table-info mb-4">
-                        <el-descriptions :column="2" border>
-                          <el-descriptions-item label="Название">
-                            {{ selectedTable.table_name }}
-                          </el-descriptions-item>
-                          <el-descriptions-item label="Судьи" v-if="selectedTable.game_masters && selectedTable.game_masters.length > 0">
-                            <span v-for="(master, idx) in selectedTable.game_masters" :key="master.id">
-                              {{ master.nickname }}<span v-if="idx < selectedTable.game_masters.length - 1">, </span>
-                            </span>
-                          </el-descriptions-item>
-                          <el-descriptions-item label="Количество игр">
-                            {{ games.length }}
-                          </el-descriptions-item>
-                        </el-descriptions>
-                      </div>
-
                       <!-- Игры стола -->
                       <div class="games-section">
-                        <h5 class="section-title">Игры</h5>
+                        <h5 class="section-title">Игры ({{ games.length }})</h5>
 
                         <div v-if="games.length === 0" class="no-games">
                           <el-empty description="У этого стола еще нет игр" />
