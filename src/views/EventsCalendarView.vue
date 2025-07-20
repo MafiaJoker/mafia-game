@@ -372,7 +372,9 @@ onMounted(() => {
 }
 
 .calendar-day {
+  height: 130px;
   min-height: 130px;
+  max-height: 130px;
   background-color: white;
   padding: 6px;
   border: 1px solid #e9ecef;
@@ -380,6 +382,7 @@ onMounted(() => {
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .calendar-day:hover {
@@ -412,7 +415,9 @@ onMounted(() => {
   flex-direction: column;
   gap: 1px;
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
 }
 
 .event-item {
@@ -566,8 +571,11 @@ onMounted(() => {
   }
 
   .calendar-day {
+    height: 90px;
     min-height: 90px;
+    max-height: 90px;
     padding: 4px;
+    overflow: hidden;
   }
 
   .day-number {
