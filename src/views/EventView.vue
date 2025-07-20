@@ -67,8 +67,18 @@
             <el-card>
               <template #header>
                 <div class="card-header">
-                  <el-icon><Grid /></el-icon>
-                  <span>Игровые столы</span>
+                  <div class="header-left">
+                    <el-icon><Grid /></el-icon>
+                    <span>Игровые столы</span>
+                  </div>
+                  <el-button 
+                    type="primary" 
+                    size="small"
+                    @click="createNewTable"
+                    >
+                    <el-icon><Plus /></el-icon>
+                    Добавить стол
+                  </el-button>
                 </div>
               </template>
 
@@ -82,11 +92,21 @@
                     v-for="(table, index) in tables"
                     :key="index"
                     class="table-item"
-                    :class="{ active: selectedTable === table }"
+                    :class="{ active: selectedTable === table, virtual: table.isVirtual }"
                     @click="selectTable(table)"
                     >
                     <div class="table-content">
-                      <div class="table-name">{{ table.table_name }}</div>
+                      <div class="table-name">
+                        {{ table.table_name }}
+                        <el-tag 
+                          v-if="table.isVirtual" 
+                          type="warning" 
+                          size="small" 
+                          class="ml-2"
+                        >
+                          Временный
+                        </el-tag>
+                      </div>
                       <div v-if="table.game_masters && table.game_masters.length > 0" class="table-masters">
                         <small class="text-muted">Судьи:</small>
                         <div v-for="master in table.game_masters" :key="master.id" class="master-name">
@@ -132,6 +152,16 @@
               </div>
 
               <div v-else class="table-details">
+                <!-- Предупреждение для виртуальных столов -->
+                <el-alert
+                  v-if="selectedTable.isVirtual"
+                  title="Временный стол"
+                  type="warning"
+                  description="Этот стол будет сохранен только после создания первой игры на нем. До этого момента стол будет пропадать при обновлении страницы."
+                  :closable="false"
+                  class="mb-4"
+                />
+
                 <!-- Информация о столе -->
                 <div class="table-info mb-4">
                   <el-descriptions :column="2" border>
@@ -157,52 +187,51 @@
                     <el-empty description="У этого стола еще нет игр" />
                   </div>
 
-                  <div v-else class="games-grid">
-                    <el-card 
+                  <div v-else class="games-list">
+                    <div 
                       v-for="game in games"
                       :key="game.id"
-                      class="game-card"
-                      shadow="hover"
+                      class="game-item"
                       >
-                      <div class="game-header">
-                        <h6 class="game-name">{{ game.label }}</h6>
-                        <div class="game-actions">
-                          <el-button 
-                            type="danger" 
-                            size="small" 
-                            circle
-                            @click="deleteGame(game.id)"
-                            >
-                            <el-icon><Delete /></el-icon>
-                          </el-button>
+                      <div class="game-main-content">
+                        <div class="game-title-row">
+                          <h6 class="game-name">{{ game.label }}</h6>
+                          <span class="game-datetime">{{ formatDateTime(game.started_at) }}</span>
                         </div>
-                      </div>
-
-                      <div class="game-info">
-                        <div class="game-meta">
-                          <span class="game-date">{{ formatDate(game.started_at) }}</span>
-                          <div v-if="game.game_master" class="game-master">
-                            <small>Судья: {{ game.game_master.nickname }}</small>
+                        
+                        <div class="game-details-row">
+                          <div class="game-meta">
+                            <span v-if="game.game_master" class="game-master">
+                              Судья: {{ game.game_master.nickname }}
+                            </span>
+                          </div>
+                          
+                          <div class="game-status">
+                            <el-tag v-if="game.result" :type="getResultType(game.result)" size="small">
+                              {{ getResultLabel(game.result) }}
+                            </el-tag>
                           </div>
                         </div>
-
-                        <div v-if="game.result" class="game-result">
-                          <el-tag :type="getResultType(game.result)">
-                            {{ getResultLabel(game.result) }}
-                          </el-tag>
-                        </div>
                       </div>
-
-                      <div class="game-footer">
+                      
+                      <div class="game-actions">
                         <el-button 
                           type="primary" 
+                          size="small"
                           @click="openGame(game.id)"
-                          style="width: 100%"
                           >
-                          Войти в игру
+                          Войти
+                        </el-button>
+                        <el-button 
+                          type="danger" 
+                          size="small" 
+                          circle
+                          @click="deleteGame(game.id)"
+                          >
+                          <el-icon><Delete /></el-icon>
                         </el-button>
                       </div>
-                    </el-card>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -211,6 +240,15 @@
         </el-row>
       </el-main>
     </el-container>
+
+
+    <!-- Диалог создания игры -->
+    <CreateGameDialog
+      v-model="showCreateGameDialog"
+      :event-id="route.params.id"
+      :table-id="selectedTable ? tables.indexOf(selectedTable) + 1 : null"
+      @game-created="handleGameCreated"
+    />
 
   </div>
 </template>
@@ -221,6 +259,7 @@
   import { useEventsStore } from '@/stores/events'
   import { apiService } from '@/services/api'
   import { ElMessage } from 'element-plus'
+  import CreateGameDialog from '@/components/events/CreateGameDialog.vue'
   import { 
       ArrowLeft, 
       InfoFilled,
@@ -237,9 +276,11 @@
   const selectedTable = ref(null)
   const games = ref([])
   const showCreateGameDialog = ref(false)
+  const virtualTables = ref([])
 
   const tables = computed(() => {
-    return event.value?.tables || []
+    const realTables = event.value?.tables || []
+    return [...realTables, ...virtualTables.value]
   })
 
   const tableCount = computed(() => {
@@ -260,13 +301,47 @@
 
   const deleteGame = async (gameId) => {
     try {
-      await apiService.deleteGame(gameId)
-      await loadGames() // Перезагружаем список игр
-      ElMessage.success('Игра удалена!')
+      await apiService.updateGame(gameId, { is_hidden: true })
+      // Удаляем игру из локального состояния
+      if (selectedTable.value && selectedTable.value.games) {
+        selectedTable.value.games = selectedTable.value.games.filter(game => game.id !== gameId)
+        games.value = selectedTable.value.games
+      }
+      ElMessage.success('Игра скрыта!')
     } catch (error) {
-      console.error('Ошибка при удалении игры:', error)
-      ElMessage.error('Не удалось удалить игру')
+      console.error('Ошибка при скрытии игры:', error)
+      ElMessage.error('Не удалось скрыть игру')
     }
+  }
+
+  const createNewTable = () => {
+    const tableNumber = tables.value.length + 1
+    
+    // Используем template из события, или "Стол {}" по умолчанию
+    const template = event.value?.table_name_template || 'Стол {}'
+    const tableName = template.replace('{}', tableNumber)
+    
+    const newTable = {
+      table_name: tableName,
+      game_masters: [],
+      games: [],
+      isVirtual: true
+    }
+    
+    virtualTables.value.push(newTable)
+    selectTable(newTable)
+    ElMessage.success('Стол создан!')
+  }
+
+  const handleGameCreated = (newGame) => {
+    if (selectedTable.value) {
+      if (!selectedTable.value.games) {
+        selectedTable.value.games = []
+      }
+      selectedTable.value.games.push(newGame)
+      games.value = selectedTable.value.games
+    }
+    ElMessage.success('Игра создана!')
   }
 
 
@@ -359,6 +434,19 @@
       })
   }
 
+  const formatDateTime = (dateString) => {
+      if (!dateString) return 'Не указано'
+      const date = new Date(dateString)
+      return date.toLocaleDateString('ru-RU', {
+	  day: '2-digit',
+	  month: '2-digit',
+	  year: 'numeric'
+      }) + ' ' + date.toLocaleTimeString('ru-RU', {
+	  hour: '2-digit',
+	  minute: '2-digit'
+      })
+  }
+
   onMounted(() => {
       loadEvent()
   })
@@ -384,6 +472,12 @@
       align-items: center;
       gap: 8px;
       font-weight: 600;
+  }
+
+  .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
   }
 
 
@@ -425,6 +519,20 @@
   .table-item.active {
       background-color: #ecf5ff;
       border-color: #409eff;
+  }
+
+  .table-item.virtual {
+      border: 1px dashed #e6a23c;
+      background-color: #fdf6ec;
+  }
+
+  .table-item.virtual:hover {
+      background-color: #faecd8;
+  }
+
+  .table-item.virtual.active {
+      background-color: #f5dab1;
+      border-color: #e6a23c;
   }
 
   .table-content {
@@ -470,56 +578,79 @@
       padding-bottom: 8px;
   }
 
-  .games-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 16px;
+  .games-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
   }
 
-  .game-card {
-      transition: all 0.3s ease;
-  }
-
-  .game-card:hover {
-      transform: translateY(-2px);
-  }
-
-  .game-header {
+  .game-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      padding: 16px;
+      border: 1px solid #ebeef5;
+      border-radius: 6px;
+      background-color: #fff;
+      transition: all 0.3s ease;
+  }
+
+  .game-item:hover {
+      border-color: #409eff;
+      box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+  }
+
+  .game-main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+  }
+
+  .game-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
   }
 
   .game-name {
       margin: 0;
       font-weight: 600;
+      font-size: 16px;
+      color: #303133;
   }
 
-  .game-info {
-      margin-bottom: 16px;
+  .game-datetime {
+      font-size: 14px;
+      color: #909399;
+      font-weight: 500;
+  }
+
+  .game-details-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
   }
 
   .game-meta {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-  }
-
-  .game-date {
-      font-size: 12px;
-      color: #909399;
+      gap: 16px;
   }
 
   .game-master {
       font-size: 12px;
       color: #606266;
-      margin-top: 4px;
   }
 
-  .game-progress, .game-result {
-      text-align: center;
+  .game-status {
+      display: flex;
+      align-items: center;
+  }
+
+  .game-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
   }
 
   .mb-2 {

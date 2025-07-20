@@ -64,8 +64,9 @@
 	  loading.value = true
 
 	  const gameData = { 
-	      ...form,
-	      eventId: props.eventId
+	      label: form.name,
+	      event_id: props.eventId,
+	      table_id: props.tableId || null
 	  }
 	  const newGame = await apiService.createGame(gameData)
 	  

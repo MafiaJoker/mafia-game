@@ -96,7 +96,8 @@
       start_date: new Date().toISOString().split('T')[0],
       language: 'rus',
       event_type_id: '',
-      tables_count: 1
+      tables_count: 1,
+      table_name_template: 'Стол {}'
   })
 
   const rules = {
@@ -145,7 +146,7 @@
 	  await formRef.value.validate()
 	  loading.value = true
 
-	  const eventData = { ...form }
+	  const { tables_count, ...eventData } = form
 	  // Ожидаем ответ от сервера перед любыми действиями
 	  const newEvent = await eventsStore.createEvent(eventData)
 
