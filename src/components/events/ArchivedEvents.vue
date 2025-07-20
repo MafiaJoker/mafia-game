@@ -17,7 +17,7 @@
           :key="event.id"
           class="archived-card"
           shadow="hover"
-          @click="$emit('viewEvent', event)"
+          @click="navigateToEvent(event)"
           >
           <template #header>
             <div class="card-header">
@@ -70,7 +70,7 @@
               <el-button
                 type="primary"
                 size="small"
-                @click.stop="$emit('viewEvent', event)"
+                @click.stop="navigateToEvent(event)"
                 >
                 <el-icon><View /></el-icon>
                 Детали
@@ -91,11 +91,14 @@
 </template>
 
 <script setup>
+  import { useRouter } from 'vue-router'
   import {
       Document,
       View,
       Delete
   } from '@element-plus/icons-vue'
+
+  const router = useRouter()
 
   defineProps({
       events: {
@@ -108,7 +111,7 @@
       }
   })
 
-  defineEmits(['viewEvent', 'deleteEvent'])
+  defineEmits(['deleteEvent'])
 
   const getLanguageLabel = (language) => {
       const labels = {
@@ -146,6 +149,10 @@
 	  month: 'long',
 	  year: 'numeric'
       })
+  }
+
+  const navigateToEvent = (event) => {
+      router.push(`/event/${event.id}`)
   }
 </script>
 

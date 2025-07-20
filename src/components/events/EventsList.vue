@@ -12,7 +12,7 @@
           v-for="event in events"
           :key="event.id"
           class="event-item"
-          @click="$emit('viewEvent', event)"
+          @click="navigateToEvent(event)"
           >
           <div class="event-content">
             <div class="event-header">
@@ -66,7 +66,10 @@
 </template>
 
 <script setup>
+  import { useRouter } from 'vue-router'
   import { Delete } from '@element-plus/icons-vue'
+
+  const router = useRouter()
 
   defineProps({
       events: {
@@ -79,7 +82,7 @@
       }
   })
 
-  defineEmits(['viewEvent', 'deleteEvent'])
+  defineEmits(['deleteEvent'])
 
   const getLanguageLabel = (language) => {
       const labels = {
@@ -108,6 +111,10 @@
 	  month: 'long',
 	  year: 'numeric'
       })
+  }
+
+  const navigateToEvent = (event) => {
+      router.push(`/event/${event.id}`)
   }
 </script>
 

@@ -60,7 +60,6 @@
 	      <EventsList 
 		:events="filteredActiveEvents" 
 		:loading="eventsStore.loading"
-		@view-event="handleViewEvent"
 		@delete-event="handleDeleteEvent"
 		/>
 	    </el-card>
@@ -78,20 +77,12 @@
 
 	  <ArchivedEvents 
 	    :events="eventsStore.archivedEvents"
-	    @view-event="handleViewEvent"
 	    @delete-event="handleDeleteEvent"
 	    />
 	</el-card>
       </el-main>
     </el-container>
 
-    <!-- Модальное окно деталей мероприятия -->
-    <EventDetailsDialog
-      v-model="showEventDetails"
-      :event="selectedEvent"
-      @update-event="handleUpdateEvent"
-      @delete-event="handleDeleteEvent"
-      />
   </div>
 </template>
 
@@ -102,8 +93,7 @@
   import CreateEventForm from '@/components/events/CreateEventForm.vue'
   import EventsList from '@/components/events/EventsList.vue'
   import ArchivedEvents from '@/components/events/ArchivedEvents.vue'
-  import EventDetailsDialog from '@/components/events/EventDetailsDialog.vue'
-  import { ElMessage, ElMessageBox } from 'element-plus'
+    import { ElMessage, ElMessageBox } from 'element-plus'
   import { 
       Plus, 
       Calendar, 
@@ -116,8 +106,6 @@
   const eventsStore = useEventsStore()
 
   const searchTerm = ref('')
-  const showEventDetails = ref(false)
-  const selectedEvent = ref(null)
 
   const filteredActiveEvents = computed(() => {
       if (!searchTerm.value) return eventsStore.activeEvents
@@ -138,10 +126,6 @@
       // Можно добавить дополнительную логику, если нужно
   }
 
-  const handleViewEvent = (event) => {
-      selectedEvent.value = event
-      showEventDetails.value = true
-  }
 
   const handleUpdateEvent = async (eventId, eventData) => {
       try {
@@ -167,9 +151,6 @@
 	  await eventsStore.deleteEvent(eventId)
 	  ElMessage.success('Мероприятие удалено!')
 
-	  if (selectedEvent.value?.id === eventId) {
-	      showEventDetails.value = false
-	  }
       } catch (error) {
 	  if (error !== 'cancel') {
 	      ElMessage.error('Ошибка удаления мероприятия')
