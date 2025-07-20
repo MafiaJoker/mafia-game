@@ -62,167 +62,203 @@
 
               <el-skeleton v-else :rows="5" animated />
             </el-card>
-
-            <!-- Список столов -->
-            <el-card>
-              <template #header>
-                <div class="card-header">
-                  <div class="header-left">
-                    <el-icon><Grid /></el-icon>
-                    <span>Игровые столы</span>
-                  </div>
-                  <el-button 
-                    type="primary" 
-                    size="small"
-                    @click="createNewTable"
-                    >
-                    <el-icon><Plus /></el-icon>
-                    Добавить стол
-                  </el-button>
-                </div>
-              </template>
-
-              <div v-if="event">
-                <div v-if="tableCount === 0" class="no-tables">
-                  <el-empty description="У этого мероприятия нет столов" />
-                </div>
-
-                <div v-else class="tables-list">
-                  <div
-                    v-for="(table, index) in tables"
-                    :key="index"
-                    class="table-item"
-                    :class="{ active: selectedTable === table, virtual: table.isVirtual }"
-                    @click="selectTable(table)"
-                    >
-                    <div class="table-name">
-                      {{ table.table_name }}
-                      <el-tag 
-                        v-if="table.isVirtual" 
-                        type="warning" 
-                        size="small" 
-                        class="ml-2"
-                      >
-                        Временный
-                      </el-tag>
-                    </div>
-                    <div v-if="table.game_masters && table.game_masters.length > 0" class="table-judge">
-                      {{ table.game_masters.map(m => m.nickname).join(', ') }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <el-skeleton v-else :rows="3" animated />
-            </el-card>
           </el-col>
 
-          <!-- Детали стола -->
+          <!-- Основной контент с вкладками -->
           <el-col :md="16">
             <el-card>
-              <template #header>
-                <div class="card-header">
-                  <el-icon><InfoFilled /></el-icon>
-                  <span>{{ selectedTable ? selectedTable.table_name : 'Выберите стол' }}</span>
-                  <el-button 
-                    v-if="selectedTable && event?.status !== 'completed'"
-                    type="success" 
-                    size="small"
-                    @click="createNewGame"
-                    >
-                    <el-icon><Plus /></el-icon>
-                    Новая игра
-                  </el-button>
-                </div>
-              </template>
-
-              <div v-if="!selectedTable" class="no-selection">
-                <el-empty description="Выберите стол из списка слева">
-                  <template #image>
-                    <el-icon size="100" color="#c0c4cc">
-                      <InfoFilled />
-                    </el-icon>
+              <el-tabs v-model="activeTab" type="border-card">
+                <!-- Вкладка Столы -->
+                <el-tab-pane label="Столы" name="tables">
+                  <template #label>
+                    <span style="display: flex; align-items: center; gap: 4px;">
+                      <el-icon><Grid /></el-icon>
+                      Столы
+                    </span>
                   </template>
-                </el-empty>
-              </div>
 
-              <div v-else class="table-details">
-                <!-- Предупреждение для виртуальных столов -->
-                <el-alert
-                  v-if="selectedTable.isVirtual"
-                  title="Временный стол"
-                  type="warning"
-                  description="Этот стол будет сохранен только после создания первой игры на нем. До этого момента стол будет пропадать при обновлении страницы."
-                  :closable="false"
-                  class="mb-4"
-                />
+                  <!-- Список столов -->
+                  <div class="tab-content">
+                    <div class="tab-header">
+                      <span class="tab-title">Игровые столы</span>
+                      <el-button 
+                        type="primary" 
+                        size="small"
+                        @click="createNewTable"
+                        >
+                        <el-icon><Plus /></el-icon>
+                        Добавить стол
+                      </el-button>
+                    </div>
 
-                <!-- Информация о столе -->
-                <div class="table-info mb-4">
-                  <el-descriptions :column="2" border>
-                    <el-descriptions-item label="Название">
-                      {{ selectedTable.table_name }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="Судьи" v-if="selectedTable.game_masters && selectedTable.game_masters.length > 0">
-                      <span v-for="(master, idx) in selectedTable.game_masters" :key="master.id">
-                        {{ master.nickname }}<span v-if="idx < selectedTable.game_masters.length - 1">, </span>
-                      </span>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="Количество игр">
-                      {{ games.length }}
-                    </el-descriptions-item>
-                  </el-descriptions>
-                </div>
+                    <div v-if="event">
+                      <div v-if="tableCount === 0" class="no-tables">
+                        <el-empty description="У этого мероприятия нет столов" />
+                      </div>
 
-                <!-- Игры стола -->
-                <div class="games-section">
-                  <h5 class="section-title">Игры</h5>
-
-                  <div v-if="games.length === 0" class="no-games">
-                    <el-empty description="У этого стола еще нет игр" />
-                  </div>
-
-                  <div v-else class="games-list">
-                    <div 
-                      v-for="game in games"
-                      :key="game.id"
-                      class="game-item clickable"
-                      @click="openGame(game.id)"
-                      >
-                      <div class="game-main-content">
-                        <div class="game-header">
-                          <h6 class="game-name">{{ game.label }}</h6>
-                        </div>
-                        
-                        <div class="game-info">
-                          <div class="game-datetime">
-                            <el-icon size="14"><Calendar /></el-icon>
-                            {{ formatDateTime(game.started_at) }}
+                      <div v-else class="tables-list">
+                        <div
+                          v-for="(table, index) in tables"
+                          :key="index"
+                          class="table-item"
+                          :class="{ active: selectedTable === table, virtual: table.isVirtual }"
+                          @click="selectTable(table)"
+                          >
+                          <div class="table-name">
+                            {{ table.table_name }}
+                            <el-tag 
+                              v-if="table.isVirtual" 
+                              type="warning" 
+                              size="small" 
+                              class="ml-2"
+                            >
+                              Временный
+                            </el-tag>
                           </div>
-                          <span v-if="game.game_master && !isGameMasterSameAsTable(game)" class="game-master">
-                            <el-icon size="14"><User /></el-icon>
-                            {{ game.game_master.nickname }}
-                          </span>
+                          <div v-if="table.game_masters && table.game_masters.length > 0" class="table-judge">
+                            {{ table.game_masters.map(m => m.nickname).join(', ') }}
+                          </div>
                         </div>
                       </div>
-                      
-                      <div class="game-side-actions" @click.stop>
-                        <el-tag v-if="game.result" :type="getResultType(game.result)" size="small">
-                          {{ getResultLabel(game.result) }}
-                        </el-tag>
+                    </div>
+
+                    <el-skeleton v-else :rows="3" animated />
+
+                    <!-- Детали выбранного стола -->
+                    <el-divider v-if="selectedTable" />
+                    
+                    <div v-if="selectedTable" class="table-details">
+                      <div class="tab-header">
+                        <span class="tab-title">{{ selectedTable.table_name }}</span>
                         <el-button 
-                          type="danger" 
-                          size="small" 
-                          circle
-                          @click="deleteGame(game.id)"
+                          v-if="event?.status !== 'completed'"
+                          type="success" 
+                          size="small"
+                          @click="createNewGame"
                           >
-                          <el-icon><Delete /></el-icon>
+                          <el-icon><Plus /></el-icon>
+                          Новая игра
                         </el-button>
+                      </div>
+
+                      <!-- Предупреждение для виртуальных столов -->
+                      <el-alert
+                        v-if="selectedTable.isVirtual"
+                        title="Временный стол"
+                        type="warning"
+                        description="Этот стол будет сохранен только после создания первой игры на нем. До этого момента стол будет пропадать при обновлении страницы."
+                        :closable="false"
+                        class="mb-4"
+                      />
+
+                      <!-- Информация о столе -->
+                      <div class="table-info mb-4">
+                        <el-descriptions :column="2" border>
+                          <el-descriptions-item label="Название">
+                            {{ selectedTable.table_name }}
+                          </el-descriptions-item>
+                          <el-descriptions-item label="Судьи" v-if="selectedTable.game_masters && selectedTable.game_masters.length > 0">
+                            <span v-for="(master, idx) in selectedTable.game_masters" :key="master.id">
+                              {{ master.nickname }}<span v-if="idx < selectedTable.game_masters.length - 1">, </span>
+                            </span>
+                          </el-descriptions-item>
+                          <el-descriptions-item label="Количество игр">
+                            {{ games.length }}
+                          </el-descriptions-item>
+                        </el-descriptions>
+                      </div>
+
+                      <!-- Игры стола -->
+                      <div class="games-section">
+                        <h5 class="section-title">Игры</h5>
+
+                        <div v-if="games.length === 0" class="no-games">
+                          <el-empty description="У этого стола еще нет игр" />
+                        </div>
+
+                        <div v-else class="games-list">
+                          <div 
+                            v-for="game in games"
+                            :key="game.id"
+                            class="game-item clickable"
+                            @click="openGame(game.id)"
+                            >
+                            <div class="game-main-content">
+                              <div class="game-header">
+                                <h6 class="game-name">{{ game.label }}</h6>
+                              </div>
+                              
+                              <div class="game-info">
+                                <div class="game-datetime">
+                                  <el-icon size="14"><Calendar /></el-icon>
+                                  {{ formatDateTime(game.started_at) }}
+                                </div>
+                                <span v-if="game.game_master && !isGameMasterSameAsTable(game)" class="game-master">
+                                  <el-icon size="14"><User /></el-icon>
+                                  {{ game.game_master.nickname }}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div class="game-side-actions" @click.stop>
+                              <el-tag v-if="game.result" :type="getResultType(game.result)" size="small">
+                                {{ getResultLabel(game.result) }}
+                              </el-tag>
+                              <el-button 
+                                type="danger" 
+                                size="small" 
+                                circle
+                                @click="deleteGame(game.id)"
+                                >
+                                <el-icon><Delete /></el-icon>
+                              </el-button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </el-tab-pane>
+
+                <!-- Вкладка Финансы -->
+                <el-tab-pane label="Финансы" name="finances">
+                  <template #label>
+                    <span style="display: flex; align-items: center; gap: 4px;">
+                      <el-icon><Money /></el-icon>
+                      Финансы
+                    </span>
+                  </template>
+
+                  <EventFinances v-if="event" :event="event" />
+                  <el-skeleton v-else :rows="5" animated />
+                </el-tab-pane>
+
+                <!-- Вкладка Игроки -->
+                <el-tab-pane label="Игроки" name="players">
+                  <template #label>
+                    <span style="display: flex; align-items: center; gap: 4px;">
+                      <el-icon><User /></el-icon>
+                      Игроки
+                    </span>
+                  </template>
+
+                  <EventPlayers v-if="event" :event="event" />
+                  <el-skeleton v-else :rows="5" animated />
+                </el-tab-pane>
+
+                <!-- Вкладка Результаты -->
+                <el-tab-pane label="Результаты" name="results">
+                  <template #label>
+                    <span style="display: flex; align-items: center; gap: 4px;">
+                      <el-icon><Trophy /></el-icon>
+                      Результаты
+                    </span>
+                  </template>
+
+                  <EventResults v-if="event" :event="event" />
+                  <el-skeleton v-else :rows="5" animated />
+                </el-tab-pane>
+              </el-tabs>
             </el-card>
           </el-col>
         </el-row>
@@ -240,6 +276,9 @@
   import { useEventsStore } from '@/stores/events'
   import { apiService } from '@/services/api'
   import { ElMessage } from 'element-plus'
+  import EventFinances from '@/components/events/EventFinances.vue'
+  import EventPlayers from '@/components/events/EventPlayers.vue'
+  import EventResults from '@/components/events/EventResults.vue'
   import { 
       ArrowLeft, 
       InfoFilled,
@@ -247,7 +286,9 @@
       Delete,
       Grid,
       Calendar,
-      User
+      User,
+      Money,
+      Trophy
   } from '@element-plus/icons-vue'
 
   const route = useRoute()
@@ -258,6 +299,7 @@
   const selectedTable = ref(null)
   const games = ref([])
   const virtualTables = ref([])
+  const activeTab = ref('tables')
 
   const tables = computed(() => {
     const realTables = event.value?.tables || []
@@ -748,5 +790,24 @@
 
   .ml-2 {
       margin-left: 8px;
+  }
+
+  .tab-content {
+      padding: 16px 0;
+  }
+
+  .tab-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #ebeef5;
+  }
+
+  .tab-title {
+      font-weight: 600;
+      font-size: 16px;
+      color: #303133;
   }
 </style>
