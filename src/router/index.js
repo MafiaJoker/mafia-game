@@ -83,6 +83,13 @@ router.beforeEach(async (to, from, next) => {
                 next()
                 return
             }
+            
+            // Если получили 401, значит сессия недействительна
+            if (result.status === 401) {
+                console.log('Session expired or invalid, redirecting to login')
+                next('/login')
+                return
+            }
         }
         
         // Если не удалось загрузить пользователя, редиректим на логин

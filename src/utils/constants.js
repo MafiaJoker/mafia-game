@@ -6,6 +6,22 @@ export const PLAYER_ROLES = {
     DON: 'Дон'
 }
 
+// Роли для API (английские названия)
+export const API_PLAYER_ROLES = {
+    'Мирный': 'civilian',
+    'Шериф': 'sheriff',
+    'Мафия': 'mafia',
+    'Дон': 'don'
+}
+
+// Обратный маппинг из API ролей в локальные
+export const API_TO_LOCAL_ROLES = {
+    'civilian': 'Мирный',
+    'sheriff': 'Шериф',
+    'mafia': 'Мафия',
+    'don': 'Дон'
+}
+
 // Максимальные фолы
 export const MAX_FOULS = {
     BEFORE_SILENCE: 3,
@@ -35,8 +51,8 @@ export const GAME_SUBSTATUS = {
 
 // Названия статусов
 export const GAME_STATUS_NAMES = {
-    [GAME_STATUSES.CREATED]: 'Создана',
-    [GAME_STATUSES.SEATING_READY]: 'Рассадка готова',
+    [GAME_STATUSES.CREATED]: 'С',
+    [GAME_STATUSES.SEATING_READY]: 'Р',
     [GAME_STATUSES.ROLE_DISTRIBUTION]: 'Роздача ролей',
     [GAME_STATUSES.IN_PROGRESS]: 'В процессе',
     [GAME_STATUSES.FINISHED_NO_SCORES]: 'Завершена без баллов',

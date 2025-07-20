@@ -63,6 +63,10 @@
       player: {
 	  type: Object,
 	  required: true
+      },
+      canAddFouls: {
+	  type: Boolean,
+	  default: true
       }
   })
 
@@ -80,6 +84,8 @@
 
   const handleFoulClick = () => {
       // Проверяем условия для увеличения фолов
+      if (!props.canAddFouls) return
+      
       if (props.player.fouls < MAX_FOULS.BEFORE_SILENCE || 
 	  (props.player.fouls === MAX_FOULS.BEFORE_SILENCE && 
 	   (props.player.isSilent || props.player.silentNextRound)) ||

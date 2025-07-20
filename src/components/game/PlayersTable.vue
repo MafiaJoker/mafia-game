@@ -4,27 +4,41 @@
       <div class="card-header">
         <span>Игроки</span>
         <div class="header-actions">
-          <el-tag 
-            v-if="gameStore.canEditRoles" 
-            type="success" 
-            size="small"
-          >
-            Можно редактировать роли
-          </el-tag>
-          <el-tag 
-            v-else-if="!allPlayersSelected" 
+          <el-button 
+            v-if="!gameStore.isGameInProgress && gameStore.gameState.gameStatus !== GAME_STATUSES.ROLE_DISTRIBUTION"
             type="warning" 
             size="small"
-          >
-            Заполните всех игроков для редактирования ролей
-          </el-tag>
+            :icon="Refresh"
+            circle
+            @click="handleShufflePlayers"
+            title="Перемешать игроков"
+          />
           <el-button 
-            type="info" 
-            text 
-            @click="gameStore.gameState.rolesVisible = !gameStore.gameState.rolesVisible"
+            v-if="canConfirmSeating && !isSeatingReady && gameStore.gameState.gameStatus !== GAME_STATUSES.ROLE_DISTRIBUTION"
+            type="success" 
+            size="small"
+            @click="handleConfirmSeating"
             >
-            {{ gameStore.gameState.rolesVisible ? 'Скрыть роли' : 'Показать роли' }}
+            Рассадка готова
           </el-button>
+          <el-button 
+            v-if="canConfirmSeating && isSeatingReady && gameStore.gameState.gameStatus !== GAME_STATUSES.ROLE_DISTRIBUTION"
+            type="primary" 
+            size="small"
+            :icon="Upload"
+            circle
+            @click="handleUpdateSeating"
+            title="Обновить рассадку"
+          />
+          <el-button 
+            v-if="gameStore.isGameInProgress"
+            :type="gameStore.gameState.rolesVisible ? 'primary' : 'default'"
+            :icon="gameStore.gameState.rolesVisible ? Hide : View"
+            size="small"
+            circle
+            @click="gameStore.gameState.rolesVisible = !gameStore.gameState.rolesVisible"
+            :title="gameStore.gameState.rolesVisible ? 'Скрыть роли' : 'Показать роли'"
+          />
         </div>
       </div>
     </template>
@@ -32,17 +46,18 @@
     <el-table :data="visiblePlayers" stripe style="width: 100%">
       <el-table-column prop="id" label="№" width="60" align="center" />
       
-      <el-table-column label="Фолы" width="100" align="center">
+      <el-table-column v-if="gameStore.isGameInProgress" label="Фолы" width="100" align="center">
         <template #default="{ row }">
           <PlayerFouls 
-            :player="row" 
+            :player="row"
+            :can-add-fouls="gameStore.isGameInProgress"
             @increment="handleIncrementFoul"
             @reset="handleResetFouls"
             />
         </template>
       </el-table-column>
       
-      <el-table-column label="Роль" width="120" align="center">
+      <el-table-column v-if="gameStore.gameState.gameStatus === GAME_STATUSES.ROLE_DISTRIBUTION || gameStore.isGameInProgress" label="Роль" width="120" align="center">
         <template #default="{ row }">
           <PlayerRole 
             :player="row"
@@ -54,13 +69,30 @@
       </el-table-column>
       
       <el-table-column label="Игрок" width="200">
+        <template #header>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span>Игрок</span>
+            <el-button
+              v-if="canEditPlayers"
+              :type="isEditingPlayers ? 'primary' : 'default'"
+              :icon="Edit"
+              size="small"
+              circle
+              @click="togglePlayerEdit"
+            />
+          </div>
+        </template>
         <template #default="{ row }">
           <PlayerSelector
+            v-if="isEditingPlayers"
             v-model="row.name"
             :player-id="row.id"
             :used-player-ids="getUsedPlayerIds(row.id)"
             @player-selected="handlePlayerSelected"
           />
+          <span v-else class="player-name-display" :class="{ 'empty-slot': !row.name }">
+            {{ row.name || `Слот ${row.id}` }}
+          </span>
         </template>
       </el-table-column>
       
@@ -128,13 +160,15 @@
   import PlayerActions from './PlayerActions.vue'
   import PlayerSelector from './PlayerSelector.vue'
   import PpkControls from './PpkControls.vue'
-  import { ElMessage } from 'element-plus'
+  import { ElMessage, ElMessageBox } from 'element-plus'
+  import { Edit, View, Hide, Refresh, Upload } from '@element-plus/icons-vue'
 
   const gameStore = useGameStore()
 
   const showPpkDialog = ref(false)
   const showCancelDialog = ref(false)
   const showEliminateDialog = ref(false)
+  const isEditingPlayers = ref(false)
 
   const visiblePlayers = computed(() => {
       return gameStore.gameState.players.filter(p => !p.isEliminated)
@@ -146,9 +180,29 @@
           .map(p => p.userId)
   }
 
-  const allPlayersSelected = computed(() => {
-      return gameStore.gameState.players.every(p => p.name && p.name.trim() !== '')
+
+  const hasPlayersToShuffle = computed(() => {
+      const playersWithNames = gameStore.gameState.players.filter(p => p.name && p.name.trim() !== '')
+      return playersWithNames.length >= 2 && !gameStore.isGameInProgress
   })
+
+  const canConfirmSeating = computed(() => {
+      const hasPlayers = gameStore.gameState.players.some(p => p.name && p.name.trim() !== '')
+      const gameNotStarted = gameStore.gameState.gameStatus !== GAME_STATUSES.IN_PROGRESS
+      return hasPlayers && gameNotStarted
+  })
+
+  const isSeatingReady = computed(() => {
+      return gameStore.gameState.gameStatus === GAME_STATUSES.SEATING_READY
+  })
+
+  const canEditPlayers = computed(() => {
+      return !gameStore.isGameInProgress
+  })
+
+  const togglePlayerEdit = () => {
+      isEditingPlayers.value = !isEditingPlayers.value
+  }
 
   const showPlayerActions = computed(() => {
       return gameStore.gameState.gameStatus === GAME_STATUSES.IN_PROGRESS
@@ -231,6 +285,57 @@
 	  // Отмена
       })
   }
+
+  const handleShufflePlayers = () => {
+      ElMessageBox.confirm(
+	  'Вы уверены, что хотите случайно рассадить игроков из базы данных по столу?',
+	  'Подтверждение перемешивания',
+	  {
+	      confirmButtonText: 'Да, рассадить',
+	      cancelButtonText: 'Отмена',
+	      type: 'warning'
+	  }
+      ).then(async () => {
+	  const result = await gameStore.shufflePlayers()
+	  if (result.success) {
+	      ElMessage.success(result.message)
+	  } else {
+	      ElMessage.warning(result.message)
+	  }
+      }).catch(() => {
+	  // Отмена
+      })
+  }
+
+  const handleConfirmSeating = () => {
+      ElMessageBox.confirm(
+	  'Вы уверены, что хотите подтвердить рассадку и сохранить игроков с ролями на сервере?',
+	  'Подтверждение рассадки',
+	  {
+	      confirmButtonText: 'Да, сохранить',
+	      cancelButtonText: 'Отмена',
+	      type: 'success'
+	  }
+      ).then(async () => {
+	  const result = await gameStore.confirmSeating()
+	  if (result.success) {
+	      ElMessage.success(result.message)
+	  } else {
+	      ElMessage.error(result.message)
+	  }
+      }).catch(() => {
+	  // Отмена
+      })
+  }
+
+  const handleUpdateSeating = async () => {
+      const result = await gameStore.updateSeating()
+      if (result.success) {
+	  ElMessage.success(result.message)
+      } else {
+	  ElMessage.error(result.message)
+      }
+  }
 </script>
 
 <style scoped>
@@ -264,5 +369,17 @@
   :deep(.el-table .el-table__row.dead) {
       background-color: #909399 !important;
       color: white;
+  }
+
+  .player-name-display {
+      padding: 8px;
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+  }
+
+  .empty-slot {
+      color: #909399;
+      font-style: italic;
   }
 </style>

@@ -148,6 +148,11 @@ export const apiService = {
 	return response.data
     },
 
+    async addPlayersToGame(gameId, playersData) {
+	const response = await api.post(`/games/${gameId}/players`, playersData)
+	return response.data
+    },
+
     // Game Phases
     async updateGamePhase(gameId, phaseData) {
 	const response = await api.put(`/games/${gameId}/phases`, phaseData)

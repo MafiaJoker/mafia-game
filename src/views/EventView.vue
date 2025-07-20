@@ -95,24 +95,19 @@
                     :class="{ active: selectedTable === table, virtual: table.isVirtual }"
                     @click="selectTable(table)"
                     >
-                    <div class="table-content">
-                      <div class="table-name">
-                        {{ table.table_name }}
-                        <el-tag 
-                          v-if="table.isVirtual" 
-                          type="warning" 
-                          size="small" 
-                          class="ml-2"
-                        >
-                          Временный
-                        </el-tag>
-                      </div>
-                      <div v-if="table.game_masters && table.game_masters.length > 0" class="table-masters">
-                        <small class="text-muted">Судьи:</small>
-                        <div v-for="master in table.game_masters" :key="master.id" class="master-name">
-                          {{ master.nickname }}
-                        </div>
-                      </div>
+                    <div class="table-name">
+                      {{ table.table_name }}
+                      <el-tag 
+                        v-if="table.isVirtual" 
+                        type="warning" 
+                        size="small" 
+                        class="ml-2"
+                      >
+                        Временный
+                      </el-tag>
+                    </div>
+                    <div v-if="table.game_masters && table.game_masters.length > 0" class="table-judge">
+                      {{ table.game_masters.map(m => m.nickname).join(', ') }}
                     </div>
                   </div>
                 </div>
@@ -191,37 +186,30 @@
                     <div 
                       v-for="game in games"
                       :key="game.id"
-                      class="game-item"
+                      class="game-item clickable"
+                      @click="openGame(game.id)"
                       >
                       <div class="game-main-content">
-                        <div class="game-title-row">
+                        <div class="game-header">
                           <h6 class="game-name">{{ game.label }}</h6>
-                          <span class="game-datetime">{{ formatDateTime(game.started_at) }}</span>
                         </div>
                         
-                        <div class="game-details-row">
-                          <div class="game-meta">
-                            <span v-if="game.game_master" class="game-master">
-                              Судья: {{ game.game_master.nickname }}
-                            </span>
+                        <div class="game-info">
+                          <div class="game-datetime">
+                            <el-icon size="14"><Calendar /></el-icon>
+                            {{ formatDateTime(game.started_at) }}
                           </div>
-                          
-                          <div class="game-status">
-                            <el-tag v-if="game.result" :type="getResultType(game.result)" size="small">
-                              {{ getResultLabel(game.result) }}
-                            </el-tag>
-                          </div>
+                          <span v-if="game.game_master && !isGameMasterSameAsTable(game)" class="game-master">
+                            <el-icon size="14"><User /></el-icon>
+                            {{ game.game_master.nickname }}
+                          </span>
                         </div>
                       </div>
                       
-                      <div class="game-actions">
-                        <el-button 
-                          type="primary" 
-                          size="small"
-                          @click="openGame(game.id)"
-                          >
-                          Войти
-                        </el-button>
+                      <div class="game-side-actions" @click.stop>
+                        <el-tag v-if="game.result" :type="getResultType(game.result)" size="small">
+                          {{ getResultLabel(game.result) }}
+                        </el-tag>
                         <el-button 
                           type="danger" 
                           size="small" 
@@ -257,7 +245,9 @@
       InfoFilled,
       Plus,
       Delete,
-      Grid
+      Grid,
+      Calendar,
+      User
   } from '@element-plus/icons-vue'
 
   const route = useRoute()
@@ -431,7 +421,14 @@
     const labels = {
       'city_win': 'Победа города',
       'mafia_win': 'Победа мафии',
-      'draw': 'Ничья'
+      'draw': 'Ничья',
+      'created': 'Создана',
+      'seating_ready': 'Рассадка готова',
+      'role_distribution': 'Роздача ролей',
+      'in_progress': 'В процессе',
+      'finished_no_scores': 'Завершена без баллов',
+      'finished_with_scores': 'Завершена с баллами',
+      'cancelled': 'Отменена'
     }
     return labels[result] || result
   }
@@ -441,9 +438,28 @@
     const types = {
       'city_win': 'success',
       'mafia_win': 'danger',
-      'draw': 'warning'
+      'draw': 'warning',
+      'created': 'info',
+      'seating_ready': 'warning',
+      'role_distribution': 'warning',
+      'in_progress': 'primary',
+      'finished_no_scores': 'success',
+      'finished_with_scores': 'success',
+      'cancelled': 'info'
     }
     return types[result] || 'info'
+  }
+
+  const isGameMasterSameAsTable = (game) => {
+    // Проверяем, есть ли судья игры и судьи стола
+    if (!game.game_master || !selectedTable.value?.game_masters || selectedTable.value.game_masters.length === 0) {
+      return false
+    }
+    
+    // Проверяем, является ли судья игры одним из судей стола
+    return selectedTable.value.game_masters.some(
+      tableMaster => tableMaster.id === game.game_master.id
+    )
   }
 
 
@@ -545,14 +561,20 @@
   }
 
   .table-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       cursor: pointer;
+      padding: 12px 16px;
       transition: all 0.3s ease;
       border-radius: 6px;
       margin-bottom: 8px;
+      border: 1px solid #ebeef5;
   }
 
   .table-item:hover {
       background-color: #f0f9ff;
+      border-color: #409eff;
   }
 
   .table-item.active {
@@ -574,14 +596,16 @@
       border-color: #e6a23c;
   }
 
-  .table-content {
-      width: 100%;
-      padding: 8px;
-  }
-
   .table-name {
       font-weight: 600;
-      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+  }
+
+  .table-judge {
+      color: #606266;
+      font-size: 14px;
   }
 
   .table-masters {
@@ -634,9 +658,14 @@
       transition: all 0.3s ease;
   }
 
+  .game-item.clickable {
+      cursor: pointer;
+  }
+
   .game-item:hover {
       border-color: #409eff;
       box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+      transform: translateY(-1px);
   }
 
   .game-main-content {
@@ -646,7 +675,7 @@
       gap: 8px;
   }
 
-  .game-title-row {
+  .game-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -659,15 +688,26 @@
       color: #303133;
   }
 
-  .game-datetime {
-      font-size: 14px;
-      color: #909399;
-      font-weight: 500;
+  .game-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 13px;
+      color: #606266;
   }
 
-  .game-details-row {
+  .game-datetime {
       display: flex;
-      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+      color: #909399;
+  }
+
+  .game-master {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #606266;
       align-items: center;
   }
 
@@ -687,6 +727,12 @@
   }
 
   .game-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+  }
+
+  .game-side-actions {
       display: flex;
       gap: 8px;
       align-items: center;
