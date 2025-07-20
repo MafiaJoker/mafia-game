@@ -47,12 +47,11 @@ export const useEventsStore = defineStore('events', () => {
 
     const createEvent = async (eventData) => {
 	try {
-	    const newEvent = await apiService.createEvent(eventData)
-	    // Добавляем событие в массив только после успешного ответа от сервера
-	    if (newEvent && newEvent.id) {
-		events.value.push(newEvent)
-	    }
-	    return newEvent
+	    const response = await apiService.createEvent(eventData)
+	    // После создания перезагружаем список событий с сервера
+	    // чтобы получить актуальные данные
+	    await loadEvents()
+	    return response
 	} catch (error) {
 	    console.error('Ошибка создания мероприятия:', error)
 	    throw error

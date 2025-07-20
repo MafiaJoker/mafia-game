@@ -342,11 +342,14 @@
       
       const newGame = await apiService.createGame(gameData)
       
-      if (!selectedTable.value.games) {
-        selectedTable.value.games = []
+      // Перезагружаем данные события с сервера для получения актуальной информации
+      await loadEvent()
+      
+      // Находим обновленный стол и обновляем игры
+      const updatedTable = tables.value.find(table => table.table_name === selectedTable.value.table_name)
+      if (updatedTable) {
+        selectTable(updatedTable)
       }
-      selectedTable.value.games.push(newGame)
-      games.value = selectedTable.value.games
       
       ElMessage.success('Игра создана!')
     } catch (error) {
