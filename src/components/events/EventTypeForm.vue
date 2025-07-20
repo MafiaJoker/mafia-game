@@ -20,7 +20,6 @@
         <el-color-picker 
           v-model="form.color" 
           :predefine="predefinedColors"
-          show-alpha
           size="large"
         />
         <div class="color-preview" :style="{ backgroundColor: normalizedColor }">
@@ -88,10 +87,34 @@
     ]
   }
 
-  // Вычисляемое свойство для нормализации цвета в hex формат
+  // Функция для конвертации любого цвета в hex формат
+  const rgbToHex = (rgb) => {
+    const result = rgb.match(/\d+/g)
+    if (result && result.length >= 3) {
+      return '#' + result.slice(0, 3).map(x => {
+        const hex = parseInt(x).toString(16)
+        return hex.length === 1 ? '0' + hex : hex
+      }).join('')
+    }
+    return rgb
+  }
+
+  // Вычисляемое свойство для нормализации цвета в чистый hex формат
   const normalizedColor = computed(() => {
     if (!form.color) return '#409eff'
-    return form.color.startsWith('#') ? form.color : '#' + form.color
+    
+    // Если цвет в формате rgb(r, g, b) или rgba(r, g, b, a)
+    if (form.color.includes('rgb')) {
+      return rgbToHex(form.color)
+    }
+    
+    // Если уже hex формат
+    if (form.color.startsWith('#')) {
+      return form.color
+    }
+    
+    // Если hex без #
+    return '#' + form.color
   })
 
 

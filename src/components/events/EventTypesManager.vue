@@ -25,7 +25,6 @@
         stripe
         >
         <el-table-column prop="label" label="Название" min-width="150" />
-        <el-table-column prop="id" label="ID" width="200" show-overflow-tooltip />
         <el-table-column label="Действия" width="140" align="center">
           <template #default="{ row }">
             <el-button 

@@ -6,11 +6,6 @@
       stripe
       style="width: 100%"
     >
-      <el-table-column 
-        prop="id" 
-        label="ID" 
-        width="80"
-      />
       
       <el-table-column 
         label="Пользователь"

@@ -29,7 +29,6 @@
               </template>
             </el-table-column>
             <el-table-column prop="iso_4217_code" label="Валюта" width="100" align="center" />
-            <el-table-column prop="id" label="ID" width="300" />
             <el-table-column label="Действия" width="180" align="center" fixed="right">
               <template #default="{ row }">
                 <el-button 

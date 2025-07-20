@@ -51,7 +51,7 @@ export const apiService = {
 
     async testUserLogin() {
         const response = await api.put('/auth/token',
-                                       {"id": "e6ad1ca2-4a84-4845-ad8d-7f5617d0af5a", "role": "cacher"},
+                                       {"id": "e6ad1ca2-4a84-4845-ad8d-7f5617d0af5a", "role": "cashier"},
                                        {headers: {'Authorization': 'Basic e37bd08d'}}
         )
         return response.data
