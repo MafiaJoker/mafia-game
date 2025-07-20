@@ -345,8 +345,16 @@
       // Перезагружаем данные события с сервера для получения актуальной информации
       await loadEvent()
       
+      // Очищаем виртуальные столы, так как они могли стать реальными
+      virtualTables.value = virtualTables.value.filter(virtualTable => {
+        // Удаляем виртуальный стол, если появился реальный стол с таким же именем
+        return !event.value?.tables?.some(realTable => realTable.table_name === virtualTable.table_name)
+      })
+      
       // Находим обновленный стол и обновляем игры
-      const updatedTable = tables.value.find(table => table.table_name === selectedTable.value.table_name)
+      // Сохраняем имя выбранного стола для поиска после обновления
+      const selectedTableName = selectedTable.value.table_name
+      const updatedTable = tables.value.find(table => table.table_name === selectedTableName)
       if (updatedTable) {
         selectTable(updatedTable)
       }
@@ -368,8 +376,8 @@
 	  event.value = await apiService.getEvent(eventId)
 	  console.log('Event loaded:', event.value)
 	  
-	  // Автоматически выбираем первый стол, если есть столы
-	  if (tables.value.length > 0) {
+	  // Автоматически выбираем первый стол только если ни один стол не выбран
+	  if (tables.value.length > 0 && !selectedTable.value) {
 	    selectTable(tables.value[0])
 	  }
       } catch (error) {
