@@ -26,7 +26,7 @@
 
 	  <!-- Список активных мероприятий -->
 	  <el-col :lg="14" :md="12" :sm="24">
-	    <el-card>
+	    <el-card class="events-card">
 	      <template #header>
 		<div class="card-header">
 		  <div class="header-left">
@@ -57,11 +57,13 @@
 		</div>
 	      </template>
 
-	      <EventsList 
-		:events="filteredActiveEvents" 
-		:loading="eventsStore.loading"
-		@delete-event="handleDeleteEvent"
-		/>
+	      <div class="events-scroll-container">
+		<EventsList 
+		  :events="filteredActiveEvents" 
+		  :loading="eventsStore.loading"
+		  @delete-event="handleDeleteEvent"
+		  />
+	      </div>
 	    </el-card>
 	  </el-col>
 	</el-row>
@@ -208,5 +210,36 @@
 
   .mt-4 {
       margin-top: 16px;
+  }
+
+  .events-card {
+      height: 600px;
+      display: flex;
+      flex-direction: column;
+  }
+
+  .events-card :deep(.el-card__body) {
+      flex: 1;
+      padding: 0;
+      overflow: hidden;
+  }
+
+  .events-scroll-container {
+      height: 100%;
+      overflow-y: auto;
+      padding: 20px;
+  }
+
+  /* Адаптивные высоты */
+  @media (max-width: 768px) {
+      .events-card {
+          height: 400px;
+      }
+  }
+
+  @media (min-width: 1200px) {
+      .events-card {
+          height: 700px;
+      }
   }
 </style>
