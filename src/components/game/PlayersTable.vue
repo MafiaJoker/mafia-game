@@ -4,6 +4,20 @@
       <div class="card-header">
         <span>Игроки</span>
         <div class="header-actions">
+          <el-tag 
+            v-if="gameStore.canEditRoles" 
+            type="success" 
+            size="small"
+          >
+            Можно редактировать роли
+          </el-tag>
+          <el-tag 
+            v-else-if="!allPlayersSelected" 
+            type="warning" 
+            size="small"
+          >
+            Заполните всех игроков для редактирования ролей
+          </el-tag>
           <el-button 
             type="info" 
             text 
@@ -33,7 +47,7 @@
           <PlayerRole 
             :player="row"
             :visible="gameStore.gameState.rolesVisible || !gameStore.gameState.isGameStarted"
-            :editable="gameStore.isInRoleDistribution"
+            :editable="gameStore.canEditRoles"
             @change-role="handleRoleChange"
             />
         </template>
@@ -132,6 +146,10 @@
           .map(p => p.userId)
   }
 
+  const allPlayersSelected = computed(() => {
+      return gameStore.gameState.players.every(p => p.name && p.name.trim() !== '')
+  })
+
   const showPlayerActions = computed(() => {
       return gameStore.gameState.gameStatus === GAME_STATUSES.IN_PROGRESS
   })
@@ -224,6 +242,12 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+  }
+
+  .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
   }
 
   .table-footer {

@@ -43,6 +43,17 @@ export const useGameStore = defineStore('game', () => {
 	return gameState.value.gameStatus === GAME_STATUSES.ROLE_DISTRIBUTION
     })
 
+    const canEditRoles = computed(() => {
+	// Можно редактировать роли если:
+	// 1. Игра в статусе распределения ролей ИЛИ
+	// 2. Все 10 слотов заполнены игроками и игра не началась
+	const allPlayersSelected = gameState.value.players.every(p => p.name && p.name.trim() !== '')
+	const gameNotStarted = gameState.value.gameStatus !== GAME_STATUSES.IN_PROGRESS
+	
+	return gameState.value.gameStatus === GAME_STATUSES.ROLE_DISTRIBUTION || 
+	       (allPlayersSelected && gameNotStarted)
+    })
+
     const isGameInProgress = computed(() => {
 	return gameState.value.gameStatus === GAME_STATUSES.IN_PROGRESS
     })
@@ -262,7 +273,7 @@ export const useGameStore = defineStore('game', () => {
     }
 
     const changePlayerRole = (playerId) => {
-	if (!isInRoleDistribution.value) return
+	if (!canEditRoles.value) return
 
 	const player = currentPlayer.value(playerId)
 	if (!player) return
@@ -576,6 +587,7 @@ export const useGameStore = defineStore('game', () => {
 	currentPlayer,
 	alivePlayers,
 	isInRoleDistribution,
+	canEditRoles,
 	isGameInProgress,
 	canStartGame,
 	
