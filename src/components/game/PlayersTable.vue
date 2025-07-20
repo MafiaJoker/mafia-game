@@ -39,7 +39,16 @@
         </template>
       </el-table-column>
       
-      <el-table-column prop="name" label="Игрок" />
+      <el-table-column label="Игрок" width="200">
+        <template #default="{ row }">
+          <PlayerSelector
+            v-model="row.name"
+            :player-id="row.id"
+            :used-player-ids="getUsedPlayerIds(row.id)"
+            @player-selected="handlePlayerSelected"
+          />
+        </template>
+      </el-table-column>
       
       <el-table-column label="Номинация">
         <template #default="{ row }">
@@ -103,6 +112,7 @@
   import PlayerRole from './PlayerRole.vue'
   import PlayerNomination from './PlayerNomination.vue'
   import PlayerActions from './PlayerActions.vue'
+  import PlayerSelector from './PlayerSelector.vue'
   import PpkControls from './PpkControls.vue'
   import { ElMessage } from 'element-plus'
 
@@ -115,6 +125,12 @@
   const visiblePlayers = computed(() => {
       return gameStore.gameState.players.filter(p => !p.isEliminated)
   })
+
+  const getUsedPlayerIds = (currentPlayerId) => {
+      return gameStore.gameState.players
+          .filter(p => p.userId && p.id !== currentPlayerId)
+          .map(p => p.userId)
+  }
 
   const showPlayerActions = computed(() => {
       return gameStore.gameState.gameStatus === GAME_STATUSES.IN_PROGRESS
@@ -141,8 +157,15 @@
       const player = gameStore.currentPlayer(playerId)
       if (player) {
 	  player.fouls = 0
-	  ElMessage.success(`Фолы игрока ${player.nickname} сброшены`)
+	  ElMessage.success(`Фолы игрока ${player.name || `Игрок ${playerId}`} сброшены`)
       }
+  }
+
+  const handlePlayerSelected = ({ playerId, playerName, userId }) => {
+      gameStore.updatePlayer(playerId, {
+          name: playerName,
+          userId: userId
+      })
   }
 
   const handleRoleChange = (playerId) => {

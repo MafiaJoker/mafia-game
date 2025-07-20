@@ -21,11 +21,8 @@
               {{ getUserInitials(row) }}
             </el-avatar>
             <div class="user-details">
-              <div class="user-name">
-                {{ getUserFullName(row) }}
-              </div>
-              <div class="user-nickname" v-if="row.nickname">
-                @{{ row.nickname }}
+              <div class="user-nickname">
+                {{ row.nickname || 'Без никнейма' }}
               </div>
             </div>
           </div>
@@ -55,18 +52,26 @@
       <el-table-column 
         v-if="canEdit"
         label="Действия"
-        width="120"
+        width="100"
         fixed="right"
       >
         <template #default="{ row }">
-          <el-button
-            type="primary"
-            size="small"
-            :icon="Edit"
-            @click="$emit('update-role', row)"
-          >
-            Изменить
-          </el-button>
+          <div class="action-buttons">
+            <el-button
+              type="primary"
+              size="small"
+              :icon="Edit"
+              circle
+              @click="$emit('edit-user', row)"
+            />
+            <el-button
+              type="danger"
+              size="small"
+              :icon="Delete"
+              circle
+              @click="$emit('delete-user', row)"
+            />
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -79,7 +84,7 @@
 </template>
 
 <script setup>
-import { Edit } from '@element-plus/icons-vue'
+import { Edit, Delete } from '@element-plus/icons-vue'
 
 defineProps({
   users: {
@@ -96,7 +101,7 @@ defineProps({
   }
 })
 
-defineEmits(['update-role'])
+defineEmits(['edit-user', 'delete-user', 'update-role'])
 
 const getUserFullName = (user) => {
   const first = user.first_name || ''
@@ -152,15 +157,16 @@ const getRoleLabel = (role) => {
   gap: 2px;
 }
 
-.user-name {
-  font-weight: 500;
+.user-nickname {
   color: #303133;
   font-size: 14px;
+  font-weight: 500;
 }
 
-.user-nickname {
-  color: #909399;
-  font-size: 12px;
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 768px) {
@@ -173,12 +179,8 @@ const getRoleLabel = (role) => {
     height: 32px !important;
   }
 
-  .user-name {
-    font-size: 13px;
-  }
-
   .user-nickname {
-    font-size: 11px;
+    font-size: 13px;
   }
 }
 </style>

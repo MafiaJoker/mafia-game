@@ -2,7 +2,7 @@
   <el-dialog
     :modelValue="modelValue"
     @update:modelValue="$emit('update:modelValue', $event)"
-    title="Изменить роль пользователя"
+    title="Редактировать пользователя"
     width="400px"
     :close-on-click-modal="false"
   >
@@ -44,6 +44,28 @@
             </el-option>
           </el-select>
         </el-form-item>
+
+        <el-form-item label="Игровой тариф">
+          <el-select 
+            v-model="selectedTariff" 
+            placeholder="Выберите тариф"
+            style="width: 100%"
+            clearable
+            :loading="loadingTariffs"
+          >
+            <el-option
+              v-for="tariff in tariffs"
+              :key="tariff.id"
+              :label="tariff.name"
+              :value="tariff.id"
+            >
+              <div class="tariff-option">
+                <span class="tariff-name">{{ tariff.name }}</span>
+                <span class="tariff-price">{{ tariff.price }} ₽</span>
+              </div>
+            </el-option>
+          </el-select>
+        </el-form-item>
       </el-form>
     </div>
 
@@ -54,7 +76,7 @@
       <el-button 
         type="primary" 
         @click="handleConfirm"
-        :disabled="!selectedRole || selectedRole === user?.role"
+        :disabled="!hasChanges"
       >
         Сохранить
       </el-button>
@@ -63,7 +85,8 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
+import { apiService } from '@/services/api'
 
 const props = defineProps({
   modelValue: {
@@ -79,6 +102,9 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'confirm'])
 
 const selectedRole = ref('')
+const selectedTariff = ref(null)
+const tariffs = ref([])
+const loadingTariffs = ref(false)
 
 const roles = [
   {
@@ -107,10 +133,33 @@ const roles = [
   }
 ]
 
+const hasChanges = computed(() => {
+  if (!props.user) return false
+  return selectedRole.value !== props.user.role || 
+         selectedTariff.value !== props.user.tariff_id
+})
+
 watch(() => props.user, (newUser) => {
   if (newUser) {
     selectedRole.value = newUser.role || 'guest'
+    selectedTariff.value = newUser.tariff_id || null
   }
+})
+
+const loadTariffs = async () => {
+  try {
+    loadingTariffs.value = true
+    const response = await apiService.getTariffs()
+    tariffs.value = response
+  } catch (error) {
+    console.error('Ошибка загрузки тарифов:', error)
+  } finally {
+    loadingTariffs.value = false
+  }
+}
+
+onMounted(() => {
+  loadTariffs()
 })
 
 const getUserFullName = (user) => {
@@ -128,7 +177,8 @@ const getUserInitials = (user) => {
 const handleConfirm = () => {
   emit('confirm', {
     userId: props.user.id,
-    role: selectedRole.value
+    role: selectedRole.value,
+    tariffId: selectedTariff.value
   })
   emit('update:modelValue', false)
 }
@@ -170,6 +220,23 @@ const handleConfirm = () => {
   font-size: 12px;
   color: #909399;
   margin-left: 8px;
+}
+
+.tariff-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 4px 0;
+}
+
+.tariff-name {
+  font-weight: 500;
+}
+
+.tariff-price {
+  font-size: 12px;
+  color: #909399;
 }
 
 @media (max-width: 480px) {

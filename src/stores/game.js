@@ -137,7 +137,7 @@ export const useGameStore = defineStore('game', () => {
 	    gameInfo.value = { eventId, tableId, gameId }
 	    
 	    if (gameId) {
-		await loadGameState(gameId)
+		await loadGameDetailed(gameId)
 	    } else {
 		initPlayers()
 		setGameStatus(GAME_STATUSES.SEATING_READY)
@@ -145,6 +145,53 @@ export const useGameStore = defineStore('game', () => {
 	} catch (error) {
 	    console.error('Ошибка инициализации игры:', error)
 	    throw error
+	}
+    }
+
+    const loadGameDetailed = async (gameId) => {
+	try {
+	    console.log('Loading game with ID:', gameId)
+	    const gameData = await apiService.getGame(gameId)
+	    console.log('API response:', gameData)
+	    if (gameData) {
+		// Загружаем основную информацию об игре
+		gameInfo.value.gameData = gameData
+		console.log('Loaded game data:', gameData)
+		console.log('gameInfo after assignment:', gameInfo.value)
+		
+		// Инициализируем игроков из детальной информации
+		if (gameData.players && gameData.players.length > 0) {
+		    gameState.value.players = gameData.players.map((player) => ({
+			id: player.box_id,
+			name: player.user?.nickname || `Игрок ${player.box_id}`,
+			role: player.role || PLAYER_ROLES.CIVILIAN,
+			originalRole: player.role || PLAYER_ROLES.CIVILIAN,
+			fouls: player.fouls_count || 0,
+			nominated: null,
+			isAlive: !player.is_killed && !player.is_removed,
+			isEliminated: player.is_removed || false,
+			isSilent: false,
+			silentNextRound: false,
+			userId: player.user?.id,
+			boxId: player.box_id
+		    }))
+		} else {
+		    initPlayers()
+		}
+		
+		// Устанавливаем статус игры на основе данных
+		if (gameData.result) {
+		    gameState.value.gameStatus = gameData.result
+		} else {
+		    setGameStatus(GAME_STATUSES.SEATING_READY)
+		}
+		
+		return true
+	    }
+	    return false
+	} catch (error) {
+	    console.error('Ошибка загрузки детальной информации игры:', error)
+	    return false
 	}
     }
 
@@ -187,7 +234,7 @@ export const useGameStore = defineStore('game', () => {
 	for (let i = 1; i <= 10; i++) {
 	    gameState.value.players.push({
 		id: i,
-		name: `Игрок ${i}`,
+		name: '',
 		role: PLAYER_ROLES.CIVILIAN,
 		originalRole: PLAYER_ROLES.CIVILIAN,
 		fouls: 0,
@@ -195,7 +242,8 @@ export const useGameStore = defineStore('game', () => {
 		isAlive: true,
 		isEliminated: false,
 		isSilent: false,
-		silentNextRound: false
+		silentNextRound: false,
+		userId: null
 	    })
 	    gameState.value.scores[i] = { baseScore: 0, additionalScore: 0 }
 	}
@@ -204,6 +252,13 @@ export const useGameStore = defineStore('game', () => {
     const setGameStatus = (status, substatus = null) => {
 	gameState.value.gameStatus = status
 	gameState.value.gameSubstatus = substatus
+    }
+
+    const updatePlayer = (playerId, updates) => {
+	const player = currentPlayer.value(playerId)
+	if (player) {
+	    Object.assign(player, updates)
+	}
     }
 
     const changePlayerRole = (playerId) => {
@@ -531,10 +586,12 @@ export const useGameStore = defineStore('game', () => {
 	setPlayerScore,
 	getPlayerScore,
 	initGame,
+	loadGameDetailed,
 	loadGameState,
 	saveGameState,
 	initPlayers,
 	setGameStatus,
+	updatePlayer,
 	changePlayerRole,
 	nominatePlayer,
 	updateNominatedPlayers,

@@ -24,14 +24,10 @@ const routes = [
 	props: true
     },
     {
-	path: '/game',
+	path: '/game/:id',
 	name: 'Game',
 	component: () => import('@/views/GameView.vue'),
-	props: route => ({
-	    eventId: parseInt(route.query.eventId),
-	    tableId: parseInt(route.query.tableId),
-	    gameId: parseInt(route.query.gameId)
-	})
+	props: true
     },
     {
 	path: '/event-types',

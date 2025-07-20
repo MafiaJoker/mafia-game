@@ -30,7 +30,7 @@
                   <el-tag 
                     class="mb-2"
                     :style="{ 
-                      backgroundColor: event.event_type.color || '#409eff', 
+                      backgroundColor: getEventTypeColor(), 
                       color: 'white',
                       border: 'none'
                     }"
@@ -285,9 +285,7 @@
 
 
   const openGame = (gameId) => {
-    const eventId = route.params.id
-    const tableIndex = tables.value.indexOf(selectedTable.value) + 1
-    router.push(`/game?eventId=${eventId}&tableId=${tableIndex}&gameId=${gameId}`)
+    router.push(`/game/${gameId}`)
   }
 
   const deleteGame = async (gameId) => {
@@ -375,6 +373,8 @@
 	  console.log('Route params:', route.params)
 	  event.value = await apiService.getEvent(eventId)
 	  console.log('Event loaded:', event.value)
+	  console.log('Event type:', event.value?.event_type)
+	  console.log('Event type color:', event.value?.event_type?.color)
 	  
 	  // Автоматически выбираем первый стол только если ни один стол не выбран
 	  if (tables.value.length > 0 && !selectedTable.value) {
@@ -467,6 +467,23 @@
 	  hour: '2-digit',
 	  minute: '2-digit'
       })
+  }
+
+  const getEventTypeColor = () => {
+      if (!event.value?.event_type?.color) {
+          return '#409eff' // Синий по умолчанию
+      }
+      
+      let color = event.value.event_type.color
+      console.log('Original color from API:', color)
+      
+      // Если цвет не начинается с #, добавляем его
+      if (!color.startsWith('#')) {
+          color = '#' + color
+      }
+      
+      console.log('Final color to apply:', color)
+      return color
   }
 
   onMounted(() => {

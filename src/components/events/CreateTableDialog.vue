@@ -76,10 +76,21 @@
 	  await formRef.value.validate()
 	  loading.value = true
 
-	  const tableData = { ...form }
-	  // TODO: Адаптировать под новое API - концепция "столов" убрана\n\t  // const newTable = await apiService.createTable(props.eventId, tableData)\n\t  throw new Error('Tables API не поддерживается в новой версии')
+	  // Создаем виртуальный стол локально
+	  const newTable = {
+	      table_name: form.name,
+	      game_masters: form.judge ? [{
+		  id: `temp-${Date.now()}`,
+		  nickname: form.judge,
+		  first_name: form.judge,
+		  last_name: ''
+	      }] : [],
+	      games: [],
+	      isVirtual: true // Флаг для обозначения временного стола
+	  }
 	  
 	  emit('table-created', newTable)
+	  ElMessage.success('Временный стол создан. Для сохранения создайте игру на этом столе.')
 	  handleClose()
 	  
       } catch (error) {

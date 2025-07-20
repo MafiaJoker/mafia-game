@@ -132,6 +132,11 @@ export const apiService = {
 	return response.data
     },
 
+    async saveGameState(gameId, stateData) {
+	const response = await api.put(`/games/${gameId}/state`, stateData)
+	return response.data
+    },
+
     // Game Players
     async setPlayersPoints(gameId, playersData) {
 	const response = await api.put(`/games/${gameId}/players`, playersData)

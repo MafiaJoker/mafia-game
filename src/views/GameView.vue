@@ -4,6 +4,16 @@
       <!-- Заголовок игры -->
       <el-header>
         <div class="game-header">
+          <div class="navigation-section">
+            <el-button 
+              @click="goToEvent"
+              :icon="ArrowLeft"
+              size="small"
+            >
+              К мероприятию
+            </el-button>
+          </div>
+          
           <div class="round-info">
             <h2>Круг: {{ gameStore.gameState.round }}</h2>
           </div>
@@ -45,9 +55,10 @@
 
 <script setup>
   import { computed, onMounted, onUnmounted } from 'vue'
-  import { useRoute } from 'vue-router'
+  import { useRoute, useRouter } from 'vue-router'
   import { useGameStore } from '@/stores/game'
   import { GAME_STATUSES, GAME_SUBSTATUS } from '@/utils/constants'
+  import { ArrowLeft } from '@element-plus/icons-vue'
   import GameTimer from '@/components/game/GameTimer.vue'
   import GameControls from '@/components/game/GameControls.vue'
   import GameStatusCard from '@/components/game/GameStatusCard.vue'
@@ -61,13 +72,25 @@
   import { ElMessage } from 'element-plus'
 
   const props = defineProps({
-      eventId: Number,
-      tableId: Number,
-      gameId: Number
+      id: String
   })
 
   const route = useRoute()
+  const router = useRouter()
   const gameStore = useGameStore()
+  
+  const goToEvent = () => {
+    // eventId теперь получаем из загруженных данных игры
+    console.log('gameStore.gameInfo:', gameStore.gameInfo)
+    console.log('gameData:', gameStore.gameInfo?.gameData)
+    const eventId = gameStore.gameInfo?.gameData?.event?.id
+    console.log('eventId:', eventId)
+    if (eventId) {
+      router.push(`/event/${eventId}`)
+    } else {
+      router.push('/')
+    }
+  }
 
   const showVotingSection = computed(() => {
       return gameStore.gameState.gameStatus === GAME_STATUSES.IN_PROGRESS &&
@@ -84,30 +107,28 @@
           gameStore.gameState.showBestMove
   })
 
-  let autoSaveInterval = null
-
   onMounted(async () => {
       try {
-	  await gameStore.initGame(props.eventId, props.tableId, props.gameId)
+	  const gameId = props.id
 	  
-	  // Автосохранение каждые 30 секунд
-	  autoSaveInterval = setInterval(() => {
-	      gameStore.saveGameState()
-	  }, 30000)
+	  if (!gameId) {
+	    ElMessage.error('Не указан ID игры')
+	    router.push('/')
+	    return
+	  }
+	  
+	  await gameStore.initGame(null, null, gameId)
 	  
       } catch (error) {
 	  console.error('Ошибка инициализации игры:', error)
 	  ElMessage.error('Не удалось загрузить игру')
+	  // Перенаправляем на главную страницу, так как eventId теперь неизвестен
+	  router.push('/')
       }
   })
 
   onUnmounted(() => {
-      if (autoSaveInterval) {
-	  clearInterval(autoSaveInterval)
-      }
-      
-      // Сохраняем состояние при выходе
-      gameStore.saveGameState()
+      // Убрано автосохранение состояния
   })
 </script>
 
@@ -123,6 +144,11 @@
       align-items: center;
       height: 100%;
       padding: 0 16px;
+  }
+
+  .navigation-section {
+      display: flex;
+      align-items: center;
   }
 
   .round-info h2 {
@@ -147,6 +173,10 @@
 	  flex-direction: column;
 	  gap: 12px;
 	  padding: 12px 16px;
+      }
+      
+      .navigation-section {
+	  align-self: flex-start;
       }
       
       .game-actions {

@@ -276,7 +276,12 @@ const getEventTypeClass = (eventType) => {
 const getEventTypeColor = (eventType) => {
   // Возвращаем цвет из API если есть
   if (eventType?.color) {
-    return eventType.color
+    let color = eventType.color
+    // Если цвет не начинается с #, добавляем его
+    if (!color.startsWith('#')) {
+      color = '#' + color
+    }
+    return color
   }
   
   // Fallback цвета для старых типов
