@@ -133,7 +133,7 @@
                     v-if="selectedTable && event?.status !== 'completed'"
                     type="success" 
                     size="small"
-                    @click="showCreateGameDialog = true"
+                    @click="createNewGame"
                     >
                     <el-icon><Plus /></el-icon>
                     Новая игра
@@ -242,13 +242,6 @@
     </el-container>
 
 
-    <!-- Диалог создания игры -->
-    <CreateGameDialog
-      v-model="showCreateGameDialog"
-      :event-id="route.params.id"
-      :table-id="selectedTable ? tables.indexOf(selectedTable) + 1 : null"
-      @game-created="handleGameCreated"
-    />
 
   </div>
 </template>
@@ -259,7 +252,6 @@
   import { useEventsStore } from '@/stores/events'
   import { apiService } from '@/services/api'
   import { ElMessage } from 'element-plus'
-  import CreateGameDialog from '@/components/events/CreateGameDialog.vue'
   import { 
       ArrowLeft, 
       InfoFilled,
@@ -275,7 +267,6 @@
   const event = ref(null)
   const selectedTable = ref(null)
   const games = ref([])
-  const showCreateGameDialog = ref(false)
   const virtualTables = ref([])
 
   const tables = computed(() => {
@@ -333,15 +324,35 @@
     ElMessage.success('Стол создан!')
   }
 
-  const handleGameCreated = (newGame) => {
-    if (selectedTable.value) {
+  const createNewGame = async () => {
+    if (!selectedTable.value) {
+      ElMessage.error('Выберите стол для создания игры')
+      return
+    }
+
+    try {
+      const gameNumber = (selectedTable.value.games?.length || 0) + 1
+      const tableId = tables.value.indexOf(selectedTable.value) + 1
+      
+      const gameData = {
+        label: `Игра #${gameNumber}`,
+        event_id: route.params.id,
+        table_id: tableId
+      }
+      
+      const newGame = await apiService.createGame(gameData)
+      
       if (!selectedTable.value.games) {
         selectedTable.value.games = []
       }
       selectedTable.value.games.push(newGame)
       games.value = selectedTable.value.games
+      
+      ElMessage.success('Игра создана!')
+    } catch (error) {
+      console.error('Ошибка создания игры:', error)
+      ElMessage.error('Ошибка при создании игры')
     }
-    ElMessage.success('Игра создана!')
   }
 
 
