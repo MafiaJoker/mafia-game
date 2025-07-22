@@ -2,9 +2,9 @@ import axios from 'axios'
 
 // Определяем API URL в зависимости от окружения
 const getApiBaseUrl = () => {
-  // Для Electron используем production API
+  // Для Electron сначала проверяем переменную окружения, затем используем production API
   if (window.electronAPI) {
-    return 'https://dev.jokermafia.am/api/v1'
+    return import.meta.env.VITE_API_BASE_URL || 'https://dev.jokermafia.am/api/v1'
   }
   
   // Для веб-разработки используем локальный API
@@ -25,24 +25,39 @@ const api = axios.create({
     },
 })
 
-// ВРЕМЕННО ОТКЛЮЧЕНО - Интерсепторы
-// api.interceptors.request.use((config) => {
-//     config.headers.Cookie = 'session=aeacc22894659123a569c2483be49e646af6804263b49c346649d6d840d3edab; HttpOnly; Max-Age=1209600; Path=/; SameSite=lax'
-//     return config
-// })
+// Интерцепторы для обработки ответов
+api.interceptors.response.use(
+    (response) => {
+        // Проверяем, что ответ содержит JSON, а не HTML
+        if (response.headers['content-type']?.includes('text/html')) {
+            console.error('API returned HTML instead of JSON:', {
+                url: response.config.url,
+                status: response.status,
+                data: response.data
+            })
+            throw new Error(`API endpoint returned HTML instead of JSON: ${response.config.url}`)
+        }
+        return response
+    },
+    (error) => {
+        console.error('API Request Error:', {
+            url: error.config?.url,
+            method: error.config?.method,
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data
+        })
 
-// api.interceptors.response.use(
-//     (response) => response,
-//     (error) => {
-//         if (error.response?.status === 401) {
-//             // Очищаем токен при ошибке авторизации
-//             localStorage.removeItem('auth_token')
-//             // Перенаправляем на страницу входа (будет обработано в роутере)
-//             window.location.href = '/login'
-//         }
-//         return Promise.reject(error)
-//     }
-// )
+        if (error.response?.status === 401) {
+            console.log('Unauthorized - redirecting to login')
+            // В Electron не делаем redirect, просто логируем
+            if (!window.electronAPI) {
+                window.location.href = '/login'
+            }
+        }
+        return Promise.reject(error)
+    }
+)
 
 export const apiService = {
     // Методы авторизации
