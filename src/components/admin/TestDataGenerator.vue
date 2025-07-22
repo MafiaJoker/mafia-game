@@ -74,7 +74,7 @@
           @click="generateData"
           :disabled="generating"
         >
-          <el-icon><Magic /></el-icon>
+          <el-icon><Lightning /></el-icon>
           {{ generating ? 'Генерация...' : 'Сгенерировать данные' }}
         </el-button>
 
@@ -116,7 +116,7 @@
   import { ElMessage } from 'element-plus'
   import { 
       Tools, 
-      Magic, 
+      Lightning, 
       UserFilled, 
       Check, 
       Close, 

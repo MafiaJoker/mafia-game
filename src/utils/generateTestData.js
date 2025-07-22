@@ -12,16 +12,14 @@ const random = {
     pastDate: (daysAgo = 30) => {
         const date = new Date()
         date.setDate(date.getDate() - random.int(1, daysAgo))
-        date.setHours(random.int(18, 23), random.int(0, 59), 0, 0)
-        return date.toISOString()
+        return date.toISOString().split('T')[0] // Возвращаем только дату в формате YYYY-MM-DD
     },
 
     // Случайная дата в будущем
     futureDate: (daysFromNow = 30) => {
         const date = new Date()
         date.setDate(date.getDate() + random.int(1, daysFromNow))
-        date.setHours(random.int(18, 23), random.int(0, 59), 0, 0)
-        return date.toISOString()
+        return date.toISOString().split('T')[0] // Возвращаем только дату в формате YYYY-MM-DD
     }
 }
 
@@ -30,27 +28,27 @@ const eventTemplates = [
     {
         label: 'Весенний турнир',
         description: 'Традиционный весенний турнир по мафии',
-        language: 'ru'
+        language: 'rus'
     },
     {
         label: 'Летний кубок',
         description: 'Открытый летний кубок для всех игроков',
-        language: 'ru'
+        language: 'rus'
     },
     {
         label: 'Осенний чемпионат',
         description: 'Чемпионат города по мафии',
-        language: 'ru'
+        language: 'rus'
     },
     {
         label: 'Зимняя лига',
         description: 'Зимняя лига профессиональных игроков',
-        language: 'ru'
+        language: 'rus'
     },
     {
         label: 'Новогодний турнир',
         description: 'Праздничный новогодний турнир',
-        language: 'ru'
+        language: 'rus'
     }
 ]
 
@@ -62,11 +60,48 @@ const playerNames = [
     'Роман', 'Марина', 'Валентин', 'Людмила', 'Константин'
 ]
 
-const roles = ['Мирный', 'Мирный', 'Мирный', 'Мирный', 'Мирный', 'Мирный', 'Шериф', 'Мафия', 'Мафия', 'Дон']
-const gameResults = ['city_win', 'mafia_win', 'draw']
+const roles = ['civilian', 'civilian', 'civilian', 'civilian', 'civilian', 'civilian', 'sheriff', 'mafia', 'mafia', 'don']
+const gameResults = ['mafia_win', 'civilians_win', 'draw']
+
+// Создание базовых типов мероприятий
+async function createDefaultEventTypes() {
+    const defaultTypes = [
+        {
+            label: 'Турнир'
+        },
+        {
+            label: 'Тренировка'
+        },
+        {
+            label: 'Чемпионат'
+        }
+    ]
+    
+    const createdTypes = []
+    for (const typeData of defaultTypes) {
+        try {
+            const eventType = await apiService.createEventType(typeData)
+            createdTypes.push(eventType)
+            console.log(`  ✅ Создан тип мероприятия: ${eventType.label}`)
+        } catch (error) {
+            console.log(`  ⚠️ Тип мероприятия ${typeData.label} уже существует`)
+        }
+    }
+    
+    // Получаем все типы мероприятий после создания
+    const allEventTypes = await apiService.getEventTypes()
+    console.log('Все типы мероприятий после создания:', allEventTypes)
+    
+    // Обрабатываем возможные структуры ответа API
+    if (allEventTypes && allEventTypes.items) {
+        return allEventTypes.items
+    }
+    
+    return allEventTypes || []
+}
 
 // Основные функции генерации
-export async function generateTestData(options = {}) {
+async function generateTestData(options = {}) {
     const {
         eventsCount = 3,
         tablesPerEvent = random.int(2, 4),
@@ -91,10 +126,24 @@ export async function generateTestData(options = {}) {
             throw new Error('Недостаточно пользователей для генерации игр (нужно минимум 10)')
         }
 
-        // 3. Получаем типы мероприятий
-        const eventTypes = await apiService.getEventTypes()
+        // 3. Получаем или создаем типы мероприятий
+        let eventTypes = await apiService.getEventTypes()
+        console.log('Полученные типы мероприятий:', eventTypes)
+        
+        // Обрабатываем возможные структуры ответа API
+        if (eventTypes && eventTypes.items) {
+            eventTypes = eventTypes.items
+        }
+        
         if (!eventTypes || eventTypes.length === 0) {
-            throw new Error('Нет доступных типов мероприятий')
+            console.log('📝 Создаем базовые типы мероприятий...')
+            eventTypes = await createDefaultEventTypes()
+        }
+        
+        console.log('Финальные типы мероприятий:', eventTypes)
+        
+        if (!eventTypes || eventTypes.length === 0) {
+            throw new Error('Не удалось получить или создать типы мероприятий')
         }
 
         // 4. Создаем мероприятия
@@ -105,10 +154,16 @@ export async function generateTestData(options = {}) {
             const template = random.choice(eventTemplates)
             const eventType = random.choice(eventTypes)
             
+            console.log(`Выбранный тип мероприятия для ${i+1}-го мероприятия:`, eventType)
+            
+            if (!eventType || !eventType.id) {
+                throw new Error(`Недопустимый тип мероприятия: ${JSON.stringify(eventType)}`)
+            }
+            
             const eventData = {
                 label: `${template.label} ${new Date().getFullYear()}`,
                 description: template.description,
-                start_date: i < 2 ? random.pastDate(60) : random.futureDate(30), // 2 прошедших, остальные будущие
+                start_date: random.futureDate(60), // Все даты в будущем
                 event_type_id: eventType.id,
                 language: template.language,
                 table_name_template: 'Стол {}'
@@ -181,10 +236,16 @@ async function generateGamesForEvent(event, users, tablesCount, gamesPerTable) {
         for (let gameNum = 1; gameNum <= gamesPerTable; gameNum++) {
             try {
                 // Создаем игру
+                const result = random.choice(gameResults)
+                
                 const gameData = {
                     label: `Игра #${gameNum}`,
                     event_id: event.id,
-                    table_id: tableNum
+                    table_id: tableNum,
+                    // Пытаемся установить результат сразу при создании
+                    result: result,
+                    started_at: new Date().toISOString(),
+                    finished_at: new Date().toISOString()
                 }
 
                 const game = await apiService.createGame(gameData)
@@ -217,37 +278,25 @@ async function addPlayersToGame(game, users) {
     // Перемешиваем роли
     const shuffledRoles = [...roles].sort(() => Math.random() - 0.5)
     
-    // Создаем данные игроков
+    // Создаем данные игроков согласно GamePlayerAddSerializer
     const playersData = selectedUsers.map((user, index) => ({
         user_id: user.id,
-        name: user.nickname,
-        role: shuffledRoles[index],
-        position: index + 1,
-        fouls: 0,
-        points: random.int(0, 3) // Случайные очки
+        box_id: index + 1, // Позиция за столом (1-10)
+        role: shuffledRoles[index]
     }))
 
     await apiService.addPlayersToGame(game.id, playersData)
 }
 
 async function finishGame(game) {
-    // Обновляем игру со случайным результатом
-    const result = random.choice(gameResults)
-    const startedAt = random.pastDate(30)
-    const finishedAt = new Date(startedAt)
-    finishedAt.setMinutes(finishedAt.getMinutes() + random.int(60, 120)) // Игра длится 1-2 часа
-
-    const updateData = {
-        result: result,
-        started_at: startedAt,
-        finished_at: finishedAt.toISOString(),
-        is_finished: true
-    }
-
-    await apiService.updateGame(game.id, updateData)
+    // Если игра уже создана с результатом, то делать ничего не нужно
+    console.log(`      ✅ Игра должна быть создана с результатом`)
 }
 
-// Экспорт для использования в компонентах
+// Экспорт функций
+export { generateTestData, generateUsers }
+
+// Экспорт по умолчанию для использования в компонентах
 export default {
     generateTestData,
     generateUsers
