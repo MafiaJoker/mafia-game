@@ -9,6 +9,8 @@ files:
   - package.json
 extraMetadata:
   main: electron/main.js
+publish: null
+generateUpdatesFilesForAllChannels: false
 win:
   target:
     - target: nsis
@@ -52,3 +54,4 @@ linux:
   category: Game
   synopsis: Помощник для проведения игр в Мафию
   description: Приложение для управления и проведения игр в Мафию в турнирном формате
+  publish: null
