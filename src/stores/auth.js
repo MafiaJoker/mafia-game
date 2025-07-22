@@ -19,22 +19,54 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Actions
     
+    // Флаг для предотвращения множественных запросов
+    const isLoadingUser = ref(false)
+    
+    // Кеш последней проверки пользователя
+    let lastUserCheckTime = 0
+    const USER_CHECK_CACHE_MS = 5000 // 5 секунд кеш
+    
     // Загрузка текущего пользователя
     const loadCurrentUser = async () => {
+        const now = Date.now()
+        
+        // Предотвращаем множественные одновременные запросы
+        if (isLoadingUser.value) {
+            console.log('User loading already in progress, skipping...')
+            return { success: false, error: 'Loading in progress' }
+        }
+        
+        // Проверяем кеш - если недавно проверяли пользователя, не запрашиваем снова
+        if (now - lastUserCheckTime < USER_CHECK_CACHE_MS) {
+            console.log('User check cached, returning current state')
+            return { success: !!user.value, user: user.value, cached: true }
+        }
+        
+        isLoadingUser.value = true
         loading.value = true
         error.value = null
         
         try {
             const userData = await apiService.getCurrentUser()
             user.value = userData
+            lastUserCheckTime = now // Обновляем время последней проверки
             console.log('Current user loaded:', userData)
             return { success: true, user: userData }
         } catch (err) {
+            lastUserCheckTime = now // Обновляем время даже при ошибке, чтобы не спамить
+            
             // Если ошибка 401, значит пользователь не авторизован
             if (err.response?.status === 401) {
                 user.value = null
-                console.log('User not authenticated')
+                console.log('User not authenticated (401)')
                 return { success: false, error: 'Not authenticated', status: 401 }
+            }
+            
+            // Если API вернул HTML вместо JSON (сервер недоступен)
+            if (err.message?.includes('HTML instead of JSON')) {
+                console.log('API server unavailable (returned HTML)')
+                user.value = null
+                return { success: false, error: 'API server unavailable', status: 503 }
             }
             
             error.value = err.response?.data?.detail || 'Ошибка загрузки пользователя'
@@ -42,6 +74,7 @@ export const useAuthStore = defineStore('auth', () => {
             return { success: false, error: error.value }
         } finally {
             loading.value = false
+            isLoadingUser.value = false
         }
     }
 
