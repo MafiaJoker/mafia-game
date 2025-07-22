@@ -24,7 +24,7 @@
     "seed:clean": "node scripts/seed.js clean",
     "seed:quick": "node scripts/seed.js quick",
     "electron": "electron .",
-    "electron:serve": "cross-env NODE_ENV=development electron .",
+    "electron:serve": "cross-env NODE_ENV=development ELECTRON_DISABLE_SANDBOX=1 electron .",
     "electron:build": "cross-env ELECTRON=true npm run build && electron-builder",
     "electron:build:win": "cross-env ELECTRON=true npm run build && electron-builder --win",
     "electron:build:mac": "cross-env ELECTRON=true npm run build && electron-builder --mac",

@@ -2,9 +2,17 @@ const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron')
 const path = require('path')
 const { URL } = require('url')
 
-// Отключаем песочницу для Linux (необходимо для AppImage)
+// Отключаем песочницу для Linux (необходимо для разработки и AppImage)
 if (process.platform === 'linux') {
   app.commandLine.appendSwitch('no-sandbox')
+  app.commandLine.appendSwitch('disable-setuid-sandbox')
+}
+
+// Дополнительные флаги для разработки
+if (process.env.NODE_ENV === 'development') {
+  app.commandLine.appendSwitch('no-sandbox')
+  app.commandLine.appendSwitch('disable-setuid-sandbox')
+  app.commandLine.appendSwitch('disable-dev-shm-usage')
 }
 
 // Enable live reload for Electron
