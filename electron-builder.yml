@@ -16,7 +16,6 @@ win:
         - x64
         - ia32
   icon: electron/icon.png
-  publisherName: "Mafia Game Helper"
   verifyUpdateCodeSignature: false
 nsis:
   oneClick: false

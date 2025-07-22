@@ -1,6 +1,11 @@
 {
   "name": "mafia-vue",
   "version": "1.0.0",
+  "description": "Помощник для проведения игр в Мафию в турнирном формате",
+  "author": {
+    "name": "Mafia Game Helper Team",
+    "email": "support@mafiagame.example.com"
+  },
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
