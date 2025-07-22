@@ -26,6 +26,9 @@ export const useAuthStore = defineStore('auth', () => {
     let lastUserCheckTime = 0
     const USER_CHECK_CACHE_MS = 5000 // 5 секунд кеш
     
+    // Флаг инициализации
+    const isInitialized = ref(false)
+    
     // Загрузка текущего пользователя
     const loadCurrentUser = async () => {
         const now = Date.now()
@@ -39,7 +42,12 @@ export const useAuthStore = defineStore('auth', () => {
         // Проверяем кеш - если недавно проверяли пользователя, не запрашиваем снова
         if (now - lastUserCheckTime < USER_CHECK_CACHE_MS) {
             console.log('User check cached, returning current state')
-            return { success: !!user.value, user: user.value, cached: true }
+            return { 
+                success: !!user.value, 
+                user: user.value, 
+                cached: true,
+                status: user.value ? 200 : 401
+            }
         }
         
         isLoadingUser.value = true
@@ -50,6 +58,7 @@ export const useAuthStore = defineStore('auth', () => {
             const userData = await apiService.getCurrentUser()
             user.value = userData
             lastUserCheckTime = now // Обновляем время последней проверки
+            isInitialized.value = true // Помечаем как инициализированный
             console.log('Current user loaded:', userData)
             return { success: true, user: userData }
         } catch (err) {
@@ -75,6 +84,7 @@ export const useAuthStore = defineStore('auth', () => {
         } finally {
             loading.value = false
             isLoadingUser.value = false
+            isInitialized.value = true // Помечаем как инициализированный даже при ошибке
         }
     }
 
@@ -291,6 +301,7 @@ export const useAuthStore = defineStore('auth', () => {
         user,
         loading,
         error,
+        isInitialized,
         
         // Getters
         isAuthenticated,

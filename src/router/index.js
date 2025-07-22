@@ -90,6 +90,13 @@ router.beforeEach(async (to, from, next) => {
     
     // Проверяем авторизацию пользователя
     if (!authStore.isAuthenticated) {
+        // Если store еще не инициализирован, не редиректим сразу
+        if (!authStore.isInitialized) {
+            console.log('Router: auth store not initialized yet, waiting...')
+            setTimeout(() => next(), 50) // Небольшая задержка для завершения инициализации
+            return
+        }
+        
         console.log('Router: user not authenticated, checking with API...')
         
         // Пытаемся загрузить текущего пользователя только если переходим не со страницы логина
@@ -101,6 +108,13 @@ router.beforeEach(async (to, from, next) => {
             if (result.success) {
                 console.log('Router: user loaded successfully, continuing navigation')
                 next()
+                return
+            }
+            
+            // Если результат закеширован и пользователя нет, сразу редиректим
+            if (result.cached && !result.success) {
+                console.log('Router: cached negative result, redirecting to login')
+                next('/login')
                 return
             }
             
