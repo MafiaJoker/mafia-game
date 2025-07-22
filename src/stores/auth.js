@@ -72,13 +72,13 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
-    // Авторизация через Telegram в Electron (OAuth flow)
-    const telegramLoginElectron = async (botUsername, authUrl) => {
+    // Авторизация через сайт в Electron
+    const telegramLoginElectron = async (loginUrl = 'https://dev.jokermafia.am/login') => {
         loading.value = true
         error.value = null
         
         try {
-            console.log('Starting Telegram OAuth in Electron')
+            console.log('Starting site-based auth in Electron')
             
             // Проверяем, что мы в Electron
             if (!window.electronAPI) {
@@ -86,65 +86,61 @@ export const useAuthStore = defineStore('auth', () => {
                 throw new Error('Electron API not available')
             }
             
-            // Запускаем OAuth процесс
-            const result = await window.electronAPI.openTelegramOAuth(botUsername, authUrl)
+            // Открываем встроенное окно авторизации
+            const authResult = await window.electronAPI.openTelegramOAuth(loginUrl)
             
-            if (!result.success) {
+            if (!authResult.success) {
                 loading.value = false
-                throw new Error(result.error || 'Failed to start OAuth')
+                throw new Error(authResult.error || 'Failed to open login page')
             }
             
-            // Возвращаем промис, который будет resolved когда получим callback
+            // Слушаем callback об успешной авторизации
             return new Promise((resolve, reject) => {
                 // Устанавливаем timeout
                 const timeout = setTimeout(() => {
                     loading.value = false
-                    reject(new Error('OAuth timeout'))
+                    reject(new Error('Authorization timeout - please try again'))
                 }, 300000) // 5 минут
                 
-                // Слушаем OAuth callback
-                window.electronAPI.onTelegramOAuthCallback(async (callbackData) => {
+                // Обработчик успешной авторизации
+                window.electronAPI.onAuthSuccessCallback(async (callbackData) => {
                     clearTimeout(timeout)
                     
                     try {
-                        console.log('Received OAuth callback data:', callbackData)
+                        console.log('Received auth success callback with cookies:', callbackData)
                         
-                        // Преобразуем данные для API
-                        const telegramData = {
-                            telegram_id: callbackData.id || callbackData.telegram_id,
-                            first_name: callbackData.first_name || null,
-                            last_name: callbackData.last_name || null,
-                            nickname: callbackData.username || callbackData.nickname || null,
-                            photo_url: callbackData.photo_url || null,
-                            auth_date: callbackData.auth_date || null,
-                            hash: callbackData.hash
+                        // Куки уже переданы в основную сессию Electron
+                        // Пытаемся загрузить данные пользователя
+                        const userResult = await loadCurrentUser()
+                        
+                        loading.value = false
+                        
+                        if (userResult.success) {
+                            console.log('Successfully authenticated via site with session sharing')
+                            resolve({ success: true })
+                        } else {
+                            console.warn('Auth completed but user data not available:', userResult.error)
+                            resolve({ success: false, error: 'Authentication completed but session not available in app. Please try refreshing.' })
                         }
                         
-                        // Убираем undefined значения
-                        Object.keys(telegramData).forEach(key => {
-                            if (telegramData[key] === undefined) {
-                                telegramData[key] = null
-                            }
-                        })
-                        
-                        console.log('Sending OAuth data to API:', telegramData)
-                        
-                        // Используем обычный телеграм логин с полученными данными
-                        const loginResult = await telegramLogin(telegramData)
-                        loading.value = false
-                        resolve(loginResult)
-                        
                     } catch (err) {
-                        console.error('OAuth callback error:', err)
+                        console.error('Auth success callback error:', err)
                         loading.value = false
                         reject(err)
                     }
                 })
+                
+                // Если результат уже получен синхронно (окно закрыто с ошибкой)
+                if (authResult.error) {
+                    clearTimeout(timeout)
+                    loading.value = false
+                    reject(new Error(authResult.error))
+                }
             })
             
         } catch (err) {
-            error.value = err.message || 'Ошибка OAuth авторизации через Telegram'
-            console.error('Telegram OAuth error:', err)
+            error.value = err.message || 'Ошибка авторизации через сайт'
+            console.error('Site auth error:', err)
             loading.value = false
             return { success: false, error: error.value }
         }

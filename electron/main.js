@@ -189,25 +189,99 @@ ipcMain.handle('get-platform', () => {
   return process.platform
 })
 
-// Telegram OAuth обработчики
-ipcMain.handle('telegram-oauth-start', async (event, { botUsername, authUrl }) => {
-  console.log('Starting Telegram OAuth with bot:', botUsername)
+// Telegram OAuth обработчики для сайта
+ipcMain.handle('telegram-oauth-start', async (event, { loginUrl }) => {
+  console.log('Opening login page:', loginUrl)
   
   try {
-    // Используем протокольный URL для callback
-    const callbackUrl = 'mafia-helper://telegram-oauth'
+    // Создаем встроенное окно браузера для авторизации
+    const authWindow = new BrowserWindow({
+      width: 500,
+      height: 700,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        session: mainWindow.webContents.session // Используем ту же сессию для передачи куки
+      },
+      parent: mainWindow,
+      modal: true,
+      show: false,
+      autoHideMenuBar: true,
+      title: 'Авторизация'
+    })
+
+    // URL для авторизации
+    console.log('Loading login URL in auth window:', loginUrl)
     
-    // Создаем URL для Telegram OAuth
-    const telegramOAuthUrl = `https://oauth.telegram.org/auth?bot_id=${getBotId(botUsername)}&origin=${encodeURIComponent(authUrl)}&return_to=${encodeURIComponent(callbackUrl)}`
+    await authWindow.loadURL(loginUrl)
+    authWindow.show()
     
-    console.log('Opening Telegram OAuth URL:', telegramOAuthUrl)
+    // Возвращаем промис с обработкой закрытия окна
+    return new Promise((resolve) => {
+      // Обработчик успешной авторизации - проверяем URL
+      authWindow.webContents.on('did-navigate', (event, navigationUrl) => {
+        console.log('Auth window navigated to:', navigationUrl)
+        
+        // Проверяем, что попали на главную страницу после авторизации
+        if (navigationUrl.includes('dev.jokermafia.am') && 
+            (navigationUrl.includes('/dashboard') || navigationUrl.includes('/events') || navigationUrl === 'https://dev.jokermafia.am/')) {
+          
+          console.log('Authentication successful, detected main page')
+          
+          // Получаем куки из сессии
+          authWindow.webContents.session.cookies.get({ domain: 'dev.jokermafia.am' })
+            .then((cookies) => {
+              console.log('Retrieved cookies:', cookies)
+              
+              // Отправляем успешный результат
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('auth-success-callback', { 
+                  success: true, 
+                  cookies: cookies 
+                })
+              }
+              
+              // Закрываем окно авторизации
+              authWindow.close()
+              resolve({ success: true })
+            })
+            .catch((error) => {
+              console.error('Error getting cookies:', error)
+              authWindow.close()
+              resolve({ success: false, error: 'Failed to retrieve session cookies' })
+            })
+        }
+      })
+      
+      // Обработчик закрытия окна без авторизации
+      authWindow.on('closed', () => {
+        console.log('Auth window closed')
+        resolve({ success: false, error: 'Authentication window was closed' })
+      })
+    })
     
-    // Открываем OAuth URL во внешнем браузере
-    await shell.openExternal(telegramOAuthUrl)
-    
-    return { success: true }
   } catch (error) {
-    console.error('Failed to start Telegram OAuth:', error)
+    console.error('Failed to open login window:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+// Обработчик для получения куки после авторизации
+ipcMain.handle('get-session-cookies', async (event, { domain }) => {
+  try {
+    // В реальном приложении нужно будет получить куки из браузера
+    // Это сложная задача, потому что Electron не имеет доступа к кукам внешнего браузера
+    console.log('Attempting to get session cookies for domain:', domain)
+    
+    // Временное решение - возвращаем mock данные
+    // В продакшене нужно будет реализовать один из подходов:
+    // 1. Использовать встроенный BrowserWindow
+    // 2. Использовать локальный сервер для перехвата
+    // 3. Использовать файловый обмен данными
+    
+    return { success: false, error: 'Cookie extraction not implemented yet' }
+  } catch (error) {
+    console.error('Failed to get session cookies:', error)
     return { success: false, error: error.message }
   }
 })
@@ -272,8 +346,20 @@ function handleProtocolUrl(url) {
   try {
     const parsedUrl = new URL(url)
     
-    // Проверяем, что это Telegram OAuth callback
-    if (parsedUrl.pathname === '/telegram-oauth') {
+    console.log('Handling protocol URL:', url)
+    console.log('Pathname:', parsedUrl.pathname)
+    
+    // Проверяем, что это успешная авторизация
+    if (parsedUrl.pathname === '/auth-success') {
+      console.log('Auth success callback received')
+      
+      // Отправляем сигнал об успешной авторизации в renderer процесс
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('auth-success-callback', { success: true })
+      }
+    }
+    // Fallback для старого Telegram OAuth (если понадобится)
+    else if (parsedUrl.pathname === '/telegram-oauth') {
       const searchParams = parsedUrl.searchParams
       const telegramData = {}
       

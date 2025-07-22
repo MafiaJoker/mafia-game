@@ -11,15 +11,15 @@
 
 ### Решение
 
-Реализован OAuth flow через системный браузер:
+Реализован OAuth flow через встроенное окно браузера с разделением сессии:
 
 1. **Пользователь кликает "Войти через Telegram"** в Electron приложении
-2. **Открывается системный браузер** с Telegram OAuth URL
-3. **Пользователь авторизуется** в браузере через Telegram
-4. **Браузер перенаправляется** на `mafia-helper://telegram-oauth` с данными авторизации
-5. **Electron приложение перехватывает** protocol callback
-6. **Данные передаются** в renderer процесс и отправляются на API
-7. **Пользователь автоматически входит** в приложение
+2. **Открывается встроенное окно** с сайтом авторизации `https://dev.jokermafia.am/login`
+3. **Пользователь авторизуется** через Telegram виджет на сайте
+4. **Бэкенд устанавливает сессионную куку** в браузере
+5. **Electron отслеживает навигацию** и определяет успешную авторизацию
+6. **Куки автоматически передаются** в основную сессию Electron (общая сессия)
+7. **Встроенное окно закрывается** и пользователь авторизован в приложении
 
 ### Компоненты реализации
 
@@ -32,60 +32,52 @@ protocols:
 ```
 
 #### 2. Main Process (`electron/main.js`)
-- **Protocol handling**: Регистрация `app.setAsDefaultProtocolClient('mafia-helper')`
-- **OAuth URL generation**: Создание ссылки для Telegram OAuth
-- **Browser opening**: `shell.openExternal()` для открытия в системном браузере
-- **Callback handling**: Обработка `mafia-helper://telegram-oauth` URLs
+- **Auth window creation**: Создание встроенного `BrowserWindow` для авторизации
+- **Session sharing**: Использование общей сессии между основным и auth окнами
+- **Navigation tracking**: Отслеживание навигации для определения успешной авторизации
+- **Cookie extraction**: Получение куки из сессии и передача в основное приложение
 
 #### 3. Preload Script (`electron/preload.js`)
 ```javascript
 // API для renderer процесса
 electronAPI: {
-  openTelegramOAuth: (botUsername, authUrl) => // Начать OAuth
-  onTelegramOAuthCallback: (callback) => // Получить результат
+  openTelegramOAuth: (loginUrl) => // Открыть окно авторизации
+  onAuthSuccessCallback: (callback) => // Получить результат с куками
 }
 ```
 
 #### 4. Auth Store (`src/stores/auth.js`)
 ```javascript
-// Метод авторизации через Electron OAuth
-telegramLoginElectron(botUsername, authUrl) {
-  // 1. Запуск OAuth в браузере
-  // 2. Ожидание callback с таймаутом (5 минут)
-  // 3. Обработка полученных данных
-  // 4. Авторизация через API
+// Метод авторизации через сайт в Electron
+telegramLoginElectron(loginUrl = 'https://dev.jokermafia.am/login') {
+  // 1. Открытие встроенного окна с сайтом авторизации
+  // 2. Ожидание успешной авторизации и передачи куки
+  // 3. Загрузка данных пользователя через API с переданными куками
+  // 4. Возврат результата авторизации
 }
 ```
 
 #### 5. UI Component (`src/components/auth/TelegramLoginWidget.vue`)
 - **Автоматическое определение** окружения Electron
-- **Специальная кнопка** для OAuth в Electron
+- **Кнопка авторизации** для открытия встроенного окна
 - **Fallback** к веб виджету в браузере
 
-### Настройка бота
+### Настройка сайта авторизации
 
-В `electron/main.js` нужно обновить функцию `getBotId()`:
+Убедитесь что:
 
-```javascript
-function getBotId(botUsername) {
-  const botMappings = {
-    'your_bot_username': 'YOUR_BOT_ID', // Получить у @BotFather
-    'dev_mafia_joker_widget_bot': '7839081063'
-  }
-  return botMappings[botUsername] || botUsername
-}
-```
-
-**Как получить Bot ID:**
-1. Отправить `/getme` команду боту через Bot API
-2. Или использовать `https://api.telegram.org/botYOUR_BOT_TOKEN/getMe`
+1. **Сайт доступен**: `https://dev.jokermafia.am/login` отвечает корректно
+2. **CORS настроен**: Разрешены запросы из Electron
+3. **После авторизации**: Происходит redirect на главную страницу (`/`, `/dashboard`, `/events`)
+4. **Куки устанавливаются**: Сессионные куки сохраняются в браузере
 
 ### Безопасность
 
-1. **OAuth происходит в системном браузере** - данные не проходят через Electron
+1. **OAuth происходит во встроенном окне** - изолированная среда с общей сессией
 2. **Timeout защита** - OAuth автоматически отменяется через 5 минут
-3. **Валидация данных** - проверка hash от Telegram на сервере
-4. **Single instance** - предотвращение множественных запусков приложения
+3. **Модальное окно** - блокирует основное приложение до завершения авторизации
+4. **Автоматическое закрытие** - окно авторизации закрывается после успеха
+5. **Session sharing** - безопасная передача куки через встроенную сессию
 
 ### Тестирование
 

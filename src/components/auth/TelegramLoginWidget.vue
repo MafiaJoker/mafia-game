@@ -13,7 +13,7 @@
         <el-icon class="telegram-icon"><Message /></el-icon>
         <span>Войти через Telegram</span>
       </el-button>
-      <p class="auth-hint">Откроется браузер для авторизации через Telegram</p>
+      <p class="auth-hint">Откроется страница авторизации в браузере</p>
     </div>
     
     <!-- Web виджет для браузера -->
@@ -111,20 +111,22 @@
     isAuthenticating.value = true
 
     try {
-      console.log('Starting Electron Telegram OAuth')
+      console.log('Starting Electron site-based auth')
       
-      // Используем новый метод авторизации через Electron
-      const result = await authStore.telegramLoginElectron(props.botUsername, props.authUrl)
+      // Открываем страницу авторизации на сайте
+      const loginUrl = 'https://dev.jokermafia.am/login'
+      const result = await authStore.telegramLoginElectron(loginUrl)
       
       if (result.success) {
-        ElMessage.success('Успешная авторизация через Telegram!')
+        ElMessage.success('Успешная авторизация!')
         router.push('/')
       } else {
-        ElMessage.error(result.error || 'Ошибка авторизации через Telegram')
+        ElMessage.error(result.error || 'Ошибка авторизации')
       }
     } catch (error) {
-      console.error('Electron Telegram auth error:', error)
-      ElMessage.error('Ошибка авторизации. Попробуйте еще раз.')
+      console.error('Electron auth error:', error)
+      const errorMessage = error.message || 'Ошибка авторизации. Попробуйте еще раз.'
+      ElMessage.error(errorMessage)
     } finally {
       isAuthenticating.value = false
     }
