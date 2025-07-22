@@ -36,6 +36,22 @@ export const onMenuAction = (callback) => {
   electronAPI.onMenuAction(callback)
 }
 
+// Telegram OAuth функции для Electron
+export const openTelegramOAuth = async (botUsername, authUrl) => {
+  if (!isElectron()) return null
+  try {
+    return await electronAPI.openTelegramOAuth(botUsername, authUrl)
+  } catch (error) {
+    console.error('Failed to open Telegram OAuth:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export const onTelegramOAuthCallback = (callback) => {
+  if (!isElectron()) return
+  electronAPI.onTelegramOAuthCallback(callback)
+}
+
 
 // Класс для управления Electron функциональностью
 export class ElectronManager {

@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Информация о приложении
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   getPlatform: () => ipcRenderer.invoke('get-platform'),
+  getApiBaseUrl: () => ipcRenderer.invoke('get-api-base-url'),
   
   // Обработка меню
   onMenuAction: (callback) => {
@@ -14,6 +15,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     })
   },
   
+  // Telegram OAuth через сайт
+  openTelegramOAuth: (loginUrl) => ipcRenderer.invoke('telegram-oauth-start', { loginUrl }),
+  onTelegramOAuthCallback: (callback) => {
+    ipcRenderer.on('telegram-oauth-callback', (_, data) => callback(data))
+  },
+  onAuthSuccessCallback: (callback) => {
+    ipcRenderer.on('auth-success-callback', (_, data) => callback(data))
+  },
+  getSessionCookies: (domain) => ipcRenderer.invoke('get-session-cookies', { domain }),
   
   // Утилиты
   isElectron: () => true,

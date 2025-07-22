@@ -1,6 +1,60 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
+// Определяем API URL в зависимости от окружения
+const getApiBaseUrl = async () => {
+  // Для Electron сначала проверяем встроенную константу из build time
+  if (window.electronAPI) {
+    // Проверяем константу встроенную во время сборки
+    if (typeof __ELECTRON_API_BASE_URL__ !== 'undefined' && __ELECTRON_API_BASE_URL__) {
+      console.log('Using build-time API URL:', __ELECTRON_API_BASE_URL__)
+      return __ELECTRON_API_BASE_URL__
+    }
+    
+    // Затем пробуем получить из переменных окружения main процесса (для dev режима)
+    if (window.electronAPI.getApiBaseUrl) {
+      try {
+        const electronApiUrl = await window.electronAPI.getApiBaseUrl()
+        if (electronApiUrl) {
+          console.log('Using Electron API URL from env:', electronApiUrl)
+          return electronApiUrl
+        }
+      } catch (error) {
+        console.warn('Failed to get API URL from Electron:', error)
+      }
+    }
+    
+    // По умолчанию используем production API
+    console.log('Using default Electron API URL')
+    return 'https://dev.jokermafia.am/api/v1'
+  }
+  
+  // Для веб-разработки используем локальный API
+  const webUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
+  console.log('Using web API URL:', webUrl)
+  return webUrl
+}
+
+// Инициализация API URL асинхронно
+let API_BASE_URL = 'http://localhost:8000/api/v1' // Дефолтное значение
+let apiInitPromise = null
+
+const initApiUrl = async () => {
+  if (!apiInitPromise) {
+    apiInitPromise = getApiBaseUrl().then(url => {
+      API_BASE_URL = url
+      api.defaults.baseURL = url
+      console.log('API Base URL initialized:', API_BASE_URL)
+      console.log('Is Electron:', !!window.electronAPI)
+      return url
+    })
+  }
+  return apiInitPromise
+}
+
+// Инициализируем сразу если возможно
+if (typeof window !== 'undefined') {
+  initApiUrl()
+}
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -11,24 +65,40 @@ const api = axios.create({
     },
 })
 
-// ВРЕМЕННО ОТКЛЮЧЕНО - Интерсепторы
-// api.interceptors.request.use((config) => {
-//     config.headers.Cookie = 'session=aeacc22894659123a569c2483be49e646af6804263b49c346649d6d840d3edab; HttpOnly; Max-Age=1209600; Path=/; SameSite=lax'
-//     return config
-// })
+// Интерцепторы для обработки ответов
+api.interceptors.response.use(
+    (response) => {
+        // Проверяем, что ответ содержит JSON, а не HTML
+        if (response.headers['content-type']?.includes('text/html')) {
+            console.error('API returned HTML instead of JSON:', {
+                url: response.config.url,
+                status: response.status,
+                data: response.data
+            })
+            throw new Error(`API endpoint returned HTML instead of JSON: ${response.config.url}`)
+        }
+        return response
+    },
+    (error) => {
+        console.error('API Request Error:', {
+            url: error.config?.url,
+            method: error.config?.method,
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data
+        })
 
-// api.interceptors.response.use(
-//     (response) => response,
-//     (error) => {
-//         if (error.response?.status === 401) {
-//             // Очищаем токен при ошибке авторизации
-//             localStorage.removeItem('auth_token')
-//             // Перенаправляем на страницу входа (будет обработано в роутере)
-//             window.location.href = '/login'
-//         }
-//         return Promise.reject(error)
-//     }
-// )
+        if (error.response?.status === 401) {
+            console.log('Unauthorized (401) - user not authenticated')
+            // Не делаем автоматический редирект здесь - пусть роутер это обрабатывает
+            // Автоматический редирект может создавать проблемы с навигацией
+        }
+        return Promise.reject(error)
+    }
+)
+
+// Экспортируем функцию инициализации
+export { initApiUrl }
 
 export const apiService = {
     // Методы авторизации

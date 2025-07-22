@@ -9,6 +9,7 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
+    "dev:clean": "rm -rf node_modules/.vite && vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
@@ -24,12 +25,18 @@
     "seed:clean": "node scripts/seed.js clean",
     "seed:quick": "node scripts/seed.js quick",
     "electron": "electron .",
-    "electron:serve": "cross-env NODE_ENV=development electron .",
+    "electron:serve": "cross-env NODE_ENV=development ELECTRON_DISABLE_SANDBOX=1 VITE_API_BASE_URL=http://localhost:8000/api/v1 electron .",
+    "electron:serve:prod": "cross-env NODE_ENV=development ELECTRON_DISABLE_SANDBOX=1 VITE_API_BASE_URL=https://dev.jokermafia.am/api/v1 electron .",
     "electron:build": "cross-env ELECTRON=true npm run build && electron-builder",
+    "electron:build:prod": "cross-env ELECTRON=true VITE_API_BASE_URL=https://dev.jokermafia.am/api/v1 npm run build && electron-builder",
     "electron:build:win": "cross-env ELECTRON=true npm run build && electron-builder --win",
+    "electron:build:win:prod": "cross-env ELECTRON=true VITE_API_BASE_URL=https://dev.jokermafia.am/api/v1 npm run build && electron-builder --win",
     "electron:build:mac": "cross-env ELECTRON=true npm run build && electron-builder --mac",
+    "electron:build:mac:prod": "cross-env ELECTRON=true VITE_API_BASE_URL=https://dev.jokermafia.am/api/v1 npm run build && electron-builder --mac",
     "electron:build:linux": "cross-env ELECTRON=true npm run build && electron-builder --linux",
-    "electron:build:all": "cross-env ELECTRON=true npm run build && electron-builder -mwl"
+    "electron:build:linux:prod": "cross-env ELECTRON=true VITE_API_BASE_URL=https://dev.jokermafia.am/api/v1 npm run build && electron-builder --linux",
+    "electron:build:all": "cross-env ELECTRON=true npm run build && electron-builder -mwl",
+    "electron:build:all:prod": "cross-env ELECTRON=true VITE_API_BASE_URL=https://dev.jokermafia.am/api/v1 npm run build && electron-builder -mwl"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.0",

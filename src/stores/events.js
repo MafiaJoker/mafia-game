@@ -19,6 +19,15 @@ export const useEventsStore = defineStore('events', () => {
 	loading.value = true
 	try {
 	    const response = await apiService.getEvents()
+	    
+	    // Проверяем, что response не является HTML
+	    if (typeof response === 'string' && response.includes('<!DOCTYPE html>')) {
+		console.error('API returned HTML page instead of JSON data')
+		console.log('This usually means the API server is not running or misconfigured')
+		events.value = []
+		return
+	    }
+	    
 	    // Проверяем структуру ответа и нормализуем данные
 	    if (Array.isArray(response)) {
 		events.value = response
