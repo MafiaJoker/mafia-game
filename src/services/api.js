@@ -1,6 +1,20 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
+// Определяем API URL в зависимости от окружения
+const getApiBaseUrl = () => {
+  // Для Electron используем production API
+  if (window.electronAPI) {
+    return 'https://dev.jokermafia.am/api/v1'
+  }
+  
+  // Для веб-разработки используем локальный API
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
+}
+
+const API_BASE_URL = getApiBaseUrl()
+
+console.log('API Base URL:', API_BASE_URL)
+console.log('Is Electron:', !!window.electronAPI)
 
 const api = axios.create({
     baseURL: API_BASE_URL,
