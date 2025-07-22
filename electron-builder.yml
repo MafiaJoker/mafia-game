@@ -1,0 +1,55 @@
+appId: com.maffiagame.helper
+productName: Mafia Game Helper
+directories:
+  output: dist-electron
+  buildResources: build
+files:
+  - dist/**/*
+  - electron/**/*
+  - package.json
+extraMetadata:
+  main: electron/main.js
+publish: null
+generateUpdatesFilesForAllChannels: false
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+        - ia32
+  icon: electron/icon.png
+  verifyUpdateCodeSignature: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  language: 1049  # Russian
+  installerLanguages:
+    - ru
+    - en
+  menuCategory: true
+  shortcutName: Mafia Game Helper
+  uninstallDisplayName: Mafia Game Helper
+  deleteAppDataOnUninstall: true
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: electron/icon.png
+  category: public.app-category.games
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  icon: electron/icon.png
+  category: Game
+  synopsis: Помощник для проведения игр в Мафию
+  description: Приложение для управления и проведения игр в Мафию в турнирном формате
+  executableArgs: ["--no-sandbox"]
+  publish: null

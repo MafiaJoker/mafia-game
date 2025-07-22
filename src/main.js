@@ -12,6 +12,7 @@ import App from './App.vue'
 import router from './router'
 import { messages } from './locales'
 import { useAuthStore } from './stores/auth'
+import { ElectronManager } from './utils/electron'
 
 const i18n = createI18n({
   locale: 'ru',
@@ -36,6 +37,15 @@ app.use(i18n)
 const authStore = useAuthStore()
 authStore.loadCurrentUser().catch((error) => {
     console.log('No user session found on startup:', error)
+})
+
+// Инициализация Electron менеджера
+const electronManager = new ElectronManager()
+electronManager.init().then(() => {
+    if (electronManager.isElectron) {
+        console.log('Running in Electron environment')
+        electronManager.setupMenuHandlers(router)
+    }
 })
 
 app.mount('#app')

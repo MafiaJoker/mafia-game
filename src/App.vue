@@ -1,18 +1,24 @@
 <template>
   <div id="app">
-    <!-- Глобальная навигация -->
-    <el-container class="app-container">
-      <el-header v-if="showHeader" class="app-header">
-        <AppHeader />
-      </el-header>
+    <!-- Страницы авторизации без контейнера -->
+    <template v-if="isAuthPage">
+      <router-view />
+    </template>
+    
+    <!-- Остальные страницы с контейнером -->
+    <template v-else>
+      <el-container class="app-container">
+        <el-header v-if="showHeader" class="app-header">
+          <AppHeader />
+        </el-header>
 
-      <el-main class="app-main">
-        <!-- Основной контент -->
-        <router-view />
-      </el-main>
-      
-      <AppFooter v-if="showFooter" />
-    </el-container>
+        <el-main class="app-main">
+          <router-view />
+        </el-main>
+        
+        <AppFooter v-if="showFooter" />
+      </el-container>
+    </template>
 
     <!-- Глобальные уведомления -->
     <div id="toast-container" class="toast-container"></div>
@@ -30,10 +36,15 @@
 
   const route = useRoute()
 
+  // Определяем страницы авторизации
+  const isAuthPage = computed(() => {
+      return route.name === 'Login' || route.name === 'Register'
+  })
+
   // Скрываем заголовок на страницах авторизации и игры
   const showHeader = computed(() => {
       // Не показываем заголовок на страницах авторизации
-      if (route.name === 'Login' || route.name === 'Register') return false
+      if (isAuthPage.value) return false
 
       // Не показываем заголовок на странице игры для экономии места
       if (route.name === 'Game') return false

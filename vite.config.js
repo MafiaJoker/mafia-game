@@ -5,8 +5,9 @@ import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { execSync } from 'child_process'
 
-export default defineConfig(({ command }) => {
+export default defineConfig(({ command, mode }) => {
   const isDev = command === 'serve'
+  const isElectron = process.env.ELECTRON === 'true'
 
   // Получаем информацию о коммите
   let commitHash = ''
@@ -20,6 +21,7 @@ export default defineConfig(({ command }) => {
   }
 
   return {
+    base: isElectron && command === 'build' ? './' : '/',
     plugins: [
       vue(),
       AutoImport({
@@ -37,7 +39,26 @@ export default defineConfig(({ command }) => {
     },
     build: {
       sourcemap: false,
-      minify: isDev ? false : 'esbuild'
+      minify: isDev ? false : 'esbuild',
+      // Для Electron нужно убедиться что все ассеты встроены правильно
+      assetsDir: 'assets',
+      chunkSizeWarningLimit: 1000, // Увеличиваем лимит до 1MB
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            // Разделяем vendor чанки для лучшего кеширования
+            if (id.includes('node_modules')) {
+              if (id.includes('element-plus')) {
+                return 'element-plus'
+              }
+              if (id.includes('vue') || id.includes('@vue')) {
+                return 'vue'
+              }
+              return 'vendor'
+            }
+          }
+        }
+      }
     },
     css: {
       devSourcemap: false

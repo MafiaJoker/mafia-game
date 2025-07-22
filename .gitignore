@@ -4,4 +4,23 @@ dist/
 openapi.json
 .env.local
 .env.development.local
-.env.production.local*.webm
+.env.production.local
+*.webm
+
+# Auto-generated TypeScript files
+auto-imports.d.ts
+components.d.ts
+
+# Electron specific
+dist-electron/
+electron-builder.log
+*.nupkg
+*.blockmap
+*.dmg
+*.snap
+*.AppImage
+*.deb
+*.rpm
+*.exe
+*.msi
+latest*.yml

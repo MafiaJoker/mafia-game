@@ -4,6 +4,15 @@
       <el-header>
 	<div class="header-content">
 	  <h1>Мероприятия Мафии</h1>
+	  <el-button 
+	    type="warning" 
+	    size="small"
+	    @click="showTestDataGenerator = true"
+	    v-if="isDevelopment"
+	  >
+	    <el-icon><Tools /></el-icon>
+	    Генератор тестовых данных
+	  </el-button>
 	</div>
       </el-header>
 
@@ -85,6 +94,16 @@
       </el-main>
     </el-container>
 
+    <!-- Диалог генератора тестовых данных -->
+    <el-dialog 
+      v-model="showTestDataGenerator" 
+      title="Генератор тестовых данных" 
+      width="90%"
+      :close-on-click-modal="false"
+      >
+      <TestDataGenerator />
+    </el-dialog>
+
   </div>
 </template>
 
@@ -95,19 +114,24 @@
   import CreateEventForm from '@/components/events/CreateEventForm.vue'
   import EventsList from '@/components/events/EventsList.vue'
   import ArchivedEvents from '@/components/events/ArchivedEvents.vue'
+  import TestDataGenerator from '@/components/admin/TestDataGenerator.vue'
     import { ElMessage, ElMessageBox } from 'element-plus'
   import { 
       Plus, 
       Calendar, 
       Search, 
-      Document, 
- 
+      Document,
+      Tools
   } from '@element-plus/icons-vue'
 
   const router = useRouter()
   const eventsStore = useEventsStore()
 
   const searchTerm = ref('')
+  const showTestDataGenerator = ref(false)
+  
+  // Показываем генератор только в режиме разработки
+  const isDevelopment = import.meta.env.DEV
 
   const filteredActiveEvents = computed(() => {
       if (!searchTerm.value) return eventsStore.activeEvents
@@ -178,8 +202,10 @@
 
   .header-content {
       display: flex;
+      justify-content: space-between;
       align-items: center;
       height: 100%;
+      width: 100%;
   }
 
 
