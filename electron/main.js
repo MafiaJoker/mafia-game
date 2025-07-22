@@ -218,45 +218,201 @@ ipcMain.handle('telegram-oauth-start', async (event, { loginUrl }) => {
     
     // Возвращаем промис с обработкой закрытия окна
     return new Promise((resolve) => {
-      // Обработчик успешной авторизации - проверяем URL
+      let authCompleted = false
+      
+      // Обработчик навигации - отслеживаем все переходы
       authWindow.webContents.on('did-navigate', (event, navigationUrl) => {
         console.log('Auth window navigated to:', navigationUrl)
+        checkForSuccessfulAuth(navigationUrl)
+      })
+      
+      // Также отслеживаем did-navigate-in-page для SPA навигации
+      authWindow.webContents.on('did-navigate-in-page', (event, navigationUrl) => {
+        console.log('Auth window navigated in-page to:', navigationUrl)
+        checkForSuccessfulAuth(navigationUrl)
+      })
+      
+      // Функция проверки успешной авторизации
+      const checkForSuccessfulAuth = (navigationUrl) => {
+        if (authCompleted) return // Предотвращаем множественные вызовы
         
-        // Проверяем, что попали на главную страницу после авторизации
-        if (navigationUrl.includes('dev.jokermafia.am') && 
-            (navigationUrl.includes('/dashboard') || navigationUrl.includes('/events') || navigationUrl === 'https://dev.jokermafia.am/')) {
-          
-          console.log('Authentication successful, detected main page')
+        // Расширенная проверка успешной авторизации
+        const isAuthSuccess = navigationUrl.includes('dev.jokermafia.am') && 
+          (navigationUrl.includes('/dashboard') || 
+           navigationUrl.includes('/events') || 
+           navigationUrl.includes('/admin') ||
+           navigationUrl.includes('/profile') ||
+           navigationUrl.includes('/games') ||
+           (navigationUrl === 'https://dev.jokermafia.am/' && !navigationUrl.includes('/login')))
+        
+        if (isAuthSuccess) {
+          authCompleted = true
+          console.log('Authentication successful, detected main page:', navigationUrl)
           
           // Получаем куки из сессии
           authWindow.webContents.session.cookies.get({ domain: 'dev.jokermafia.am' })
             .then((cookies) => {
-              console.log('Retrieved cookies:', cookies)
+              console.log('Retrieved cookies:', cookies.length, 'cookies')
+              
+              // Логируем названия куки для отладки
+              const cookieNames = cookies.map(c => c.name)
+              console.log('Cookie names:', cookieNames)
+              
+              // Проверяем наличие сессионной куки
+              const hasSessionCookie = cookies.some(cookie => 
+                cookie.name.includes('session') || 
+                cookie.name.includes('auth') ||
+                cookie.name.includes('token') ||
+                cookie.name === 'sessionid' ||
+                cookie.name === 'connect.sid'
+              )
+              
+              console.log('Has session cookie:', hasSessionCookie)
               
               // Отправляем успешный результат
               if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('auth-success-callback', { 
                   success: true, 
-                  cookies: cookies 
+                  cookies: cookies,
+                  hasSession: hasSessionCookie
                 })
               }
               
-              // Закрываем окно авторизации
-              authWindow.close()
+              // Небольшая задержка для лучшего UX, затем закрываем
+              setTimeout(() => {
+                if (!authWindow.isDestroyed()) {
+                  authWindow.close()
+                }
+              }, 500)
+              
               resolve({ success: true })
             })
             .catch((error) => {
               console.error('Error getting cookies:', error)
-              authWindow.close()
+              if (!authWindow.isDestroyed()) {
+                authWindow.close()
+              }
               resolve({ success: false, error: 'Failed to retrieve session cookies' })
             })
         }
+      }
+      
+      // Альтернативная проверка через DOM - проверяем содержимое страницы
+      const checkAuthByContent = () => {
+        if (authCompleted) return
+        
+        authWindow.webContents.executeJavaScript(`
+          // Проверяем наличие индикаторов успешной авторизации
+          const hasUserInfo = document.querySelector('[class*="user"], [class*="profile"], [class*="avatar"], [id*="user"]')
+          const hasAuthElements = document.querySelector('[class*="auth"], [data-auth], [class*="login"]')
+          const isLoginPage = window.location.href.includes('/login')
+          const hasLogoutButton = document.querySelector('button:contains("Выход"), button:contains("Logout"), a[href*="logout"]')
+          
+          return {
+            hasUserInfo: !!hasUserInfo,
+            hasAuthElements: !!hasAuthElements,
+            isLoginPage: isLoginPage,
+            hasLogoutButton: !!hasLogoutButton,
+            currentUrl: window.location.href,
+            title: document.title
+          }
+        `).then((pageInfo) => {
+          console.log('Page analysis:', pageInfo)
+          
+          // Если мы не на странице логина и есть признаки авторизованного пользователя
+          if (!pageInfo.isLoginPage && (pageInfo.hasUserInfo || pageInfo.hasLogoutButton)) {
+            console.log('Auth detected by page content analysis')
+            checkForSuccessfulAuth(pageInfo.currentUrl)
+          }
+        }).catch(err => {
+          console.log('Content check error:', err.message)
+        })
+      }
+      
+      // Проверяем содержимое страницы через некоторое время после загрузки
+      authWindow.webContents.on('dom-ready', () => {
+        setTimeout(() => {
+          checkAuthByContent()
+          injectAuthHelper()
+        }, 2000) // Проверяем через 2 секунды
       })
+      
+      // Инжектируем помощник авторизации
+      const injectAuthHelper = () => {
+        if (authCompleted) return
+        
+        authWindow.webContents.executeJavaScript(`
+          // Проверяем, что мы не на странице логина
+          if (!window.location.href.includes('/login')) {
+            // Создаем кнопку помощника только если её ещё нет
+            if (!document.getElementById('electron-auth-helper')) {
+              const helper = document.createElement('div')
+              helper.id = 'electron-auth-helper'
+              helper.style.cssText = \`
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #409EFF;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 6px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                font-family: sans-serif;
+                font-size: 14px;
+                z-index: 10000;
+                cursor: pointer;
+                user-select: none;
+              \`
+              helper.textContent = 'Я авторизовался ✓'
+              helper.onclick = () => {
+                window.electronAuthSuccess = true
+                helper.remove()
+              }
+              document.body.appendChild(helper)
+            }
+          }
+        `).catch(err => {
+          console.log('Helper injection error:', err.message)
+        })
+      }
+      
+      // Проверяем флаг авторизации
+      const checkElectronAuthFlag = () => {
+        if (authCompleted) return
+        
+        authWindow.webContents.executeJavaScript(`
+          return window.electronAuthSuccess === true
+        `).then((authFlag) => {
+          if (authFlag) {
+            console.log('Auth confirmed by user click')
+            authWindow.webContents.executeJavaScript(`
+              return window.location.href
+            `).then((currentUrl) => {
+              checkForSuccessfulAuth(currentUrl)
+            })
+          }
+        }).catch(err => {
+          console.log('Auth flag check error:', err.message)
+        })
+      }
+      
+      // Добавляем периодическую проверку каждые 3 секунды
+      const contentCheckInterval = setInterval(() => {
+        if (!authCompleted && !authWindow.isDestroyed()) {
+          checkAuthByContent()
+          checkElectronAuthFlag()
+        } else {
+          clearInterval(contentCheckInterval)
+        }
+      }, 3000)
       
       // Обработчик закрытия окна без авторизации
       authWindow.on('closed', () => {
         console.log('Auth window closed')
-        resolve({ success: false, error: 'Authentication window was closed' })
+        clearInterval(contentCheckInterval)
+        if (!authCompleted) {
+          resolve({ success: false, error: 'Authentication window was closed' })
+        }
       })
     })
     
