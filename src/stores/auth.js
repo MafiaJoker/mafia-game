@@ -110,6 +110,9 @@ export const useAuthStore = defineStore('auth', () => {
                         console.log('Received auth success callback with cookies:', callbackData)
                         
                         // Куки уже переданы в основную сессию Electron
+                        // Небольшая задержка для обеспечения правильной установки куки
+                        await new Promise(resolve => setTimeout(resolve, 1000))
+                        
                         // Пытаемся загрузить данные пользователя
                         const userResult = await loadCurrentUser()
                         
@@ -120,7 +123,25 @@ export const useAuthStore = defineStore('auth', () => {
                             resolve({ success: true })
                         } else {
                             console.warn('Auth completed but user data not available:', userResult.error)
-                            resolve({ success: false, error: 'Authentication completed but session not available in app. Please try refreshing.' })
+                            
+                            // Если куки есть, но пользователь не загружается, возможно нужна перезагрузка
+                            if (callbackData.hasSession) {
+                                console.log('Session cookie detected, but API call failed. Trying again in 2 seconds...')
+                                
+                                // Повторная попытка через 2 секунды
+                                setTimeout(async () => {
+                                    const retryResult = await loadCurrentUser()
+                                    if (retryResult.success) {
+                                        console.log('Successfully authenticated on retry')
+                                        // Можем отправить событие об успешной авторизации
+                                        window.location.reload()
+                                    }
+                                }, 2000)
+                                
+                                resolve({ success: true, message: 'Authentication successful. Refreshing app...' })
+                            } else {
+                                resolve({ success: false, error: 'Authentication completed but session not available in app.' })
+                            }
                         }
                         
                     } catch (err) {

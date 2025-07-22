@@ -281,16 +281,34 @@ ipcMain.handle('telegram-oauth-start', async (event, { loginUrl }) => {
             if (domainCookies.length === 0 && cookies.length > 0) {
               console.log('Copying cookies to main session...')
               cookies.forEach(cookie => {
-                mainWindow.webContents.session.cookies.set({
-                  url: `https://${cookie.domain}`,
+                // Нормализуем домен для Electron
+                let domain = cookie.domain
+                if (domain.startsWith('.')) {
+                  domain = domain.substring(1) // Убираем ведущую точку
+                }
+                
+                // Формируем правильный URL для установки куки
+                const cookieUrl = `https://${domain}${cookie.path || '/'}`
+                
+                const cookieDetails = {
+                  url: cookieUrl,
                   name: cookie.name,
                   value: cookie.value,
-                  domain: cookie.domain,
-                  path: cookie.path,
-                  secure: cookie.secure,
-                  httpOnly: cookie.httpOnly,
-                  expirationDate: cookie.expirationDate
-                }).catch(err => console.log('Cookie copy error:', err))
+                  path: cookie.path || '/',
+                  secure: cookie.secure !== false, // По умолчанию true для HTTPS
+                  httpOnly: cookie.httpOnly !== false
+                }
+                
+                // Добавляем expiration только если он есть
+                if (cookie.expirationDate) {
+                  cookieDetails.expirationDate = cookie.expirationDate
+                }
+                
+                console.log('Setting cookie:', cookie.name, 'for URL:', cookieUrl)
+                
+                mainWindow.webContents.session.cookies.set(cookieDetails)
+                  .then(() => console.log('Successfully copied cookie:', cookie.name))
+                  .catch(err => console.log('Cookie copy error for', cookie.name, ':', err.message))
               })
             }
             
