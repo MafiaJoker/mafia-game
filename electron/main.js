@@ -208,6 +208,5 @@ app.on('web-contents-created', (event, contents) => {
 
 // Дополнительные настройки безопасности
 app.on('ready', () => {
-  // Отключаем remote module для безопасности
-  require('@electron/remote/main').initialize()
+  // Remote module отключен для безопасности
 })
