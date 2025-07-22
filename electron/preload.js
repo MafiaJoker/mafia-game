@@ -14,10 +14,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     })
   },
   
-  // Автообновления
-  onUpdateAvailable: (callback) => ipcRenderer.on('update-available', callback),
-  onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', callback),
-  installUpdate: () => ipcRenderer.invoke('install-update'),
   
   // Утилиты
   isElectron: () => true,

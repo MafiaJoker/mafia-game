@@ -1,6 +1,5 @@
 const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron')
 const path = require('path')
-const { autoUpdater } = require('electron-updater')
 
 // Отключаем песочницу для AppImage на Linux
 if (process.platform === 'linux' && process.env.APPIMAGE) {
@@ -181,24 +180,6 @@ ipcMain.handle('get-platform', () => {
   return process.platform
 })
 
-// Обработка автообновлений (отключено для локальной сборки)
-if (process.env.NODE_ENV !== 'development' && !process.env.DISABLE_AUTOUPDATE) {
-  autoUpdater.checkForUpdatesAndNotify().catch(error => {
-    console.log('Auto-update check failed:', error.message)
-  })
-
-  autoUpdater.on('update-available', () => {
-    mainWindow.webContents.send('update-available')
-  })
-
-  autoUpdater.on('update-downloaded', () => {
-    mainWindow.webContents.send('update-downloaded')
-  })
-}
-
-ipcMain.handle('install-update', () => {
-  autoUpdater.quitAndInstall()
-})
 
 // События приложения
 app.whenReady().then(() => {

@@ -36,21 +36,6 @@ export const onMenuAction = (callback) => {
   electronAPI.onMenuAction(callback)
 }
 
-// Автообновления
-export const onUpdateAvailable = (callback) => {
-  if (!isElectron()) return
-  electronAPI.onUpdateAvailable(callback)
-}
-
-export const onUpdateDownloaded = (callback) => {
-  if (!isElectron()) return
-  electronAPI.onUpdateDownloaded(callback)
-}
-
-export const installUpdate = () => {
-  if (!isElectron()) return
-  electronAPI.installUpdate()
-}
 
 // Класс для управления Electron функциональностью
 export class ElectronManager {
@@ -92,20 +77,4 @@ export class ElectronManager {
     })
   }
 
-  setupUpdateHandlers() {
-    if (!this.isElectron) return
-
-    onUpdateAvailable(() => {
-      console.log('Update available')
-      // Можно показать уведомление о доступном обновлении
-    })
-
-    onUpdateDownloaded(() => {
-      console.log('Update downloaded')
-      // Можно показать диалог с предложением установить обновление
-      if (confirm('Обновление загружено. Установить сейчас?')) {
-        installUpdate()
-      }
-    })
-  }
 }

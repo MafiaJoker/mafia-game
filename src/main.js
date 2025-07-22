@@ -45,7 +45,6 @@ electronManager.init().then(() => {
     if (electronManager.isElectron) {
         console.log('Running in Electron environment')
         electronManager.setupMenuHandlers(router)
-        electronManager.setupUpdateHandlers()
     }
 })
 
