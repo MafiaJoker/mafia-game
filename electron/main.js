@@ -249,44 +249,80 @@ ipcMain.handle('telegram-oauth-start', async (event, { loginUrl }) => {
           authCompleted = true
           console.log('Authentication successful, detected main page:', navigationUrl)
           
-          // Получаем куки из сессии
-          authWindow.webContents.session.cookies.get({ domain: 'dev.jokermafia.am' })
-            .then((cookies) => {
-              console.log('Retrieved cookies:', cookies.length, 'cookies')
-              
-              // Логируем названия куки для отладки
-              const cookieNames = cookies.map(c => c.name)
-              console.log('Cookie names:', cookieNames)
-              
-              // Проверяем наличие сессионной куки
-              const hasSessionCookie = cookies.some(cookie => 
-                cookie.name.includes('session') || 
-                cookie.name.includes('auth') ||
-                cookie.name.includes('token') ||
-                cookie.name === 'sessionid' ||
-                cookie.name === 'connect.sid'
-              )
-              
-              console.log('Has session cookie:', hasSessionCookie)
-              
-              // Отправляем успешный результат
-              if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('auth-success-callback', { 
-                  success: true, 
-                  cookies: cookies,
-                  hasSession: hasSessionCookie
-                })
+          // Получаем куки из сессии (пробуем несколько способов)
+          Promise.all([
+            // Способ 1: Куки для домена
+            authWindow.webContents.session.cookies.get({ domain: 'dev.jokermafia.am' }),
+            // Способ 2: Все куки
+            authWindow.webContents.session.cookies.get({}),
+            // Способ 3: Попробуем из основной сессии тоже
+            mainWindow.webContents.session.cookies.get({ domain: 'dev.jokermafia.am' })
+          ]).then(([domainCookies, allCookies, mainCookies]) => {
+            console.log('Auth window domain cookies:', domainCookies.length)
+            console.log('Auth window all cookies:', allCookies.length)
+            console.log('Main window cookies:', mainCookies.length)
+            
+            // Используем куки из любого источника где они есть
+            let cookies = domainCookies
+            if (cookies.length === 0 && allCookies.length > 0) {
+              cookies = allCookies.filter(c => c.domain.includes('jokermafia.am'))
+              console.log('Using filtered cookies from all cookies:', cookies.length)
+            }
+            if (cookies.length === 0 && mainCookies.length > 0) {
+              cookies = mainCookies
+              console.log('Using main window cookies:', cookies.length)
+            }
+            
+            // Логируем названия куки для отладки
+            const cookieNames = cookies.map(c => `${c.name}=${c.value.substring(0,10)}...`)
+            console.log('Cookie details:', cookieNames)
+            
+            // Копируем куки в основную сессию если нужно
+            if (domainCookies.length === 0 && cookies.length > 0) {
+              console.log('Copying cookies to main session...')
+              cookies.forEach(cookie => {
+                mainWindow.webContents.session.cookies.set({
+                  url: `https://${cookie.domain}`,
+                  name: cookie.name,
+                  value: cookie.value,
+                  domain: cookie.domain,
+                  path: cookie.path,
+                  secure: cookie.secure,
+                  httpOnly: cookie.httpOnly,
+                  expirationDate: cookie.expirationDate
+                }).catch(err => console.log('Cookie copy error:', err))
+              })
+            }
+            
+            // Проверяем наличие сессионной куки
+            const hasSessionCookie = cookies.some(cookie => 
+              cookie.name.includes('session') || 
+              cookie.name.includes('auth') ||
+              cookie.name.includes('token') ||
+              cookie.name === 'sessionid' ||
+              cookie.name === 'connect.sid'
+            )
+            
+            console.log('Has session cookie:', hasSessionCookie)
+            
+            // Отправляем успешный результат
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('auth-success-callback', { 
+                success: true, 
+                cookies: cookies,
+                hasSession: hasSessionCookie
+              })
+            }
+            
+            // Небольшая задержка для лучшего UX, затем закрываем
+            setTimeout(() => {
+              if (!authWindow.isDestroyed()) {
+                authWindow.close()
               }
-              
-              // Небольшая задержка для лучшего UX, затем закрываем
-              setTimeout(() => {
-                if (!authWindow.isDestroyed()) {
-                  authWindow.close()
-                }
-              }, 500)
-              
-              resolve({ success: true })
-            })
+            }, 1000)
+            
+            resolve({ success: true })
+          })
             .catch((error) => {
               console.error('Error getting cookies:', error)
               if (!authWindow.isDestroyed()) {
