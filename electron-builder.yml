@@ -54,4 +54,5 @@ linux:
   category: Game
   synopsis: Помощник для проведения игр в Мафию
   description: Приложение для управления и проведения игр в Мафию в турнирном формате
+  executableArgs: ["--no-sandbox"]
   publish: null

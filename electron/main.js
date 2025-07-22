@@ -1,8 +1,8 @@
 const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron')
 const path = require('path')
 
-// Отключаем песочницу для AppImage на Linux
-if (process.platform === 'linux' && process.env.APPIMAGE) {
+// Отключаем песочницу для Linux (необходимо для AppImage)
+if (process.platform === 'linux') {
   app.commandLine.appendSwitch('no-sandbox')
 }
 
