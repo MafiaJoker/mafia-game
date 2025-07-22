@@ -5,10 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Информация о приложении
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   getPlatform: () => ipcRenderer.invoke('get-platform'),
-  getApiBaseUrl: () => {
-    console.log('Electron env VITE_API_BASE_URL:', process.env.VITE_API_BASE_URL)
-    return process.env.VITE_API_BASE_URL
-  },
+  getApiBaseUrl: () => ipcRenderer.invoke('get-api-base-url'),
   
   // Обработка меню
   onMenuAction: (callback) => {

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { apiService } from '@/services/api.js'
+import { apiService, initApiUrl } from '@/services/api.js'
 import router from '@/router'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -31,6 +31,10 @@ export const useAuthStore = defineStore('auth', () => {
     
     // Загрузка текущего пользователя
     const loadCurrentUser = async () => {
+        // Дождемся инициализации API URL для Electron
+        if (window.electronAPI) {
+            await initApiUrl()
+        }
         const now = Date.now()
         
         // Предотвращаем множественные одновременные запросы

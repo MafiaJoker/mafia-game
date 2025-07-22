@@ -25,6 +25,12 @@ if (process.env.NODE_ENV === 'development') {
 
 let mainWindow
 
+// IPC handlers
+ipcMain.handle('get-api-base-url', () => {
+  console.log('Main process VITE_API_BASE_URL:', process.env.VITE_API_BASE_URL)
+  return process.env.VITE_API_BASE_URL
+})
+
 function createWindow() {
   // Создаем окно браузера
   mainWindow = new BrowserWindow({

@@ -1,29 +1,53 @@
 import axios from 'axios'
 
 // Определяем API URL в зависимости от окружения
-const getApiBaseUrl = () => {
+const getApiBaseUrl = async () => {
   // Для Electron получаем URL из переменных окружения main процесса
   if (window.electronAPI && window.electronAPI.getApiBaseUrl) {
-    const electronApiUrl = window.electronAPI.getApiBaseUrl()
-    if (electronApiUrl) {
-      console.log('Using Electron API URL:', electronApiUrl)
-      return electronApiUrl
+    try {
+      const electronApiUrl = await window.electronAPI.getApiBaseUrl()
+      if (electronApiUrl) {
+        console.log('Using Electron API URL from env:', electronApiUrl)
+        return electronApiUrl
+      }
+    } catch (error) {
+      console.warn('Failed to get API URL from Electron:', error)
     }
   }
   
   // Для Electron по умолчанию используем production API
   if (window.electronAPI) {
+    console.log('Using default Electron API URL')
     return 'https://dev.jokermafia.am/api/v1'
   }
   
   // Для веб-разработки используем локальный API
-  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
+  const webUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
+  console.log('Using web API URL:', webUrl)
+  return webUrl
 }
 
-const API_BASE_URL = getApiBaseUrl()
+// Инициализация API URL асинхронно
+let API_BASE_URL = 'http://localhost:8000/api/v1' // Дефолтное значение
+let apiInitPromise = null
 
-console.log('API Base URL:', API_BASE_URL)
-console.log('Is Electron:', !!window.electronAPI)
+const initApiUrl = async () => {
+  if (!apiInitPromise) {
+    apiInitPromise = getApiBaseUrl().then(url => {
+      API_BASE_URL = url
+      api.defaults.baseURL = url
+      console.log('API Base URL initialized:', API_BASE_URL)
+      console.log('Is Electron:', !!window.electronAPI)
+      return url
+    })
+  }
+  return apiInitPromise
+}
+
+// Инициализируем сразу если возможно
+if (typeof window !== 'undefined') {
+  initApiUrl()
+}
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -65,6 +89,9 @@ api.interceptors.response.use(
         return Promise.reject(error)
     }
 )
+
+// Экспортируем функцию инициализации
+export { initApiUrl }
 
 export const apiService = {
     // Методы авторизации
