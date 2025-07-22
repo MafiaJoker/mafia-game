@@ -2,21 +2,28 @@ import axios from 'axios'
 
 // Определяем API URL в зависимости от окружения
 const getApiBaseUrl = async () => {
-  // Для Electron получаем URL из переменных окружения main процесса
-  if (window.electronAPI && window.electronAPI.getApiBaseUrl) {
-    try {
-      const electronApiUrl = await window.electronAPI.getApiBaseUrl()
-      if (electronApiUrl) {
-        console.log('Using Electron API URL from env:', electronApiUrl)
-        return electronApiUrl
-      }
-    } catch (error) {
-      console.warn('Failed to get API URL from Electron:', error)
-    }
-  }
-  
-  // Для Electron по умолчанию используем production API
+  // Для Electron сначала проверяем встроенную константу из build time
   if (window.electronAPI) {
+    // Проверяем константу встроенную во время сборки
+    if (typeof __ELECTRON_API_BASE_URL__ !== 'undefined' && __ELECTRON_API_BASE_URL__) {
+      console.log('Using build-time API URL:', __ELECTRON_API_BASE_URL__)
+      return __ELECTRON_API_BASE_URL__
+    }
+    
+    // Затем пробуем получить из переменных окружения main процесса (для dev режима)
+    if (window.electronAPI.getApiBaseUrl) {
+      try {
+        const electronApiUrl = await window.electronAPI.getApiBaseUrl()
+        if (electronApiUrl) {
+          console.log('Using Electron API URL from env:', electronApiUrl)
+          return electronApiUrl
+        }
+      } catch (error) {
+        console.warn('Failed to get API URL from Electron:', error)
+      }
+    }
+    
+    // По умолчанию используем production API
     console.log('Using default Electron API URL')
     return 'https://dev.jokermafia.am/api/v1'
   }
