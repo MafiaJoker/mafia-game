@@ -69,7 +69,10 @@ let authCheckInProgress = false
 router.beforeEach(async (to, from, next) => {
     const authStore = useAuthStore()
     
-    console.log(`Router: navigating from ${from.path} to ${to.path}`)
+    // Логируем только если это не повторная навигация на ту же страницу
+    if (to.path !== from.path) {
+        console.log(`Router: navigating from ${from.path} to ${to.path}`)
+    }
     
     // Если пользователь идет на страницу авторизации, пропускаем
     if (to.path === '/login') {

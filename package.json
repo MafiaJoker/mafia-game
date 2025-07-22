@@ -9,6 +9,7 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
+    "dev:clean": "rm -rf node_modules/.vite && vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",

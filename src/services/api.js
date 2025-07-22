@@ -49,11 +49,9 @@ api.interceptors.response.use(
         })
 
         if (error.response?.status === 401) {
-            console.log('Unauthorized - redirecting to login')
-            // В Electron не делаем redirect, просто логируем
-            if (!window.electronAPI) {
-                window.location.href = '/login'
-            }
+            console.log('Unauthorized (401) - user not authenticated')
+            // Не делаем автоматический редирект здесь - пусть роутер это обрабатывает
+            // Автоматический редирект может создавать проблемы с навигацией
         }
         return Promise.reject(error)
     }
