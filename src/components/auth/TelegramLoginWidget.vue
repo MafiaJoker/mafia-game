@@ -1,25 +1,44 @@
 <template>
   <div class="telegram-login-container">
-    <div class="telegram-widget-wrapper">
-      <div 
-        ref="telegramWidgetRef" 
-        id="telegram-login-widget"
-        class="telegram-login-widget"
-      ></div>
+    <!-- Electron OAuth кнопка -->
+    <div v-if="isElectron" class="electron-auth-section">
+      <el-button
+        type="primary"
+        size="large"
+        @click="handleElectronAuth"
+        :loading="isAuthenticating"
+        :disabled="isAuthenticating"
+        class="telegram-oauth-button"
+      >
+        <el-icon class="telegram-icon"><Message /></el-icon>
+        <span>Войти через Telegram</span>
+      </el-button>
+      <p class="auth-hint">Откроется браузер для авторизации через Telegram</p>
     </div>
     
-    <!-- Fallback для случаев когда виджет не загружается -->
-    <div v-if="showFallback" class="telegram-fallback">
-      <el-alert
-        title="Не удалось загрузить виджет Telegram"
-        description="Проверьте подключение к интернету и попробуйте обновить страницу"
-        type="warning"
-        show-icon
-        :closable="false"
-      />
-      <el-button @click="reloadWidget" type="primary" class="mt-3">
-        Попробовать снова
-      </el-button>
+    <!-- Web виджет для браузера -->
+    <div v-else>
+      <div class="telegram-widget-wrapper">
+        <div 
+          ref="telegramWidgetRef" 
+          id="telegram-login-widget"
+          class="telegram-login-widget"
+        ></div>
+      </div>
+      
+      <!-- Fallback для случаев когда виджет не загружается -->
+      <div v-if="showFallback" class="telegram-fallback">
+        <el-alert
+          title="Не удалось загрузить виджет Telegram"
+          description="Проверьте подключение к интернету и попробуйте обновить страницу"
+          type="warning"
+          show-icon
+          :closable="false"
+        />
+        <el-button @click="reloadWidget" type="primary" class="mt-3">
+          Попробовать снова
+        </el-button>
+      </div>
     </div>
 
     <!-- Индикатор загрузки -->
@@ -30,10 +49,11 @@
 </template>
 
 <script setup>
-  import { ref, onMounted, onUnmounted, getCurrentInstance } from 'vue'
+  import { ref, onMounted, onUnmounted, getCurrentInstance, computed } from 'vue'
   import { useAuthStore } from '@/stores/auth'
   import { useRouter } from 'vue-router'
   import { ElMessage } from 'element-plus'
+  import { Message } from '@element-plus/icons-vue'
 
   const props = defineProps({
     botUsername: {
@@ -74,6 +94,41 @@
   const showFallback = ref(false)
   const isAuthenticating = ref(false)
   const loadTimeout = ref(null)
+
+  // Проверяем, запущено ли в Electron
+  const isElectron = computed(() => {
+    return typeof window !== 'undefined' && window.electronAPI !== undefined
+  })
+
+  // Обработчик авторизации в Electron
+  const handleElectronAuth = async () => {
+    if (!isElectron.value) {
+      console.error('Electron API not available')
+      ElMessage.error('Electron API недоступен')
+      return
+    }
+
+    isAuthenticating.value = true
+
+    try {
+      console.log('Starting Electron Telegram OAuth')
+      
+      // Используем новый метод авторизации через Electron
+      const result = await authStore.telegramLoginElectron(props.botUsername, props.authUrl)
+      
+      if (result.success) {
+        ElMessage.success('Успешная авторизация через Telegram!')
+        router.push('/')
+      } else {
+        ElMessage.error(result.error || 'Ошибка авторизации через Telegram')
+      }
+    } catch (error) {
+      console.error('Electron Telegram auth error:', error)
+      ElMessage.error('Ошибка авторизации. Попробуйте еще раз.')
+    } finally {
+      isAuthenticating.value = false
+    }
+  }
 
   // Глобальная функция для callback от Telegram
   const setupTelegramCallback = () => {
@@ -206,11 +261,14 @@
   }
 
   onMounted(() => {
-    // Добавляем небольшую задержку для правильной инициализации
-    setTimeout(() => {
-      setupTelegramCallback()
-      loadTelegramWidget()
-    }, 100)
+    // Инициализируем только если не в Electron
+    if (!isElectron.value) {
+      // Добавляем небольшую задержку для правильной инициализации
+      setTimeout(() => {
+        setupTelegramCallback()
+        loadTelegramWidget()
+      }, 100)
+    }
   })
 
   onUnmounted(() => {
@@ -270,6 +328,50 @@
 
   .mt-3 {
     margin-top: 12px;
+  }
+
+  /* Electron auth section */
+  .electron-auth-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .telegram-oauth-button {
+    min-width: 240px;
+    height: 50px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 25px;
+    background: linear-gradient(135deg, #0088cc 0%, #005580 100%);
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 136, 204, 0.3);
+    transition: all 0.3s ease;
+  }
+
+  .telegram-oauth-button:hover {
+    background: linear-gradient(135deg, #0099dd 0%, #006690 100%);
+    box-shadow: 0 6px 16px rgba(0, 136, 204, 0.4);
+    transform: translateY(-1px);
+  }
+
+  .telegram-oauth-button:active {
+    transform: translateY(0);
+  }
+
+  .telegram-icon {
+    margin-right: 8px;
+    font-size: 20px;
+  }
+
+  .auth-hint {
+    margin: 0;
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+    max-width: 300px;
   }
 
   /* Стилизация под дизайн приложения */

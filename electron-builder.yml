@@ -1,5 +1,9 @@
 appId: com.maffiagame.helper
 productName: Mafia Game Helper
+protocols:
+  - name: Mafia Helper
+    schemes:
+      - mafia-helper
 directories:
   output: dist-electron
   buildResources: build

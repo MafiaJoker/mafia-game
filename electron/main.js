@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron')
 const path = require('path')
+const { URL } = require('url')
 
 // Отключаем песочницу для Linux (необходимо для AppImage)
 if (process.platform === 'linux') {
@@ -180,6 +181,44 @@ ipcMain.handle('get-platform', () => {
   return process.platform
 })
 
+// Telegram OAuth обработчики
+ipcMain.handle('telegram-oauth-start', async (event, { botUsername, authUrl }) => {
+  console.log('Starting Telegram OAuth with bot:', botUsername)
+  
+  try {
+    // Используем протокольный URL для callback
+    const callbackUrl = 'mafia-helper://telegram-oauth'
+    
+    // Создаем URL для Telegram OAuth
+    const telegramOAuthUrl = `https://oauth.telegram.org/auth?bot_id=${getBotId(botUsername)}&origin=${encodeURIComponent(authUrl)}&return_to=${encodeURIComponent(callbackUrl)}`
+    
+    console.log('Opening Telegram OAuth URL:', telegramOAuthUrl)
+    
+    // Открываем OAuth URL во внешнем браузере
+    await shell.openExternal(telegramOAuthUrl)
+    
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to start Telegram OAuth:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+// Функция для извлечения bot ID из username (упрощенная версия)
+function getBotId(botUsername) {
+  // В реальной реализации вам нужно будет получить bot ID через Telegram Bot API
+  // Для примера используем простое соотношение
+  const botMappings = {
+    'dev_mafia_joker_widget_bot': '7839081063', // Пример bot ID
+    // Добавьте другие боты по необходимости
+  }
+  
+  return botMappings[botUsername] || botUsername
+}
+
+
+// Регистрируем протокол для OAuth callbacks
+app.setAsDefaultProtocolClient('mafia-helper')
 
 // События приложения
 app.whenReady().then(() => {
@@ -191,6 +230,61 @@ app.whenReady().then(() => {
     }
   })
 })
+
+// Обработка протокольных URL (для OAuth callbacks)
+app.on('open-url', (event, url) => {
+  console.log('Received protocol URL:', url)
+  handleProtocolUrl(url)
+})
+
+// Для Windows и Linux - обработка командной строки
+app.on('second-instance', (event, commandLine, workingDirectory) => {
+  // Ищем протокольный URL в аргументах командной строки
+  const url = commandLine.find(arg => arg.startsWith('mafia-helper://'))
+  if (url) {
+    console.log('Received protocol URL via second instance:', url)
+    handleProtocolUrl(url)
+  }
+  
+  // Фокусируем основное окно
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+  }
+})
+
+// Предотвращаем создание нескольких экземпляров приложения
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  app.quit()
+}
+
+function handleProtocolUrl(url) {
+  try {
+    const parsedUrl = new URL(url)
+    
+    // Проверяем, что это Telegram OAuth callback
+    if (parsedUrl.pathname === '/telegram-oauth') {
+      const searchParams = parsedUrl.searchParams
+      const telegramData = {}
+      
+      // Извлекаем параметры Telegram
+      for (const [key, value] of searchParams.entries()) {
+        telegramData[key] = value
+      }
+      
+      console.log('Telegram OAuth data:', telegramData)
+      
+      // Отправляем данные в renderer процесс
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('telegram-oauth-callback', telegramData)
+      }
+    }
+  } catch (error) {
+    console.error('Error handling protocol URL:', error)
+  }
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

@@ -1,103 +1,132 @@
-# Mafia Game Helper - Desktop Application
+# Electron App Documentation
 
-Настольная версия приложения Mafia Game Helper на базе Electron.
+## Telegram OAuth для Electron
 
-## Разработка
+### Проблема
 
-### Требования
-- Node.js 18+
-- npm или yarn
-- Git
+В Electron приложении стандартный Telegram Widget не работает, потому что:
+1. Telegram OAuth может работать только с зарегистрированным доменом в боте
+2. `localhost` нельзя регистрировать в Telegram боте по соображениям безопасности
+3. Electron приложение работает с `file://` протоколом
 
-### Установка зависимостей
-```bash
-npm install
+### Решение
+
+Реализован OAuth flow через системный браузер:
+
+1. **Пользователь кликает "Войти через Telegram"** в Electron приложении
+2. **Открывается системный браузер** с Telegram OAuth URL
+3. **Пользователь авторизуется** в браузере через Telegram
+4. **Браузер перенаправляется** на `mafia-helper://telegram-oauth` с данными авторизации
+5. **Electron приложение перехватывает** protocol callback
+6. **Данные передаются** в renderer процесс и отправляются на API
+7. **Пользователь автоматически входит** в приложение
+
+### Компоненты реализации
+
+#### 1. Protocol Registration (`electron-builder.yml`)
+```yaml
+protocols:
+  - name: Mafia Helper
+    schemes:
+      - mafia-helper
 ```
 
-### Запуск в режиме разработки
+#### 2. Main Process (`electron/main.js`)
+- **Protocol handling**: Регистрация `app.setAsDefaultProtocolClient('mafia-helper')`
+- **OAuth URL generation**: Создание ссылки для Telegram OAuth
+- **Browser opening**: `shell.openExternal()` для открытия в системном браузере
+- **Callback handling**: Обработка `mafia-helper://telegram-oauth` URLs
 
-1. Запустите Vue dev сервер:
-```bash
-npm run dev
+#### 3. Preload Script (`electron/preload.js`)
+```javascript
+// API для renderer процесса
+electronAPI: {
+  openTelegramOAuth: (botUsername, authUrl) => // Начать OAuth
+  onTelegramOAuthCallback: (callback) => // Получить результат
+}
 ```
 
-2. В отдельном терминале запустите Electron:
-```bash
-npm run electron:serve
+#### 4. Auth Store (`src/stores/auth.js`)
+```javascript
+// Метод авторизации через Electron OAuth
+telegramLoginElectron(botUsername, authUrl) {
+  // 1. Запуск OAuth в браузере
+  // 2. Ожидание callback с таймаутом (5 минут)
+  // 3. Обработка полученных данных
+  // 4. Авторизация через API
+}
 ```
 
-## Сборка
+#### 5. UI Component (`src/components/auth/TelegramLoginWidget.vue`)
+- **Автоматическое определение** окружения Electron
+- **Специальная кнопка** для OAuth в Electron
+- **Fallback** к веб виджету в браузере
 
-### Сборка для текущей платформы
-```bash
-npm run electron:build
+### Настройка бота
+
+В `electron/main.js` нужно обновить функцию `getBotId()`:
+
+```javascript
+function getBotId(botUsername) {
+  const botMappings = {
+    'your_bot_username': 'YOUR_BOT_ID', // Получить у @BotFather
+    'dev_mafia_joker_widget_bot': '7839081063'
+  }
+  return botMappings[botUsername] || botUsername
+}
 ```
 
-### Сборка для конкретной платформы
-```bash
-# Windows
-npm run electron:build:win
-
-# macOS
-npm run electron:build:mac
-
-# Linux
-npm run electron:build:linux
-
-# Все платформы
-npm run electron:build:all
-```
-
-Собранные файлы будут находиться в папке `dist-electron/`.
-
-## Особенности Electron версии
-
-### Системное меню
-- **Файл** → Новое мероприятие (Ctrl+N)
-- **Правка** → Стандартные операции редактирования
-- **Вид** → Управление окном и инструменты разработчика
-- **Справка** → О программе и документация
-
-### Горячие клавиши
-- `Ctrl+N` - Новое мероприятие
-- `Ctrl+R` - Перезагрузить
-- `F11` - Полноэкранный режим
-- `F12` - Инструменты разработчика
-
+**Как получить Bot ID:**
+1. Отправить `/getme` команду боту через Bot API
+2. Или использовать `https://api.telegram.org/botYOUR_BOT_TOKEN/getMe`
 
 ### Безопасность
-- Отключен `nodeIntegration`
-- Включен `contextIsolation`
-- Использование `preload.js` для безопасного API
 
-## Конфигурация
+1. **OAuth происходит в системном браузере** - данные не проходят через Electron
+2. **Timeout защита** - OAuth автоматически отменяется через 5 минут
+3. **Валидация данных** - проверка hash от Telegram на сервере
+4. **Single instance** - предотвращение множественных запусков приложения
 
-### API сервер
-По умолчанию приложение подключается к `http://localhost:8000/api/v1`.
-Для изменения используйте переменную окружения `VITE_API_BASE_URL`.
+### Тестирование
 
-### Сборка для production
-Убедитесь, что:
-1. API сервер доступен по нужному адресу
-2. Настроены правильные CORS заголовки
-3. Подписан код (для macOS и Windows)
+1. **Build Electron приложения**:
+   ```bash
+   npm run electron:build
+   ```
 
-## Структура проекта
+2. **Установка приложения** для регистрации protocol handler
 
+3. **Тестирование OAuth**:
+   - Запустить приложение
+   - Кликнуть "Войти через Telegram"
+   - Проверить открытие браузера
+   - Авторизоваться в Telegram
+   - Проверить возврат в приложение с успешной авторизацией
+
+### Troubleshooting
+
+#### Protocol handler не работает
+- Убедитесь что приложение установлено (не запущено из dev)
+- На Windows может потребоваться запуск от администратора
+- Проверьте регистрацию в реестре: `HKEY_CLASSES_ROOT\mafia-helper`
+
+#### OAuth timeout
+- Проверьте настройки брандмауэра
+- Убедитесь что Bot ID правильный в `getBotId()`
+- Проверьте логи в DevTools: `Ctrl+Shift+I`
+
+#### Бот не отвечает
+- Проверьте что бот активен: `/start` в чате с ботом
+- Проверьте Bot Token в бэкенде
+- Убедитесь что домен зарегистрирован в боте
+
+### Логи отладки
+
+Для отладки включите логи в `electron/main.js`:
+```javascript
+console.log('Received protocol URL:', url)
+console.log('Starting Telegram OAuth with bot:', botUsername)
+console.log('Telegram OAuth data:', telegramData)
 ```
-electron/
-├── main.js          # Главный процесс Electron
-├── preload.js       # Preload скрипт для безопасности
-└── icon.png         # Иконка приложения
 
-electron-builder.yml # Конфигурация сборки
-```
-
-## Известные проблемы
-
-1. **HMR не работает в Electron** - используйте перезагрузку (Ctrl+R)
-2. **DevTools** - доступны только в режиме разработки
-
-## Лицензия
-
-См. основной файл LICENSE в корне проекта.
+В renderer процессе логи доступны в DevTools (`Ctrl+Shift+I`).

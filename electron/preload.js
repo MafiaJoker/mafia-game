@@ -14,6 +14,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     })
   },
   
+  // Telegram OAuth
+  openTelegramOAuth: (botUsername, authUrl) => ipcRenderer.invoke('telegram-oauth-start', { botUsername, authUrl }),
+  onTelegramOAuthCallback: (callback) => {
+    ipcRenderer.on('telegram-oauth-callback', (_, data) => callback(data))
+  },
   
   // Утилиты
   isElectron: () => true,
