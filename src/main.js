@@ -33,10 +33,13 @@ app.use(router)
 app.use(ElementPlus)
 app.use(i18n)
 
-// Инициализация загрузки текущего пользователя
+// Инициализация загрузки текущего пользователя при старте приложения
 const authStore = useAuthStore()
+// Запускаем проверку пользователя, но не блокируем запуск приложения
 authStore.loadCurrentUser().catch((error) => {
     console.log('No user session found on startup:', error)
+}).finally(() => {
+    console.log('Initial auth check completed')
 })
 
 // Инициализация Electron менеджера

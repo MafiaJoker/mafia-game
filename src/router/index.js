@@ -81,20 +81,42 @@ router.beforeEach(async (to, from, next) => {
         return
     }
     
-    // Если проверка уже идет, ждем
+    // Если проверка уже идет, ждем завершения
     if (authCheckInProgress) {
         console.log('Router: auth check in progress, waiting...')
-        setTimeout(() => next(), 100)
-        return
+        // Ждем завершения текущей проверки
+        let attempts = 0
+        const maxAttempts = 50 // 5 seconds max
+        while (authCheckInProgress && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 100))
+            attempts++
+        }
+        console.log('Router: auth check completed, continuing...')
     }
     
     // Проверяем авторизацию пользователя
     if (!authStore.isAuthenticated) {
-        // Если store еще не инициализирован, не редиректим сразу
+        // Если store еще не инициализирован, ждем инициализации
         if (!authStore.isInitialized) {
-            console.log('Router: auth store not initialized yet, waiting...')
-            setTimeout(() => next(), 50) // Небольшая задержка для завершения инициализации
-            return
+            console.log('Router: auth store not initialized yet, waiting for initialization...')
+            let attempts = 0
+            const maxAttempts = 20 // 2 seconds max
+            while (!authStore.isInitialized && attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 100))
+                attempts++
+            }
+            // После инициализации проверяем снова
+            if (!authStore.isInitialized) {
+                console.log('Router: auth store initialization timeout, allowing navigation')
+                next()
+                return
+            }
+            // Проверяем авторизацию снова после инициализации
+            if (authStore.isAuthenticated) {
+                console.log('Router: user authenticated after initialization, continuing navigation')
+                next()
+                return
+            }
         }
         
         console.log('Router: user not authenticated, checking with API...')
