@@ -2,9 +2,18 @@ import axios from 'axios'
 
 // Определяем API URL в зависимости от окружения
 const getApiBaseUrl = () => {
-  // Для Electron сначала проверяем переменную окружения, затем используем production API
+  // Для Electron получаем URL из переменных окружения main процесса
+  if (window.electronAPI && window.electronAPI.getApiBaseUrl) {
+    const electronApiUrl = window.electronAPI.getApiBaseUrl()
+    if (electronApiUrl) {
+      console.log('Using Electron API URL:', electronApiUrl)
+      return electronApiUrl
+    }
+  }
+  
+  // Для Electron по умолчанию используем production API
   if (window.electronAPI) {
-    return import.meta.env.VITE_API_BASE_URL || 'https://dev.jokermafia.am/api/v1'
+    return 'https://dev.jokermafia.am/api/v1'
   }
   
   // Для веб-разработки используем локальный API
