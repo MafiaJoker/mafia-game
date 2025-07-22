@@ -173,15 +173,26 @@ export const useAuthStore = defineStore('auth', () => {
                                 
                                 // Повторная попытка через 2 секунды
                                 setTimeout(async () => {
-                                    const retryResult = await loadCurrentUser()
-                                    if (retryResult.success) {
-                                        console.log('Successfully authenticated on retry')
-                                        // Можем отправить событие об успешной авторизации
-                                        window.location.reload()
+                                    try {
+                                        const retryResult = await loadCurrentUser()
+                                        if (retryResult.success) {
+                                            console.log('Successfully authenticated on retry')
+                                            loading.value = false
+                                            resolve({ success: true })
+                                            return
+                                        }
+                                    } catch (retryError) {
+                                        console.error('Retry failed:', retryError)
                                     }
+                                    
+                                    // Если повторная попытка не удалась, перезагружаем приложение
+                                    console.log('Retry failed, reloading app...')
+                                    loading.value = false
+                                    window.location.reload()
                                 }, 2000)
                                 
-                                resolve({ success: true, message: 'Authentication successful. Refreshing app...' })
+                                // Не резолвим сразу, ждем результата повторной попытки
+                                return
                             } else {
                                 resolve({ success: false, error: 'Authentication completed but session not available in app.' })
                             }

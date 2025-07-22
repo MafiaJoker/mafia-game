@@ -118,9 +118,14 @@
       const result = await authStore.telegramLoginElectron(loginUrl)
       
       if (result.success) {
+        console.log('Electron auth completed successfully')
         ElMessage.success('Успешная авторизация!')
-        router.push('/')
+        // Добавляем небольшую задержку для отображения сообщения
+        setTimeout(() => {
+          router.push('/')
+        }, 500)
       } else {
+        console.error('Electron auth failed:', result.error)
         ElMessage.error(result.error || 'Ошибка авторизации')
       }
     } catch (error) {
@@ -128,6 +133,8 @@
       const errorMessage = error.message || 'Ошибка авторизации. Попробуйте еще раз.'
       ElMessage.error(errorMessage)
     } finally {
+      // Всегда сбрасываем состояние загрузки
+      console.log('Resetting auth state...')
       isAuthenticating.value = false
     }
   }

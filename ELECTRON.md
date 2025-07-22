@@ -102,8 +102,21 @@ telegramLoginElectron(loginUrl = 'https://dev.jokermafia.am/login') {
 
 ### Build для продакшена
 
+**Локальная разработка (с localhost API):**
 ```bash
-npm run electron:build
+npm run electron:build         # Все платформы
+npm run electron:build:win     # Windows
+npm run electron:build:mac     # macOS
+npm run electron:build:linux   # Linux
+```
+
+**Продакшн (с https://dev.jokermafia.am/api/v1):**
+```bash
+npm run electron:build:prod         # Все платформы
+npm run electron:build:win:prod     # Windows
+npm run electron:build:mac:prod     # macOS
+npm run electron:build:linux:prod   # Linux
+npm run electron:build:all:prod     # Все платформы одновременно
 ```
 
 ### Troubleshooting

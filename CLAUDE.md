@@ -20,6 +20,14 @@ npm run build
 
 # Preview production build
 npm run preview
+
+# Electron development
+npm run electron:serve      # With localhost API
+npm run electron:serve:prod # With production API
+
+# Electron build
+npm run electron:build:prod      # Production build with prod API
+npm run electron:build:linux:prod # Linux build with prod API
 ```
 
 ## Architecture Overview
