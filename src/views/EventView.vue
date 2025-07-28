@@ -10,6 +10,15 @@
             Назад к мероприятиям
           </el-button>
           <h1>{{ event?.label || 'Загрузка мероприятия...' }}</h1>
+          <div class="header-actions">
+            <el-button
+              v-if="event"
+              type="primary"
+              @click="goToRegistration"
+            >
+              Регистрация на мероприятие
+            </el-button>
+          </div>
         </div>
       </el-header>
 
@@ -81,14 +90,25 @@
                   <div class="tab-content">
                     <div class="tab-header">
                       <span class="tab-title">Игровые столы</span>
-                      <el-button 
-                        type="primary" 
-                        size="small"
-                        @click="createNewTable"
-                        >
-                        <el-icon><Plus /></el-icon>
-                        Добавить стол
-                      </el-button>
+                      <div class="header-actions">
+                        <el-button 
+                          v-if="canGenerateSeating"
+                          type="success" 
+                          size="small"
+                          @click="showSeatingDialog = true"
+                          >
+                          <el-icon><Grid /></el-icon>
+                          Сгенерировать рассадку ({{ confirmedPlayersCount }} игроков)
+                        </el-button>
+                        <el-button 
+                          type="primary" 
+                          size="small"
+                          @click="createNewTable"
+                          >
+                          <el-icon><Plus /></el-icon>
+                          Добавить стол
+                        </el-button>
+                      </div>
                     </div>
 
                     <div v-if="event">
@@ -241,6 +261,7 @@
                   <EventResults v-if="event" :event="event" />
                   <el-skeleton v-else :rows="5" animated />
                 </el-tab-pane>
+
               </el-tabs>
             </el-card>
           </el-col>
@@ -248,7 +269,13 @@
       </el-main>
     </el-container>
 
-
+    <!-- Диалог генерации рассадки -->
+    <GenerateSeatingDialog
+      v-model="showSeatingDialog"
+      :confirmed-players="registrationsStore.confirmedRegistrations"
+      :event-id="event?.id"
+      @generated="handleSeatingGenerated"
+    />
 
   </div>
 </template>
@@ -257,11 +284,13 @@
   import { ref, computed, onMounted } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useEventsStore } from '@/stores/events'
+  import { useRegistrationsStore } from '@/stores/registrations'
   import { apiService } from '@/services/api'
   import { ElMessage } from 'element-plus'
   import EventFinances from '@/components/events/EventFinances.vue'
   import EventPlayers from '@/components/events/EventPlayers.vue'
   import EventResults from '@/components/events/EventResults.vue'
+  import GenerateSeatingDialog from '@/components/events/GenerateSeatingDialog.vue'
   import { 
       ArrowLeft, 
       InfoFilled,
@@ -277,12 +306,14 @@
   const route = useRoute()
   const router = useRouter()
   const eventsStore = useEventsStore()
+  const registrationsStore = useRegistrationsStore()
 
   const event = ref(null)
   const selectedTable = ref(null)
   const games = ref([])
   const virtualTables = ref([])
   const activeTab = ref('tables')
+  const showSeatingDialog = ref(false)
 
   const tables = computed(() => {
     const realTables = event.value?.tables || []
@@ -291,6 +322,14 @@
 
   const tableCount = computed(() => {
     return tables.value.length
+  })
+
+  const confirmedPlayersCount = computed(() => {
+    return registrationsStore.confirmedRegistrations.length
+  })
+
+  const canGenerateSeating = computed(() => {
+    return confirmedPlayersCount.value >= 10
   })
 
   const selectTable = (table) => {
@@ -390,6 +429,13 @@
 	  console.log('Event loaded:', event.value)
 	  console.log('Event type:', event.value?.event_type)
 	  console.log('Event type color:', event.value?.event_type?.color)
+	  
+	  // Загружаем регистрации для подсчета игроков
+	  try {
+	    await registrationsStore.fetchEventRegistrations(eventId)
+	  } catch (error) {
+	    console.warn('Failed to load registrations:', error)
+	  }
 	  
 	  // Автоматически выбираем первый стол только если ни один стол не выбран
 	  if (tables.value.length > 0 && !selectedTable.value) {
@@ -527,6 +573,82 @@
       return color
   }
 
+  const goToRegistration = () => {
+      router.push(`/event/${route.params.id}/register`)
+  }
+
+  const handleSeatingGenerated = async (result) => {
+      console.log('Seating generated:', result)
+      
+      try {
+          const { games, distribution } = result
+          const eventId = route.params.id
+          
+          // Убедимся, что у нас достаточно столов
+          const requiredTables = Math.ceil(registrationsStore.confirmedRegistrations.length / 10)
+          const currentTables = tables.value.filter(t => !t.isVirtual).length
+          
+          // Создаем недостающие столы
+          const neededTables = requiredTables - currentTables
+          for (let i = 0; i < neededTables; i++) {
+              const tableNumber = currentTables + i + 1
+              const template = event.value?.table_name_template || 'Стол {}'
+              const tableName = template.replace('{}', tableNumber)
+              
+              const newTable = {
+                  table_name: tableName,
+                  game_masters: [],
+                  games: [],
+                  isVirtual: true
+              }
+              
+              virtualTables.value.push(newTable)
+          }
+          
+          // Создаем игры с рассадкой
+          let createdGames = 0
+          let currentTableIndex = 0
+          const tablesForDistribution = [...tables.value]
+          
+          for (let gameIndex = 0; gameIndex < games.length; gameIndex++) {
+              const gamePlayers = games[gameIndex]
+              
+              // Определяем на какой стол поместить игру
+              const tableIndex = Math.floor(gameIndex / Math.ceil(games.length / requiredTables))
+              const currentTable = tablesForDistribution[tableIndex]
+              
+              if (!currentTable) {
+                  console.error('Не найден стол для игры', gameIndex)
+                  continue
+              }
+              
+              const gameNumber = (currentTable.games?.length || 0) + 1
+              const gameData = {
+                  label: `Игра #${gameNumber}`,
+                  event_id: eventId,
+                  table_id: tableIndex + 1
+              }
+              
+              try {
+                  await apiService.createGameWithPlayers(gameData, gamePlayers)
+                  createdGames++
+              } catch (error) {
+                  console.error('Ошибка создания игры:', error)
+                  ElMessage.error(`Ошибка создания игры ${gameNumber}`)
+              }
+          }
+          
+          ElMessage.success(`Создано ${createdGames} игр с автоматической рассадкой`)
+          
+          // Перезагрузить данные события
+          await loadEvent()
+          
+      } catch (error) {
+          console.error('Ошибка генерации рассадки:', error)
+          ElMessage.error('Ошибка при создании игр с рассадкой')
+      }
+  }
+
   onMounted(() => {
       loadEvent()
   })
@@ -543,6 +665,11 @@
       justify-content: space-between;
       align-items: center;
       height: 100%;
+  }
+
+  .header-actions {
+      display: flex;
+      gap: 10px;
   }
 
 
@@ -792,5 +919,10 @@
       font-weight: 600;
       font-size: 16px;
       color: #303133;
+  }
+
+  .tab-header .header-actions {
+      display: flex;
+      gap: 8px;
   }
 </style>

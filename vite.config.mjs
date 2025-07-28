@@ -3,7 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
-import { execSync } from 'child_process'
+import { execSync } from 'node:child_process'
 
 export default defineConfig(({ command, mode }) => {
   const isDev = command === 'serve'

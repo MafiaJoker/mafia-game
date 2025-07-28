@@ -187,6 +187,26 @@ export const apiService = {
 	return response.data
     },
 
+    async createGameWithPlayers(gameData, players) {
+        // Создаем игру
+        const game = await this.createGame(gameData)
+        
+        // Добавляем игроков с рассадкой
+        if (players && players.length > 0) {
+            const playersData = players.map((player, index) => ({
+                user_id: player.user_id,
+                name: player.user_nickname,
+                box_id: index + 1, // Места от 1 до 10
+                role: null // Роли будут назначены позже
+            }))
+            
+            // Передаем массив напрямую
+            await this.addPlayersToGame(game.id, playersData)
+        }
+        
+        return game
+    },
+
     async updateGame(gameId, gameData) {
 	const response = await api.patch(`/games/${gameId}`, gameData)
 	return response.data
@@ -219,7 +239,9 @@ export const apiService = {
     },
 
     async addPlayersToGame(gameId, playersData) {
-	const response = await api.post(`/games/${gameId}/players`, playersData)
+	// API ожидает массив игроков, а не объект с ключом players
+	const players = Array.isArray(playersData) ? playersData : playersData.players
+	const response = await api.post(`/games/${gameId}/players`, players)
 	return response.data
     },
 
@@ -305,6 +327,37 @@ export const apiService = {
     async getCurrentUser() {
 	const response = await api.get('/users/me')
 	return response.data
+    },
+
+    // Event Registrations - Player actions
+    async registerForEvent(eventId) {
+        const response = await api.post(`/events/${eventId}/register`)
+        return response.data
+    },
+
+    async getMyRegistration(eventId) {
+        const response = await api.get(`/events/${eventId}/register`)
+        return response.data
+    },
+
+    async cancelMyRegistration(eventId) {
+        await api.delete(`/events/${eventId}/register`)
+    },
+
+    // Event Registrations - Admin actions
+    async getEventRegistrations(eventId, params = {}) {
+        const searchParams = new URLSearchParams(params)
+        const response = await api.get(`/events/${eventId}/registrations?${searchParams}`)
+        return response.data
+    },
+
+    async createRegistration(eventId, registrationData) {
+        const response = await api.post(`/events/${eventId}/registrations`, registrationData)
+        return response.data
+    },
+
+    async deleteRegistration(eventId, registrationId) {
+        await api.delete(`/events/${eventId}/registrations/${registrationId}`)
     },
 
     // Logout

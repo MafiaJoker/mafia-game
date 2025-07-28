@@ -8,7 +8,11 @@
 	"close": "Закрыть",
 	"confirm": "Подтвердить",
 	"yes": "Да",
-	"no": "Нет"
+	"no": "Нет",
+	"actions": "Действия",
+	"back": "Назад",
+	"refresh": "Обновить",
+	"warning": "Предупреждение"
     },
     "game": {
 	"round": "Круг",
@@ -47,6 +51,8 @@
 	"name": "Название",
 	"description": "Описание",
 	"date": "Дата",
+	"start_date": "Дата проведения",
+	"location": "Место проведения",
 	"language": "Язык",
 	"category": "Категория",
 	"status": "Статус",
@@ -54,7 +60,44 @@
 	"tables": "Столы",
 	"noEvents": "Нет мероприятий",
 	"activeEvents": "Активные мероприятия",
-	"archivedEvents": "Архив мероприятий"
+	"archivedEvents": "Архив мероприятий",
+	"registrations": {
+	    "title": "Регистрации на мероприятие",
+	    "register_player": "Зарегистрировать игрока",
+	    "player_name": "Имя игрока",
+	    "status": "Статус",
+	    "registered_at": "Дата регистрации",
+	    "confirmed_at": "Дата подтверждения",
+	    "total": "Всего",
+	    "confirmed": "Подтверждено",
+	    "pending": "Ожидает",
+	    "status_pending": "Ожидает",
+	    "status_confirmed": "Подтверждено",
+	    "status_cancelled": "Отменено",
+	    "select_player": "Выберите игрока",
+	    "register": "Зарегистрировать",
+	    "delete_confirm": "Вы уверены, что хотите удалить регистрацию игрока {name}?"
+	},
+	"registration": {
+	    "page_title": "Регистрация на {eventName}",
+	    "loading": "Загрузка мероприятия...",
+	    "event_info": "Информация о мероприятии",
+	    "load_error": "Не удалось загрузить информацию о мероприятии",
+	    "my_registration": "Моя регистрация",
+	    "not_registered": "Вы не зарегистрированы на это мероприятие",
+	    "register_button": "Подать заявку",
+	    "status": "Статус регистрации",
+	    "status_pending": "Ожидает подтверждения",
+	    "status_confirmed": "Подтверждена",
+	    "status_cancelled": "Отменена",
+	    "registered_at": "Дата подачи заявки",
+	    "confirmed_at": "Дата подтверждения",
+	    "pending_description": "Ваша заявка принята и ожидает рассмотрения организаторами",
+	    "confirmed_description": "Ваша регистрация подтверждена! Ждем вас на мероприятии",
+	    "cancelled_description": "Ваша регистрация была отменена",
+	    "cancel_button": "Отменить регистрацию",
+	    "cancel_confirm": "Вы уверены, что хотите отменить регистрацию на это мероприятие?"
+	}
     },
     "tables": {
 	"name": "Название стола",

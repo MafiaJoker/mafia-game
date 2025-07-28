@@ -9,12 +9,22 @@
             <span>Регистрация на мероприятие</span>
           </div>
           <div class="header-actions">
-            <span class="add-instructions">Выберите игроков из списка ниже</span>
+            <el-button
+              type="primary"
+              size="small"
+              @click="registrationsStore.fetchEventRegistrations(props.event.id)"
+              :loading="registrationsStore.loading"
+            >
+              Обновить
+            </el-button>
           </div>
         </div>
       </template>
 
-      <div class="registration-content">
+      <el-tabs v-model="activeRegistrationTab">
+        <!-- Вкладка добавления игроков -->
+        <el-tab-pane label="Добавить игроков" name="add">
+          <div class="registration-content">
         <el-row :gutter="16">
           <el-col :span="16">
             <div class="player-selection">
@@ -124,7 +134,91 @@
             </div>
           </el-col>
         </el-row>
-      </div>
+          </div>
+        </el-tab-pane>
+
+        <!-- Вкладка списка регистраций -->
+        <el-tab-pane label="Список регистраций" name="list">
+          <div class="registrations-content">
+            <!-- Статистика регистраций -->
+            <div class="registrations-stats mb-4">
+              <el-row :gutter="16">
+                <el-col :span="8">
+                  <div class="stat-item">
+                    <div class="stat-value">{{ registrationsStore.pagination.total }}</div>
+                    <div class="stat-label">Всего заявок</div>
+                  </div>
+                </el-col>
+                <el-col :span="8">
+                  <div class="stat-item">
+                    <div class="stat-value confirmed">{{ registrationsStore.confirmedRegistrations.length }}</div>
+                    <div class="stat-label">Подтверждено</div>
+                  </div>
+                </el-col>
+                <el-col :span="8">
+                  <div class="stat-item">
+                    <div class="stat-value pending">{{ registrationsStore.pendingRegistrations.length }}</div>
+                    <div class="stat-label">Ожидает</div>
+                  </div>
+                </el-col>
+              </el-row>
+            </div>
+
+            <!-- Таблица регистраций -->
+            <el-table 
+              :data="registrationsStore.registrations" 
+              v-loading="registrationsStore.loading"
+              stripe
+              size="small"
+            >
+              <el-table-column 
+                prop="user_nickname" 
+                label="Игрок"
+                width="200"
+              />
+              <el-table-column 
+                prop="status" 
+                label="Статус"
+                width="120"
+              >
+                <template #default="{ row }">
+                  <el-tag 
+                    :type="getRegistrationStatusType(row.status)"
+                    size="small"
+                  >
+                    {{ getRegistrationStatusLabel(row.status) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column 
+                prop="created_at" 
+                label="Дата регистрации"
+                width="160"
+              >
+                <template #default="{ row }">
+                  {{ formatDate(row.created_at) }}
+                </template>
+              </el-table-column>
+              <el-table-column 
+                label="Действия"
+                width="100"
+                align="center"
+              >
+                <template #default="{ row }">
+                  <el-button
+                    type="danger"
+                    size="small"
+                    @click="confirmDeleteRegistration(row)"
+                    :loading="registrationsStore.loading"
+                  >
+                    Удалить
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
     </el-card>
 
     <!-- Статистика участников -->
@@ -295,6 +389,7 @@
 <script setup>
   import { ref, computed, onMounted, watch } from 'vue'
   import { apiService } from '@/services/api'
+  import { useRegistrationsStore } from '@/stores/registrations'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { 
       User,
@@ -313,8 +408,8 @@
       }
   })
 
+  const registrationsStore = useRegistrationsStore()
   const players = ref([])
-  const confirmedPlayers = ref([]) // Игроки, уже добавленные на мероприятие
   const playerSelections = ref([{ selectedUserId: null }]) // Текущие выборы игроков
   const allUsers = ref([])
   const loading = ref(false)
@@ -323,6 +418,7 @@
   const pageSize = ref(20)
   const addingPlayer = ref(false)
   const isClosedSeating = ref(false)
+  const activeRegistrationTab = ref('add')
 
   const loadEventPlayers = async () => {
       if (!props.event?.tables) return
@@ -407,7 +503,15 @@
 
   // Общее количество зарегистрированных игроков
   const totalRegisteredPlayers = computed(() => {
-      return confirmedPlayers.value.length + playerSelections.value.filter(p => p.selectedUserId).length
+      return registrationsStore.confirmedRegistrations.length + playerSelections.value.filter(p => p.selectedUserId).length
+  })
+
+  // Подтвержденные игроки из store
+  const confirmedPlayers = computed(() => {
+      return registrationsStore.confirmedRegistrations.map(reg => ({
+          id: reg.user_id,
+          nickname: reg.user_nickname
+      }))
   })
 
   // Проверка есть ли новые выборы для сохранения
@@ -488,11 +592,50 @@
 
   const formatDate = (date) => {
       if (!date) return 'Нет данных'
-      return date.toLocaleDateString('ru-RU', {
+      return new Date(date).toLocaleDateString('ru-RU', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric'
       })
+  }
+
+  // Функции для работы с регистрациями
+  const getRegistrationStatusType = (status) => {
+      const statusTypes = {
+          pending: 'warning',
+          confirmed: 'success',
+          cancelled: 'info'
+      }
+      return statusTypes[status] || ''
+  }
+
+  const getRegistrationStatusLabel = (status) => {
+      const statusLabels = {
+          pending: 'Ожидает',
+          confirmed: 'Подтверждено',
+          cancelled: 'Отменено'
+      }
+      return statusLabels[status] || status
+  }
+
+  const confirmDeleteRegistration = async (registration) => {
+      try {
+          await ElMessageBox.confirm(
+              `Вы уверены, что хотите удалить регистрацию игрока ${registration.user_nickname}?`,
+              'Подтверждение',
+              {
+                  confirmButtonText: 'Да',
+                  cancelButtonText: 'Отмена',
+                  type: 'warning'
+              }
+          )
+          
+          await registrationsStore.deleteRegistration(props.event.id, registration.id)
+      } catch (error) {
+          if (error !== 'cancel') {
+              console.error('Ошибка удаления регистрации:', error)
+          }
+      }
   }
 
   const handleSizeChange = (newSize) => {
@@ -515,13 +658,12 @@
   }
 
   const loadRegisteredPlayers = async () => {
-      // TODO: Когда будет API для получения зарегистрированных игроков мероприятия
-      // Пока используем пустой массив
-      confirmedPlayers.value = []
+      if (!props.event?.id) return
       
-      // Также можно попробовать получить из свойств мероприятия, если они есть
-      if (props.event?.registered_players) {
-          confirmedPlayers.value = props.event.registered_players
+      try {
+          await registrationsStore.fetchEventRegistrations(props.event.id)
+      } catch (error) {
+          console.error('Ошибка загрузки регистраций:', error)
       }
   }
 
@@ -566,23 +708,18 @@
 
       addingPlayer.value = true
       try {
-          // Находим пользователей по ID
-          const selectedUsers = allUsers.value.filter(user => selectedUserIds.includes(user.id))
-          
-          // TODO: Добавить API вызов для регистрации игроков на мероприятие
-          // await apiService.registerPlayersForEvent(props.event.id, selectedUserIds)
-          
-          // Пока добавляем локально
-          confirmedPlayers.value.push(...selectedUsers)
+          // Регистрируем каждого игрока через API
+          for (const userId of selectedUserIds) {
+              await registrationsStore.createRegistration(props.event.id, userId)
+          }
           
           // Очищаем выборы
           playerSelections.value = [{ selectedUserId: null }]
           
-          ElMessage.success(`Добавлено игроков: ${selectedUsers.length}`)
+          ElMessage.success(`Добавлено игроков: ${selectedUserIds.length}`)
           
       } catch (error) {
           console.error('Ошибка добавления игроков:', error)
-          ElMessage.error('Ошибка при добавлении игроков')
       } finally {
           addingPlayer.value = false
       }
@@ -601,14 +738,10 @@
               }
           )
 
-          // TODO: Добавить API вызов для удаления регистрации
-          // await apiService.unregisterPlayerFromEvent(props.event.id, player.id)
-          
-          // Пока удаляем локально
-          const index = confirmedPlayers.value.findIndex(p => p.id === player.id)
-          if (index !== -1) {
-              confirmedPlayers.value.splice(index, 1)
-              ElMessage.success(`Игрок ${player.nickname} убран с мероприятия`)
+          // Находим регистрацию игрока
+          const registration = registrationsStore.registrations.find(reg => reg.user_id === player.id)
+          if (registration) {
+              await registrationsStore.deleteRegistration(props.event.id, registration.id)
               
               // Если игроков стало меньше 10, отключаем закрытую рассадку
               if (totalRegisteredPlayers.value < 10) {
@@ -619,7 +752,6 @@
       } catch (error) {
           if (error !== 'cancel') {
               console.error('Ошибка удаления игрока:', error)
-              ElMessage.error('Ошибка при удалении игрока')
           }
       }
   }
@@ -864,5 +996,41 @@
       padding-top: 16px;
       border-top: 1px solid #ebeef5;
       text-align: center;
+  }
+
+  /* Стили для регистраций */
+  .registrations-content {
+      padding: 16px 0;
+  }
+
+  .registrations-stats {
+      background-color: #fafafa;
+      padding: 16px;
+      border-radius: 6px;
+      border: 1px solid #ebeef5;
+  }
+
+  .stat-item {
+      text-align: center;
+  }
+
+  .stat-value {
+      font-size: 24px;
+      font-weight: 600;
+      color: #303133;
+      margin-bottom: 4px;
+  }
+
+  .stat-value.confirmed {
+      color: #67c23a;
+  }
+
+  .stat-value.pending {
+      color: #e6a23c;
+  }
+
+  .stat-label {
+      font-size: 12px;
+      color: #909399;
   }
 </style>
