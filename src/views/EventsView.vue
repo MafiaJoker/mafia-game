@@ -77,20 +77,6 @@
 	  </el-col>
 	</el-row>
 
-	<!-- Архивные мероприятия -->
-	<el-card class="mt-4">
-	  <template #header>
-	    <div class="card-header">
-	      <el-icon><Document /></el-icon>
-	      <span>Архив мероприятий</span>
-	    </div>
-	  </template>
-
-	  <ArchivedEvents 
-	    :events="eventsStore.archivedEvents"
-	    @delete-event="handleDeleteEvent"
-	    />
-	</el-card>
       </el-main>
     </el-container>
 
@@ -113,14 +99,12 @@
   import { useEventsStore } from '@/stores/events'
   import CreateEventForm from '@/components/events/CreateEventForm.vue'
   import EventsList from '@/components/events/EventsList.vue'
-  import ArchivedEvents from '@/components/events/ArchivedEvents.vue'
   import TestDataGenerator from '@/components/admin/TestDataGenerator.vue'
     import { ElMessage, ElMessageBox } from 'element-plus'
   import { 
       Plus, 
       Calendar, 
       Search, 
-      Document,
       Tools
   } from '@element-plus/icons-vue'
 

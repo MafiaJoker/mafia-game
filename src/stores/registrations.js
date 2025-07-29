@@ -41,7 +41,14 @@ export const useRegistrationsStore = defineStore('registrations', () => {
         ...params
       })
       
-      registrations.value = response.items || []
+      // Обрабатываем ответ API с новой структурой объекта user
+      const items = response.items || []
+      registrations.value = items.map(reg => ({
+        ...reg,
+        // Сохраняем совместимость с существующим кодом
+        user_id: reg.user?.id || reg.user_id,
+        user_nickname: reg.user?.nickname || reg.user_nickname
+      }))
       pagination.value.total = response.total || 0
       pagination.value.currentPage = params.currentPage || pagination.value.currentPage
       
