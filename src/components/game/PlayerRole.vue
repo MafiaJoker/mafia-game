@@ -52,6 +52,7 @@
   defineEmits(['changeRole'])
 
   const getRoleIcon = (role) => {
+      if (!role) return User // Для null ролей показываем иконку User
       switch (role) {
       case PLAYER_ROLES.CIVILIAN: return User
       case PLAYER_ROLES.SHERIFF: return Orange
@@ -62,6 +63,7 @@
   }
 
   const getRoleColor = (role) => {
+      if (!role) return '#909399' // Для null ролей серый цвет
       switch (role) {
       case PLAYER_ROLES.CIVILIAN: return '#67c23a'
       case PLAYER_ROLES.SHERIFF: return '#409eff'
@@ -72,6 +74,7 @@
   }
 
   const getRoleButtonType = (role) => {
+      if (!role) return 'info' // Для null ролей info тип
       switch (role) {
       case PLAYER_ROLES.CIVILIAN: return 'success'
       case PLAYER_ROLES.SHERIFF: return 'primary'
@@ -82,6 +85,7 @@
   }
 
   const getRoleText = (role) => {
+      if (!role) return '?' // Для null ролей показываем вопросительный знак
       switch (role) {
       case PLAYER_ROLES.CIVILIAN: return 'М'
       case PLAYER_ROLES.SHERIFF: return 'Ш'

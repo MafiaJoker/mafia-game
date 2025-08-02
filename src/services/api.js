@@ -9,7 +9,7 @@ const getApiBaseUrl = async () => {
       console.log('Using build-time API URL:', __ELECTRON_API_BASE_URL__)
       return __ELECTRON_API_BASE_URL__
     }
-    
+
     // Затем пробуем получить из переменных окружения main процесса (для dev режима)
     if (window.electronAPI.getApiBaseUrl) {
       try {
@@ -22,12 +22,12 @@ const getApiBaseUrl = async () => {
         console.warn('Failed to get API URL from Electron:', error)
       }
     }
-    
+
     // По умолчанию используем production API
     console.log('Using default Electron API URL')
     return 'https://dev.jokermafia.am/api/v1'
   }
-  
+
   // Для веб-разработки используем локальный API
   const webUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
   console.log('Using web API URL:', webUrl)
@@ -60,8 +60,7 @@ const api = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true,
     headers: {
-	'Content-Type': 'application/json',
-        "haha": "hoho"
+	'Content-Type': 'application/json'
     },
 })
 
@@ -190,7 +189,7 @@ export const apiService = {
     async createGameWithPlayers(gameData, players) {
         // Создаем игру
         const game = await this.createGame(gameData)
-        
+
         // Добавляем игроков с рассадкой
         if (players && players.length > 0) {
             const playersData = players.map((player, index) => ({
@@ -199,11 +198,11 @@ export const apiService = {
                 box_id: index + 1, // Места от 1 до 10
                 role: null // Роли будут назначены позже
             }))
-            
+
             // Передаем массив напрямую
             await this.addPlayersToGame(game.id, playersData)
         }
-        
+
         return game
     },
 
@@ -227,7 +226,12 @@ export const apiService = {
 
     // Game Phases (new atomic API)
     async saveGamePhasesAtomic(gameId, phasesData) {
-	const response = await api.put(`/v2/games/${gameId}`, phasesData)
+	// Заменяем v1 на v2 в URL для этого endpoint
+	const v2Url = api.defaults.baseURL.replace('/v1', '/v2')
+	const response = await axios.put(`${v2Url}/games/${gameId}`, phasesData, {
+	    withCredentials: true,
+	    headers: api.defaults.headers
+	})
 	return response.data
     },
 
@@ -236,19 +240,19 @@ export const apiService = {
 
     // Game Players
     async setPlayersPoints(gameId, playersData) {
-	const response = await api.put(`/games/${gameId}/players`, playersData)
+	const response = await api.put(`/games/${gameId}/points`, playersData)
 	return response.data
     },
 
     async createGamePlayers(gameId, playersData) {
-	const response = await api.post(`/games/${gameId}/players`, playersData)
+	const response = await api.put(`/games/${gameId}/players`, playersData)
 	return response.data
     },
 
     async addPlayersToGame(gameId, playersData) {
 	// API ожидает массив игроков, а не объект с ключом players
 	const players = Array.isArray(playersData) ? playersData : playersData.players
-	const response = await api.post(`/games/${gameId}/players`, players)
+	const response = await api.put(`/games/${gameId}/players`, players)
 	return response.data
     },
 

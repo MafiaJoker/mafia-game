@@ -223,8 +223,8 @@ export const useGameStore = defineStore('game', () => {
 		    const playersArray = Array(10).fill(null).map((_, index) => ({
 			id: index + 1,
 			name: '',
-			role: PLAYER_ROLES.CIVILIAN,
-			originalRole: PLAYER_ROLES.CIVILIAN,
+			role: null, // Изначально роли не назначены
+			originalRole: null,
 			fouls: 0,
 			nominated: null,
 			isAlive: true,
@@ -238,7 +238,11 @@ export const useGameStore = defineStore('game', () => {
 		    gameData.players.forEach((apiPlayer) => {
 			const slotIndex = (apiPlayer.box_id || 1) - 1 // box_id начинается с 1
 			if (slotIndex >= 0 && slotIndex < 10) {
-			    const localRole = API_TO_LOCAL_ROLES[apiPlayer.role] || PLAYER_ROLES.CIVILIAN
+			    // Если роль null или не определена:
+			    // - Для игр в процессе или завершенных - это мирный житель
+			    // - Для новых игр - оставляем null
+			    const isGameStarted = gameData.status === 'in_progress' || gameData.result
+			    const localRole = apiPlayer.role ? (API_TO_LOCAL_ROLES[apiPlayer.role] || PLAYER_ROLES.CIVILIAN) : (isGameStarted ? PLAYER_ROLES.CIVILIAN : null)
 			    const playerName = apiPlayer.nickname || ''
 			    const userId = apiPlayer.id || null
 			    
@@ -268,8 +272,13 @@ export const useGameStore = defineStore('game', () => {
 		// Устанавливаем статус игры на основе данных
 		if (gameData.result) {
 		    gameState.value.gameStatus = gameData.result
+		    gameState.value.isGameStarted = true
+		} else if (gameData.status === 'in_progress') {
+		    gameState.value.gameStatus = GAME_STATUSES.IN_PROGRESS
+		    gameState.value.isGameStarted = true
 		} else {
 		    setGameStatus(GAME_STATUSES.SEATING_READY)
+		    gameState.value.isGameStarted = false
 		}
 		
 		return true
@@ -312,7 +321,7 @@ export const useGameStore = defineStore('game', () => {
 		.map(player => ({
 		    box_id: player.id,
 		    user_id: player.userId,
-		    role: API_PLAYER_ROLES[player.role] || 'civilian',
+		    role: player.role ? API_PLAYER_ROLES[player.role] : null, // Отправляем null если роль не назначена
 		    fouls_count: player.fouls || 0
 		}))
 
@@ -379,8 +388,8 @@ export const useGameStore = defineStore('game', () => {
 	    gameState.value.players.push({
 		id: i,
 		name: '',
-		role: PLAYER_ROLES.CIVILIAN,
-		originalRole: PLAYER_ROLES.CIVILIAN,
+		role: null, // Изначально роли не назначены
+		originalRole: null,
 		fouls: 0,
 		nominated: null,
 		isAlive: true,
@@ -466,10 +475,12 @@ export const useGameStore = defineStore('game', () => {
 	const donCount = existingRoles.filter(role => role === PLAYER_ROLES.DON).length
 	const sheriffCount = existingRoles.filter(role => role === PLAYER_ROLES.SHERIFF).length
 	
-	if (currentRole === PLAYER_ROLES.CIVILIAN) {
+	// Если роль не назначена (null), начинаем с мирного
+	if (!currentRole || currentRole === PLAYER_ROLES.CIVILIAN) {
 	    if (mafiaCount < 2) return PLAYER_ROLES.MAFIA
 	    if (donCount < 1) return PLAYER_ROLES.DON
 	    if (sheriffCount < 1) return PLAYER_ROLES.SHERIFF
+	    return PLAYER_ROLES.CIVILIAN
 	} else if (currentRole === PLAYER_ROLES.MAFIA) {
 	    if (donCount < 1) return PLAYER_ROLES.DON
 	    if (sheriffCount < 1) return PLAYER_ROLES.SHERIFF

@@ -61,7 +61,7 @@
         <template #default="{ row }">
           <PlayerRole 
             :player="row"
-            :visible="gameStore.gameState.rolesVisible || !gameStore.gameState.isGameStarted"
+            :visible="gameStore.gameState.rolesVisible || gameStore.gameState.gameStatus === GAME_STATUSES.ROLE_DISTRIBUTION"
             :editable="gameStore.canEditRoles"
             @change-role="handleRoleChange"
             />

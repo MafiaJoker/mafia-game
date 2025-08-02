@@ -129,10 +129,10 @@
   }
 
   const cancelRoleDistribution = () => {
-      // Сбрасываем все роли на "Мирный"
+      // Сбрасываем все роли на null
       gameState.value.players.forEach(player => {
-	  player.role = 'Мирный'
-	  player.originalRole = 'Мирный'
+	  player.role = null
+	  player.originalRole = null
       })
       
       gameStore.setGameStatus(GAME_STATUSES.SEATING_READY)
