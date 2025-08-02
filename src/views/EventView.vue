@@ -584,12 +584,12 @@
           const { games, distribution } = result
           const eventId = route.params.id
           
-          // Убедимся, что у нас достаточно столов
-          const requiredTables = Math.ceil(registrationsStore.confirmedRegistrations.length / 10)
+          // Получаем количество столов из результата генерации
+          const tablesCount = distribution.length
           const currentTables = tables.value.filter(t => !t.isVirtual).length
           
           // Создаем недостающие столы
-          const neededTables = requiredTables - currentTables
+          const neededTables = tablesCount - currentTables
           for (let i = 0; i < neededTables; i++) {
               const tableNumber = currentTables + i + 1
               const template = event.value?.table_name_template || 'Стол {}'
@@ -611,10 +611,11 @@
           const tablesForDistribution = [...tables.value]
           
           for (let gameIndex = 0; gameIndex < games.length; gameIndex++) {
-              const gamePlayers = games[gameIndex]
+              const gameInfo = games[gameIndex]
+              const gamePlayers = gameInfo.playing || gameInfo // Поддержка обоих форматов
               
               // Определяем на какой стол поместить игру
-              const tableIndex = Math.floor(gameIndex / Math.ceil(games.length / requiredTables))
+              const tableIndex = Math.floor(gameIndex / Math.ceil(games.length / tablesCount))
               const currentTable = tablesForDistribution[tableIndex]
               
               if (!currentTable) {
@@ -632,6 +633,11 @@
               try {
                   await apiService.createGameWithPlayers(gameData, gamePlayers)
                   createdGames++
+                  
+                  // Логируем информацию о пропускающих игроках
+                  if (gameInfo.sittingOut && gameInfo.sittingOut.length > 0) {
+                      console.log(`Игра ${gameNumber}: пропускают ${gameInfo.sittingOut.map(p => p.nickname).join(', ')}`)
+                  }
               } catch (error) {
                   console.error('Ошибка создания игры:', error)
                   ElMessage.error(`Ошибка создания игры ${gameNumber}`)

@@ -29,7 +29,7 @@
           <el-col :span="16">
             <div class="player-selection">
               <div class="section-title">
-                Добавить игроков ({{ playerSelections.filter(p => p.selectedUserId).length }}/10)
+                Добавить игроков ({{ playerSelections.filter(p => p.selectedUserId).length }})
               </div>
               
               <div class="player-selection-list">
@@ -62,6 +62,19 @@
                     title="Убрать игрока"
                     >
                     <el-icon><Close /></el-icon>
+                  </el-button>
+                </div>
+                
+                <!-- Кнопка добавления новых слотов -->
+                <div v-if="!isLastSlotEmpty" class="add-slot-button">
+                  <el-button 
+                    type="primary" 
+                    size="small" 
+                    plain
+                    @click="addNewSlot"
+                    >
+                    <el-icon><Plus /></el-icon>
+                    Добавить ещё слот
                   </el-button>
                 </div>
               </div>
@@ -112,24 +125,13 @@
               
               <el-checkbox 
                 v-model="isClosedSeating"
-                :disabled="totalRegisteredPlayers < 10"
                 @change="updateClosedSeating"
                 >
                 Закрытая рассадка
               </el-checkbox>
               
               <div class="setting-description">
-                Закрытая рассадка доступна при регистрации 10 игроков. 
-                В этом режиме могут играть только зарегистрированные игроки.
-              </div>
-
-              <div v-if="totalRegisteredPlayers >= 10" class="closed-seating-info">
-                <el-alert
-                  title="Можно включить закрытую рассадку"
-                  type="success"
-                  :closable="false"
-                  show-icon
-                />
+                В режиме закрытой рассадки могут играть только зарегистрированные игроки.
               </div>
             </div>
           </el-col>
@@ -410,7 +412,13 @@
 
   const registrationsStore = useRegistrationsStore()
   const players = ref([])
-  const playerSelections = ref([{ selectedUserId: null }]) // Текущие выборы игроков
+  const playerSelections = ref([
+    { selectedUserId: null },
+    { selectedUserId: null },
+    { selectedUserId: null },
+    { selectedUserId: null },
+    { selectedUserId: null }
+  ]) // Текущие выборы игроков
   const allUsers = ref([])
   const loading = ref(false)
   const searchQuery = ref('')
@@ -517,6 +525,12 @@
   // Проверка есть ли новые выборы для сохранения
   const hasNewSelections = computed(() => {
       return playerSelections.value.some(p => p.selectedUserId)
+  })
+  
+  // Проверка пустой ли последний слот
+  const isLastSlotEmpty = computed(() => {
+      const lastSlot = playerSelections.value[playerSelections.value.length - 1]
+      return !lastSlot || !lastSlot.selectedUserId
   })
 
   // Получить доступных пользователей для конкретного слота
@@ -671,17 +685,13 @@
   const handlePlayerSelection = (slotIndex, userId) => {
       // Если выбрали игрока и это последний пустой слот, добавляем новый
       if (userId && slotIndex === playerSelections.value.length - 1) {
-          // Проверяем не достигли ли лимита
-          const totalSelected = confirmedPlayers.value.length + playerSelections.value.filter(p => p.selectedUserId).length
-          if (totalSelected < 10) {
-              playerSelections.value.push({ selectedUserId: null })
-          }
+          playerSelections.value.push({ selectedUserId: null })
       }
       
       // Если очистили слот и это не единственный, можем удалить пустые слоты в конце
       if (!userId && slotIndex < playerSelections.value.length - 1) {
-          // Удаляем пустые слоты в конце, оставляя минимум один
-          while (playerSelections.value.length > 1 && 
+          // Удаляем пустые слоты в конце, оставляя минимум 3
+          while (playerSelections.value.length > 3 && 
                  !playerSelections.value[playerSelections.value.length - 1].selectedUserId) {
               playerSelections.value.pop()
           }
@@ -692,10 +702,15 @@
   const removePlayerSelection = (slotIndex) => {
       playerSelections.value.splice(slotIndex, 1)
       
-      // Всегда должен остаться минимум один слот
-      if (playerSelections.value.length === 0) {
+      // Всегда должно остаться минимум 3 слота
+      while (playerSelections.value.length < 3) {
           playerSelections.value.push({ selectedUserId: null })
       }
+  }
+  
+  // Добавление нового пустого слота
+  const addNewSlot = () => {
+      playerSelections.value.push({ selectedUserId: null })
   }
 
   // Сохранение выбранных игроков
@@ -713,8 +728,14 @@
               await registrationsStore.createRegistration(props.event.id, userId)
           }
           
-          // Очищаем выборы
-          playerSelections.value = [{ selectedUserId: null }]
+          // Очищаем выборы и создаем новые пустые слоты
+          playerSelections.value = [
+              { selectedUserId: null },
+              { selectedUserId: null },
+              { selectedUserId: null },
+              { selectedUserId: null },
+              { selectedUserId: null }
+          ]
           
           ElMessage.success(`Добавлено игроков: ${selectedUserIds.length}`)
           
@@ -742,11 +763,6 @@
           const registration = registrationsStore.registrations.find(reg => reg.user_id === player.id)
           if (registration) {
               await registrationsStore.deleteRegistration(props.event.id, registration.id)
-              
-              // Если игроков стало меньше 10, отключаем закрытую рассадку
-              if (totalRegisteredPlayers.value < 10) {
-                  isClosedSeating.value = false
-              }
           }
 
       } catch (error) {
@@ -995,6 +1011,11 @@
       margin-top: 16px;
       padding-top: 16px;
       border-top: 1px solid #ebeef5;
+      text-align: center;
+  }
+  
+  .add-slot-button {
+      margin-top: 8px;
       text-align: center;
   }
 

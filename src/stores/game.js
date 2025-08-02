@@ -2,8 +2,12 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { GAME_STATUSES, GAME_SUBSTATUS, PLAYER_ROLES, API_PLAYER_ROLES, API_TO_LOCAL_ROLES } from '@/utils/constants.js'
 import { apiService } from '@/services/api.js'
+import { useGamePhasesStore } from './gamePhases.js'
 
 export const useGameStore = defineStore('game', () => {
+    // Get phases store
+    const gamePhasesStore = useGamePhasesStore()
+    
     // State
     const gameInfo = ref(null)
     const gameState = ref({
@@ -30,13 +34,51 @@ export const useGameStore = defineStore('game', () => {
 	showBestMove: false
     })
 
+    // Helper methods for box_id conversion
+    const getPlayerByBoxId = (boxId) => {
+        return gameState.value.players.find(p => p.id === boxId)
+    }
+
+    const getBoxIdByPlayerId = (playerId) => {
+        const player = gameState.value.players.find(p => p.userId === playerId)
+        return player ? player.id : null
+    }
+
+    const getPlayerByUserId = (userId) => {
+        return gameState.value.players.find(p => p.userId === userId)
+    }
+
+    // Convert phases data to legacy format for backward compatibility
+    const getDeadPlayersFromPhases = computed(() => {
+        if (!gamePhasesStore.phases.length) return []
+        
+        const killedBoxIds = gamePhasesStore.getKilledPlayersUpToPhase(gamePhasesStore.currentPhaseId)
+        return killedBoxIds
+    })
+
+    const getEliminatedPlayersFromPhases = computed(() => {
+        if (!gamePhasesStore.phases.length) return []
+        
+        const removedBoxIds = gamePhasesStore.getRemovedPlayersUpToPhase(gamePhasesStore.currentPhaseId)
+        return removedBoxIds
+    })
+
+    const getAlivePlayersFromPhases = computed(() => {
+        if (!gamePhasesStore.phases.length) {
+            return gameState.value.players.filter(p => p.isAlive && !p.isEliminated)
+        }
+        
+        const aliveBoxIds = gamePhasesStore.getAlivePlayersAtPhase(gamePhasesStore.currentPhaseId)
+        return gameState.value.players.filter(p => aliveBoxIds.includes(p.id))
+    })
+
     // Getters
     const currentPlayer = computed(() => (playerId) => {
 	return gameState.value.players.find(p => p.id === playerId)
     })
 
     const alivePlayers = computed(() => {
-	return gameState.value.players.filter(p => p.isAlive && !p.isEliminated)
+	return getAlivePlayersFromPhases.value
     })
 
     const isInRoleDistribution = computed(() => {
@@ -82,7 +124,7 @@ export const useGameStore = defineStore('game', () => {
 		)
             }
             
-            await saveGameState()
+            await gamePhasesStore.saveGamePhases()
             return true
 	} catch (error) {
             console.error('Ошибка завершения игры:', error)
@@ -143,9 +185,18 @@ export const useGameStore = defineStore('game', () => {
 	    
 	    if (gameId) {
 		await loadGameDetailed(gameId)
+		// Инициализируем gamePhasesStore
+		gamePhasesStore.initializeGame(gameId)
+		// Пытаемся загрузить фазы (может не существовать для старых игр)
+		const gameStatus = gameInfo.value?.gameData?.status || gameInfo.value?.gameData?.result
+		await gamePhasesStore.loadGamePhases(gameId, gameStatus)
 	    } else {
 		initPlayers()
 		setGameStatus(GAME_STATUSES.SEATING_READY)
+		// Инициализируем gamePhasesStore для новой игры
+		if (gameId) {
+		    gamePhasesStore.initializeGame(gameId)
+		}
 	    }
 	} catch (error) {
 	    console.error('Ошибка инициализации игры:', error)
@@ -247,22 +298,7 @@ export const useGameStore = defineStore('game', () => {
 	}
     }
 
-    const saveGameState = async () => {
-	if (!gameInfo.value?.gameId) return false
-
-	try {
-	    const stateToSave = {
-		...gameState.value,
-		bestMoveTargets: Array.from(gameState.value.bestMoveTargets)
-	    }
-	    
-	    await apiService.saveGameState(gameInfo.value.gameId, stateToSave)
-	    return true
-	} catch (error) {
-	    console.error('Ошибка сохранения состояния игры:', error)
-	    return false
-	}
-    }
+    // saveGameState method removed - use gamePhasesStore.saveGamePhases() instead
 
     const confirmSeating = async () => {
 	if (!gameInfo.value?.gameId) {
@@ -296,7 +332,7 @@ export const useGameStore = defineStore('game', () => {
 	    setGameStatus(GAME_STATUSES.SEATING_READY)
 	    
 	    // Сохраняем состояние игры
-	    await saveGameState()
+	    await gamePhasesStore.saveGamePhases()
 	    
 	    return { success: true, message: `Рассадка сохранена для ${playersData.length} игроков` }
 	    
@@ -318,7 +354,7 @@ export const useGameStore = defineStore('game', () => {
 		.map(player => ({
 		    box_id: player.id,
 		    user_id: player.userId,
-		    role: API_PLAYER_ROLES[player.role] || 'civilian',
+		    role: null, // При обновлении рассадки роли не отправляем
 		    fouls_count: player.fouls || 0
 		}))
 
@@ -477,9 +513,15 @@ export const useGameStore = defineStore('game', () => {
     const eliminatePlayer = (playerId) => {
 	const player = currentPlayer.value(playerId)
 	if (player) {
+	    // Записываем в фазы
+	    gamePhasesStore.addRemovedPlayer(player.id) // используем box_id
+	    
+	    // Обновляем локальное состояние для совместимости
 	    player.isEliminated = true
 	    player.isAlive = false
-	    gameState.value.eliminatedPlayers.push(playerId)
+	    if (!gameState.value.eliminatedPlayers.includes(playerId)) {
+	        gameState.value.eliminatedPlayers.push(playerId)
+	    }
 	    
 	    // Убираем номинации этого игрока
 	    gameState.value.players.forEach(p => {
@@ -487,6 +529,9 @@ export const useGameStore = defineStore('game', () => {
 		    p.nominated = null
 		}
 	    })
+	    
+	    // Сохраняем фазы
+	    gamePhasesStore.saveGamePhases()
 	}
     }
 
@@ -578,32 +623,64 @@ export const useGameStore = defineStore('game', () => {
     }
 
     const startGame = async () => {
-	gameState.value.gameStatus = GAME_STATUSES.IN_PROGRESS
-	gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
-	gameState.value.isGameStarted = true
-	gameState.value.round = 1
-	gameState.value.phase = 'DAY'
-	
-	// Создаем игру если нужно
-	if (!gameInfo.value?.gameId && gameInfo.value) {
+	try {
+	    // 1. Пытаемся коммитить рассадку, но не останавливаемся если не получается
 	    try {
-		const response = await apiService.createGame({
-		    eventId: gameInfo.value.eventId
-		})
-		if (response?.data?.id) {
-		    gameInfo.value.gameId = response.data.id
+		const seatingResult = await confirmSeating()
+		if (!seatingResult.success) {
+		    console.warn(`Не удалось обновить рассадку: ${seatingResult.message}`)
 		}
 	    } catch (error) {
-		console.error('Failed to create game:', error)
+		console.warn('Ошибка при коммите рассадки, но продолжаем:', error)
 	    }
+	    
+	    gameState.value.gameStatus = GAME_STATUSES.IN_PROGRESS
+	    gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
+	    gameState.value.isGameStarted = true
+	    gameState.value.round = 1
+	    gameState.value.phase = 'DAY'
+	    
+	    // Создаем игру если нужно
+	    if (!gameInfo.value?.gameId && gameInfo.value) {
+		try {
+		    const response = await apiService.createGame({
+			eventId: gameInfo.value.eventId
+		    })
+		    if (response?.data?.id) {
+			gameInfo.value.gameId = response.data.id
+		    }
+		} catch (error) {
+		    console.error('Failed to create game:', error)
+		}
+	    }
+	    
+	    // 2. Инициализируем gamePhasesStore
+	    if (gameInfo.value?.gameId) {
+		if (gamePhasesStore.gameId !== gameInfo.value.gameId) {
+		    gamePhasesStore.initializeGame(gameInfo.value.gameId)
+		}
+		
+		// 3. Создаем первую фазу на сервере
+		const phaseResult = await gamePhasesStore.createPhaseOnServer()
+		if (!phaseResult) {
+		    console.warn('Не удалось создать фазу на сервере, но продолжаем')
+		}
+	    }
+	    
+	    return true
+	} catch (error) {
+	    console.error('Ошибка при запуске игры:', error)
+	    throw error
 	}
-	
-	await saveGameState()
     }
 
     const nextRound = () => {
 	gameState.value.round++
 	gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
+	
+	// Переходим к следующей фазе
+	gamePhasesStore.nextPhase()
+	gamePhasesStore.saveGamePhases()
     }
 
     const incrementNoCandidatesRounds = () => {
@@ -631,6 +708,10 @@ export const useGameStore = defineStore('game', () => {
     const addFoul = (playerId) => {
 	const player = currentPlayer.value(playerId)
 	if (player) {
+	    // Обновляем в фазах
+	    gamePhasesStore.addFoul(player.id) // используем box_id
+	    
+	    // Обновляем локальное состояние для совместимости
 	    player.fouls++
 	    if (player.fouls >= 3) {
 		player.canSpeak = false
@@ -642,50 +723,112 @@ export const useGameStore = defineStore('game', () => {
 		if (!gameState.value.eliminatedPlayers.includes(playerId)) {
 		    gameState.value.eliminatedPlayers.push(playerId)
 		}
+		// Также записываем в removed_box_ids
+		gamePhasesStore.addRemovedPlayer(player.id)
 	    }
+	    
+	    gamePhasesStore.saveGamePhases()
 	}
     }
 
     const removeFoul = (playerId) => {
 	const player = currentPlayer.value(playerId)
 	if (player && player.fouls > 0) {
+	    // Обновляем в фазах
+	    gamePhasesStore.removeFoul(player.id) // используем box_id
+	    
+	    // Обновляем локальное состояние для совместимости
 	    player.fouls--
+	    
+	    gamePhasesStore.saveGamePhases()
+	}
+    }
+
+    const setDonTarget = (playerId) => {
+	// Сохраняем в старом формате для совместимости
+	gameState.value.donTarget = playerId
+	
+	// Записываем в фазы
+	const player = currentPlayer.value(playerId)
+	if (player) {
+	    gamePhasesStore.setDonCheck(player.id) // используем box_id
+	    gamePhasesStore.saveGamePhases()
+	}
+    }
+
+    const setSheriffTarget = (playerId) => {
+	// Сохраняем в старом формате для совместимости
+	gameState.value.sheriffTarget = playerId
+	
+	// Записываем в фазы
+	const player = currentPlayer.value(playerId)
+	if (player) {
+	    gamePhasesStore.setSheriffCheck(player.id) // используем box_id
+	    gamePhasesStore.saveGamePhases()
 	}
     }
 
     const setNightKill = (playerId) => {
+	// Сохраняем в старом формате для совместимости
 	gameState.value.nightKill = playerId
+	
+	// Записываем в фазы
+	const player = currentPlayer.value(playerId)
+	if (player) {
+	    gamePhasesStore.setKilled(player.id) // используем box_id
+	    gamePhasesStore.saveGamePhases()
+	}
     }
 
     const applyNightKill = () => {
 	if (gameState.value.nightKill) {
 	    const player = currentPlayer.value(gameState.value.nightKill)
 	    if (player && player.isAlive) {
+		// Обновляем локальное состояние для совместимости
 		player.isAlive = false
 		player.status = 'KILLED'
-		gameState.value.deadPlayers.push(gameState.value.nightKill)
+		if (!gameState.value.deadPlayers.includes(gameState.value.nightKill)) {
+		    gameState.value.deadPlayers.push(gameState.value.nightKill)
+		}
 	    }
 	    gameState.value.nightKill = null
 	}
     }
 
     const toggleBestMoveTarget = (playerId) => {
-	// Конвертируем Set в массив для удобства работы
-	const targets = Array.from(gameState.value.bestMoveTargets)
-	const index = targets.indexOf(playerId)
-	
-	if (index !== -1) {
-	    targets.splice(index, 1)
-	} else if (targets.length < 3) {
-	    targets.push(playerId)
+	const player = currentPlayer.value(playerId)
+	if (player) {
+	    // Используем новую систему фаз
+	    gamePhasesStore.toggleBestMoveTarget(player.id) // используем box_id
+	    
+	    // Обновляем старое состояние для совместимости
+	    const targets = Array.from(gameState.value.bestMoveTargets)
+	    const index = targets.indexOf(playerId)
+	    
+	    if (index !== -1) {
+		targets.splice(index, 1)
+	    } else if (targets.length < 3) {
+		targets.push(playerId)
+	    }
+	    
+	    gameState.value.bestMoveTargets = new Set(targets)
+	    gamePhasesStore.saveGamePhases()
 	}
-	
-	gameState.value.bestMoveTargets = new Set(targets)
+    }
+
+    const setPPK = (playerId) => {
+	// Записываем в фазы
+	const player = currentPlayer.value(playerId)
+	if (player) {
+	    gamePhasesStore.setPPK(player.id) // используем box_id
+	    gamePhasesStore.saveGamePhases()
+	}
     }
 
     const useBestMove = () => {
 	gameState.value.bestMoveUsed = true
 	gameState.value.showBestMove = false
+	gamePhasesStore.saveGamePhases()
     }
 
     const nextPhase = () => {
@@ -721,6 +864,14 @@ export const useGameStore = defineStore('game', () => {
 	gameInfo,
 	gameState,
 	
+	// Helper methods
+	getPlayerByBoxId,
+	getBoxIdByPlayerId,
+	getPlayerByUserId,
+	getDeadPlayersFromPhases,
+	getEliminatedPlayersFromPhases,
+	getAlivePlayersFromPhases,
+	
 	// Getters
 	currentPlayer,
 	alivePlayers,
@@ -738,7 +889,6 @@ export const useGameStore = defineStore('game', () => {
 	initGame,
 	loadGameDetailed,
 	loadGameState,
-	saveGameState,
 	confirmSeating,
 	updateSeating,
 	initPlayers,
@@ -758,8 +908,11 @@ export const useGameStore = defineStore('game', () => {
 	eliminatePlayerByVote,
 	addFoul,
 	removeFoul,
+	setDonTarget,
+	setSheriffTarget,
 	setNightKill,
 	applyNightKill,
+	setPPK,
 	toggleBestMoveTarget,
 	useBestMove,
 	initializeGame,

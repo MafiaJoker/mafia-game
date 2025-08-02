@@ -145,12 +145,13 @@
 	  return
       }
 
-      gameStore.setGameStatus(GAME_STATUSES.IN_PROGRESS, GAME_SUBSTATUS.DISCUSSION)
-      gameState.value.isGameStarted = true
-      gameState.value.round = 1
-
-      await gameStore.saveGameState()
-      ElMessage.success('Игра началась!')
+      try {
+          await gameStore.startGame()
+          ElMessage.success('Игра началась!')
+      } catch (error) {
+          console.error('Ошибка при запуске игры:', error)
+          ElMessage.error('Ошибка при запуске игры: ' + error.message)
+      }
   }
 
   const startVoting = () => {

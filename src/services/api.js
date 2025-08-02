@@ -222,10 +222,17 @@ export const apiService = {
 	return response.data
     },
 
-    async saveGameState(gameId, stateData) {
-	const response = await api.put(`/games/${gameId}/state`, stateData)
+    // Note: saveGameState method removed - no PUT endpoint exists
+    // Use saveGamePhasesAtomic instead
+
+    // Game Phases (new atomic API)
+    async saveGamePhasesAtomic(gameId, phasesData) {
+	const response = await api.put(`/v2/games/${gameId}`, phasesData)
 	return response.data
     },
+
+    // Note: getGamePhases method removed - no GET endpoint exists for phases
+    // Use getGameState or getGameDetailed instead
 
     // Game Players
     async setPlayersPoints(gameId, playersData) {
@@ -245,7 +252,7 @@ export const apiService = {
 	return response.data
     },
 
-    // Game Phases
+    // Game Phases (v1 API - individual phases)
     async updateGamePhase(gameId, phaseData) {
 	const response = await api.put(`/games/${gameId}/phases`, phaseData)
 	return response.data

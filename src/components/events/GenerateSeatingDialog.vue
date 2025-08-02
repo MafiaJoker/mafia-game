@@ -22,6 +22,18 @@
 
       <!-- Настройки генерации -->
       <el-form :model="form" label-width="150px">
+        <el-form-item label="Количество столов:">
+          <el-input-number
+            v-model="form.tablesCount"
+            :min="1"
+            :max="maxTables"
+            @change="calculateDistribution"
+          />
+          <div class="form-item-hint">
+            Максимум: {{ maxTables }} {{ getTableWord(maxTables) }}
+          </div>
+        </el-form-item>
+        
         <el-form-item label="Количество игр:">
           <el-input-number
             v-model="form.gamesCount"
@@ -57,6 +69,14 @@
               <span class="value">{{ form.gamesCount }} игр</span>
             </div>
             <div class="info-row">
+              <span class="label">Игроков в каждой игре:</span>
+              <span class="value">{{ playersPerGame }}</span>
+            </div>
+            <div v-if="sittingOutPerGame > 0" class="info-row">
+              <span class="label">Пропускают каждую игру:</span>
+              <span class="value warning">{{ sittingOutPerGame }} игроков</span>
+            </div>
+            <div class="info-row">
               <span class="label">Всего игровых мест:</span>
               <span class="value">{{ totalGameSlots }}</span>
             </div>
@@ -75,6 +95,23 @@
                 <div class="table-games">{{ tableGames }} игр</div>
               </div>
             </div>
+            
+            <!-- Информация о пропускающих -->
+            <div v-if="sittingOutPerGame > 0" class="sitting-out-info">
+              <el-alert
+                type="info"
+                :closable="false"
+                show-icon
+              >
+                <template #title>
+                  Система ротации игроков
+                </template>
+                <template #default>
+                  <p>В каждой игре {{ sittingOutPerGame }} {{ getPlayerWord(sittingOutPerGame) }} будут пропускать.</p>
+                  <p>Система автоматически распределит пропуски так, чтобы все игроки сыграли одинаковое количество игр.</p>
+                </template>
+              </el-alert>
+            </div>
           </div>
         </div>
 
@@ -86,15 +123,15 @@
             show-icon
           >
             <template #default>
-              <p>При {{ form.gamesCount }} играх и {{ confirmedPlayers.length }} игроках невозможно обеспечить равное количество игр для каждого участника.</p>
-              <p><strong>Возможные варианты:</strong></p>
+              <p>При {{ form.gamesCount }} играх на {{ form.tablesCount }} {{ getTableWord(form.tablesCount) }} и {{ confirmedPlayers.length }} игроках невозможно обеспечить равное количество игр для каждого участника.</p>
+              <p><strong>Возможные варианты для {{ form.tablesCount }} {{ getTableWord(form.tablesCount) }}:</strong></p>
               <ul>
                 <li v-for="option in suggestedOptions" :key="option">
                   <el-button 
                     type="text" 
                     @click="form.gamesCount = option; calculateDistribution()"
                   >
-                    {{ option }} игр ({{ Math.floor((option * 10) / confirmedPlayers.length) }} игр на игрока)
+                    {{ option }} игр ({{ Math.floor((option * form.tablesCount * 10) / confirmedPlayers.length) }} игр на игрока)
                   </el-button>
                 </li>
               </ul>
@@ -147,7 +184,8 @@ const visible = computed({
 })
 
 const form = ref({
-  gamesCount: 1
+  gamesCount: 1,
+  tablesCount: 1
 })
 
 const generating = ref(false)
@@ -157,8 +195,20 @@ const requiredTables = computed(() => {
   return Math.ceil(props.confirmedPlayers.length / 10)
 })
 
+const maxTables = computed(() => {
+  return Math.max(1, Math.floor(props.confirmedPlayers.length / 10))
+})
+
 const totalGameSlots = computed(() => {
-  return form.value.gamesCount * 10
+  return form.value.gamesCount * form.value.tablesCount * 10
+})
+
+const playersPerGame = computed(() => {
+  return form.value.tablesCount * 10
+})
+
+const sittingOutPerGame = computed(() => {
+  return Math.max(0, props.confirmedPlayers.length - playersPerGame.value)
 })
 
 const gamesPerPlayer = computed(() => {
@@ -168,13 +218,22 @@ const gamesPerPlayer = computed(() => {
 
 const isValidDistribution = computed(() => {
   if (props.confirmedPlayers.length === 0) return false
+  
+  // Если игроков меньше или равно количеству мест за столами
+  if (props.confirmedPlayers.length <= playersPerGame.value) {
+    // Проверяем, что общее количество игровых слотов делится на количество игроков
+    return totalGameSlots.value % props.confirmedPlayers.length === 0
+  }
+  
+  // Если игроков больше, чем мест за столами
+  // Проверяем, что можно обеспечить равное количество игр для всех
   return totalGameSlots.value % props.confirmedPlayers.length === 0
 })
 
 const tablesDistribution = computed(() => {
   if (!isValidDistribution.value) return []
   
-  const tables = requiredTables.value
+  const tables = form.value.tablesCount
   const gamesPerTable = Math.floor(form.value.gamesCount / tables)
   const extraGames = form.value.gamesCount % tables
   
@@ -189,10 +248,11 @@ const tablesDistribution = computed(() => {
 const suggestedOptions = computed(() => {
   const options = []
   const playerCount = props.confirmedPlayers.length
+  const slotsPerGame = form.value.tablesCount * 10
   
   // Найти ближайшие корректные варианты
-  for (let games = 1; games <= 20; games++) {
-    if ((games * 10) % playerCount === 0) {
+  for (let games = 1; games <= 50; games++) {
+    if ((games * slotsPerGame) % playerCount === 0) {
       options.push(games)
     }
   }
@@ -204,6 +264,26 @@ const suggestedOptions = computed(() => {
 const calculateDistribution = () => {
   // Функция вызывается при изменении количества игр
   // Все вычисления происходят в computed свойствах
+}
+
+const getTableWord = (count) => {
+  const n = Math.abs(count) % 100
+  if (n >= 5 && n <= 20) return 'столов'
+  
+  const lastDigit = n % 10
+  if (lastDigit === 1) return 'стол'
+  if (lastDigit >= 2 && lastDigit <= 4) return 'стола'
+  return 'столов'
+}
+
+const getPlayerWord = (count) => {
+  const n = Math.abs(count) % 100
+  if (n >= 5 && n <= 20) return 'игроков'
+  
+  const lastDigit = n % 10
+  if (lastDigit === 1) return 'игрок'
+  if (lastDigit >= 2 && lastDigit <= 4) return 'игрока'
+  return 'игроков'
 }
 
 const shuffleArray = (array) => {
@@ -218,20 +298,54 @@ const shuffleArray = (array) => {
 const generatePlayerRotation = () => {
   const players = [...props.confirmedPlayers]
   const games = []
+  const slotsPerGame = form.value.tablesCount * 10
+  const playersCount = players.length
   
-  // Создаем циклическую ротацию игроков
-  let playerIndex = 0
-  
-  for (let gameNum = 0; gameNum < form.value.gamesCount; gameNum++) {
-    const gamePlayers = []
+  // Если игроков меньше или равно количеству мест
+  if (playersCount <= slotsPerGame) {
+    // Используем старую логику циклической ротации
+    let playerIndex = 0
     
-    for (let seat = 0; seat < 10; seat++) {
-      gamePlayers.push(players[playerIndex % players.length])
-      playerIndex++
+    for (let gameNum = 0; gameNum < form.value.gamesCount; gameNum++) {
+      const gamePlayers = []
+      
+      for (let seat = 0; seat < slotsPerGame; seat++) {
+        gamePlayers.push(players[playerIndex % playersCount])
+        playerIndex++
+      }
+      
+      games.push({
+        playing: shuffleArray(gamePlayers),
+        sittingOut: []
+      })
     }
+  } else {
+    // Новая логика: некоторые игроки пропускают игры
+    const gamesPerPlayer = Math.floor(totalGameSlots.value / playersCount)
     
-    // Перемешиваем игроков в каждой игре
-    games.push(shuffleArray(gamePlayers))
+    // Создаем массив для отслеживания количества игр каждого игрока
+    const playerGamesCount = new Array(playersCount).fill(0)
+    
+    for (let gameNum = 0; gameNum < form.value.gamesCount; gameNum++) {
+      // Сортируем игроков по количеству сыгранных игр (по возрастанию)
+      const playerIndices = Array.from({ length: playersCount }, (_, i) => i)
+        .sort((a, b) => playerGamesCount[a] - playerGamesCount[b])
+      
+      // Берем первых N игроков с наименьшим количеством игр
+      const playingIndices = playerIndices.slice(0, slotsPerGame)
+      const sittingOutIndices = playerIndices.slice(slotsPerGame)
+      
+      // Увеличиваем счетчик игр для играющих
+      playingIndices.forEach(idx => playerGamesCount[idx]++)
+      
+      const gamePlayers = playingIndices.map(idx => players[idx])
+      const sittingOutPlayers = sittingOutIndices.map(idx => players[idx])
+      
+      games.push({
+        playing: shuffleArray(gamePlayers),
+        sittingOut: sittingOutPlayers
+      })
+    }
   }
   
   return games
@@ -270,6 +384,9 @@ const generateSeating = async () => {
 // Инициализация
 watch(() => props.confirmedPlayers.length, () => {
   if (props.confirmedPlayers.length >= 10) {
+    // Установить количество столов по умолчанию
+    form.value.tablesCount = Math.min(maxTables.value, requiredTables.value)
+    
     // Установить первый валидный вариант по умолчанию
     const firstValid = suggestedOptions.value[0]
     if (firstValid) {
@@ -282,6 +399,7 @@ watch(() => props.confirmedPlayers.length, () => {
 watch(() => props.modelValue, (isOpen) => {
   if (isOpen && props.confirmedPlayers.length >= 10) {
     // Сброс формы при открытии
+    form.value.tablesCount = Math.min(maxTables.value, requiredTables.value)
     const firstValid = suggestedOptions.value[0] || 1
     form.value.gamesCount = firstValid
   }
@@ -411,5 +529,24 @@ watch(() => props.modelValue, (isOpen) => {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.form-item-hint {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 5px;
+}
+
+.info-row .value.warning {
+  color: #e6a23c;
+  font-weight: 600;
+}
+
+.sitting-out-info {
+  margin-top: 20px;
+}
+
+.sitting-out-info p {
+  margin: 8px 0;
 }
 </style>
