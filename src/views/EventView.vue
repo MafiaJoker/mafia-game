@@ -610,6 +610,12 @@
           let currentTableIndex = 0
           const tablesForDistribution = [...tables.value]
           
+          // Отслеживаем количество созданных игр для каждого стола
+          const gamesCreatedPerTable = {}
+          tablesForDistribution.forEach((table, index) => {
+              gamesCreatedPerTable[index] = table.games?.length || 0
+          })
+          
           for (let gameIndex = 0; gameIndex < games.length; gameIndex++) {
               const gameInfo = games[gameIndex]
               const gamePlayers = gameInfo.playing || gameInfo // Поддержка обоих форматов
@@ -623,7 +629,8 @@
                   continue
               }
               
-              const gameNumber = (currentTable.games?.length || 0) + 1
+              // Используем счетчик созданных игр для правильной нумерации
+              const gameNumber = gamesCreatedPerTable[tableIndex] + 1
               const gameData = {
                   label: `Игра #${gameNumber}`,
                   event_id: eventId,
@@ -633,6 +640,8 @@
               try {
                   await apiService.createGameWithPlayers(gameData, gamePlayers)
                   createdGames++
+                  // Увеличиваем счетчик созданных игр для этого стола
+                  gamesCreatedPerTable[tableIndex]++
                   
                   // Логируем информацию о пропускающих игроках
                   if (gameInfo.sittingOut && gameInfo.sittingOut.length > 0) {
