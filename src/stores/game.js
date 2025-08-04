@@ -31,7 +31,9 @@ export const useGameStore = defineStore('game', () => {
 	rolesVisible: false,
 	scores: {},
 	isCriticalRound: false,
-	showBestMove: false
+	showBestMove: false,
+	votingHappenedThisRound: false,
+	gameResult: null
     })
 
     // Helper methods for box_id conversion
@@ -102,6 +104,11 @@ export const useGameStore = defineStore('game', () => {
 	return mafiaCount === 2 && donCount === 1 && sheriffCount === 1
     })
 
+    const hasVotingInCurrentPhase = computed(() => {
+	const currentPhase = gamePhasesStore.currentPhase
+	return currentPhase && currentPhase.voted_box_id !== null && currentPhase.voted_box_id !== undefined
+    })
+
     // Computed property для номинированных игроков (вычисляется в рантайме)
     const nominatedPlayers = computed(() => {
 	return gameState.value.players
@@ -146,6 +153,9 @@ export const useGameStore = defineStore('game', () => {
             // Устанавливаем статус завершенной игры
             setGameStatus(GAME_STATUSES.FINISHED_NO_SCORES)
             gameState.value.isGameStarted = false
+            
+            // Сохраняем результат игры
+            gameState.value.gameResult = result
             
             // Устанавливаем базовые баллы в зависимости от результата
             setBaseScores(result)
@@ -215,6 +225,26 @@ export const useGameStore = defineStore('game', () => {
 	    return true
 	}
 	return false
+    }
+
+    const checkVictoryConditions = () => {
+	const alivePlayers = gameState.value.players.filter(p => p.isAlive && !p.isEliminated)
+	const aliveMafia = alivePlayers.filter(p => p.originalRole === PLAYER_ROLES.MAFIA || p.originalRole === PLAYER_ROLES.DON)
+	const aliveCivilians = alivePlayers.filter(p => p.originalRole === PLAYER_ROLES.CIVILIAN || p.originalRole === PLAYER_ROLES.SHERIFF)
+	
+	// Победа мирных - все мафия убиты
+	if (aliveMafia.length === 0) {
+	    finishGame('civilians_win')
+	    return 'civilians_win'
+	}
+	
+	// Победа мафии - мафии столько же или больше чем мирных
+	if (aliveMafia.length >= aliveCivilians.length) {
+	    finishGame('mafia_win')
+	    return 'mafia_win'
+	}
+	
+	return null
     }
     
     const initGame = async (eventId, tableId, gameId) => {
@@ -427,11 +457,6 @@ export const useGameStore = defineStore('game', () => {
 
 	    // Отправляем игроков на сервер
 	    await apiService.createGamePlayers(gameInfo.value.gameId, playersData)
-	    
-	    // Обновляем статус игры на seating_ready
-	    await apiService.updateGame(gameInfo.value.gameId, {
-		status: 'seating_ready'
-	    })
 	    
 	    // Обновляем локальный статус
 	    setGameStatus(GAME_STATUSES.SEATING_READY)
@@ -694,7 +719,8 @@ export const useGameStore = defineStore('game', () => {
 	    scores: {},
 	    isCriticalRound: false,
 	    showBestMove: false,
-	    firstEliminatedPlayer: null
+	    firstEliminatedPlayer: null,
+	    votingHappenedThisRound: false
 	}
     }
 
@@ -1062,11 +1088,13 @@ export const useGameStore = defineStore('game', () => {
 	canEditRoles,
 	isGameInProgress,
 	canStartGame,
+	hasVotingInCurrentPhase,
 	nominatedPlayers,
 	currentSpeaker,
 	
 	// Actions
 	checkBestMove,
+	checkVictoryConditions,
 	finishGame,
 	setBaseScores,
 	setPlayerScore,

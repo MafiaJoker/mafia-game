@@ -221,7 +221,7 @@
   }
 
   const visiblePlayers = computed(() => {
-      return gameStore.gameState.players.filter(p => !p.isEliminated)
+      return gameStore.gameState.players
   })
 
   const getUsedPlayerIds = (currentPlayerId) => {

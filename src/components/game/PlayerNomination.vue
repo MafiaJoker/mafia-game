@@ -35,6 +35,9 @@
 <script setup>
   import { computed } from 'vue'
   import { GAME_STATUSES, GAME_SUBSTATUS } from '@/utils/constants'
+  import { useGameStore } from '@/stores/game'
+
+  const gameStore = useGameStore()
 
   const props = defineProps({
       player: {
@@ -57,6 +60,7 @@
       const can = props.player.isAlive && 
           !props.player.isEliminated &&
           props.player.isInGame !== false &&
+          !gameStore.hasVotingInCurrentPhase &&
           props.gameState.gameStatus === GAME_STATUSES.IN_PROGRESS &&
           (props.gameState.gameSubstatus === GAME_SUBSTATUS.DISCUSSION ||
 	   props.gameState.gameSubstatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION)
@@ -67,6 +71,8 @@
               can,
               isAlive: props.player.isAlive,
               isEliminated: props.player.isEliminated,
+              isInGame: props.player.isInGame,
+              hasVotingInCurrentPhase: gameStore.hasVotingInCurrentPhase,
               gameStatus: props.gameState.gameStatus,
               gameSubstatus: props.gameState.gameSubstatus,
               expectedStatus: GAME_STATUSES.IN_PROGRESS,
@@ -92,6 +98,7 @@
 	  // или которых номинировал именно этот игрок
 	  return p.isAlive && 
 	      !p.isEliminated && 
+	      p.isInGame !== false &&
 	      (!nominatedPlayerIds.includes(p.id) || p.id === props.player.nominated)
       })
   })

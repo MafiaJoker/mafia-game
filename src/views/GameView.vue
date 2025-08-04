@@ -22,7 +22,7 @@
               <GameTimer />
             </div>
             
-            <div class="game-actions">
+            <div v-if="!isGameFinished" class="game-actions">
               <GameControls />
             </div>
           </div>
@@ -39,11 +39,11 @@
               </div>
               <div class="game-result">
                 <el-tag 
-                  :type="getResultType(gameStore.gameState.gameStatus)" 
-                  :class="{ 'city-win-tag': gameStore.gameState.gameStatus === 'civilians_win' }"
+                  :type="getResultType(gameResultDisplay)" 
+                  :class="{ 'city-win-tag': gameResultDisplay === 'civilians_win' }"
                   size="large"
                 >
-                  {{ getResultLabel(gameStore.gameState.gameStatus) }}
+                  {{ getResultLabel(gameResultDisplay) }}
                 </el-tag>
                 <div v-if="ppkInfo" class="ppk-info">
                   <el-tag type="warning" size="small">
@@ -54,17 +54,26 @@
             </div>
           </el-card>
 
-          <!-- Секция голосования -->
-          <VotingSection v-if="showVotingSection" />
+          <!-- Контент для завершенных игр -->
+          <template v-if="isGameFinished">
+            <!-- Таблица игроков (только для просмотра) -->
+            <PlayersTable :readonly="true" />
+          </template>
 
-          <!-- Секция ночных действий -->
-          <NightActionsSection v-if="showNightSection" />
+          <!-- Игровой контент - показываем только для незавершенных игр -->
+          <template v-if="!isGameFinished">
+            <!-- Секция голосования -->
+            <VotingSection v-if="showVotingSection" />
 
-          <!-- Секция лучшего хода -->
-          <BestMoveSection v-if="showBestMoveSection" />
+            <!-- Секция ночных действий -->
+            <NightActionsSection v-if="showNightSection" />
 
-          <!-- Список игроков -->
-          <PlayersTable />
+            <!-- Секция лучшего хода -->
+            <BestMoveSection v-if="showBestMoveSection" />
+
+            <!-- Список игроков -->
+            <PlayersTable />
+          </template>
           
           <!-- Меню для игровых действий -->
           <div v-if="gameStore.isGameInProgress" class="game-menu-container">
@@ -179,7 +188,23 @@
 
   // Класс для круга в зависимости от статуса игры
   const isGameFinished = computed(() => {
-    return gameStore.gameState.gameStatus === 'civilians_win' || gameStore.gameState.gameStatus === 'mafia_win'
+    return gameStore.gameState.gameStatus === 'finished_no_scores' || 
+           gameStore.gameState.gameStatus === 'finished_with_scores' ||
+           gameStore.gameState.gameStatus === 'civilians_win' ||
+           gameStore.gameState.gameStatus === 'mafia_win'
+  })
+
+  // Получаем результат игры для отображения
+  const gameResultDisplay = computed(() => {
+    // Если есть gameResult, используем его
+    if (gameStore.gameState.gameResult) {
+      return gameStore.gameState.gameResult
+    }
+    // Иначе проверяем gameStatus на результаты игры
+    if (gameStore.gameState.gameStatus === 'civilians_win' || gameStore.gameState.gameStatus === 'mafia_win') {
+      return gameStore.gameState.gameStatus
+    }
+    return null
   })
   
   const gameTitle = computed(() => {

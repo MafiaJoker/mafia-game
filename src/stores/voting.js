@@ -73,6 +73,13 @@ export const useVotingStore = defineStore('voting', () => {
 	    gameStore.eliminatePlayerByVote(eliminatedId)
 	    gameStore.gameState.noCandidatesRounds = 0
 	    eliminatedPlayers.push(eliminatedId)
+	    
+	    // Проверяем условия победы после выведения игрока
+	    const victoryResult = gameStore.checkVictoryConditions()
+	    if (victoryResult) {
+		// Игра закончилась, возвращаем результат
+		return { result: 'victory', winner: victoryResult, players: playersWithMaxVotes }
+	    }
 	}
 	
 	// Сохраняем результат голосования в фазы (даже если никто не выбыл)
@@ -90,6 +97,9 @@ export const useVotingStore = defineStore('voting', () => {
 	gameStore.gameState.players.forEach(p => {
 	    p.nominated = null
 	})
+	
+	// Отмечаем что голосование в этом раунде уже было
+	gameStore.gameState.votingHappenedThisRound = true
 	
 	// Возвращаемся к обсуждению после голосования
 	gameStore.setGameStatus(

@@ -85,6 +85,18 @@ export const useNightActionsStore = defineStore('nightActions', () => {
         // 5.1. Синхронизируем статусы игроков с фазами
         gameStore.syncPlayersWithPhases()
         
+        // 5.2. Проверяем условия победы после ночных действий
+        const victoryResult = gameStore.checkVictoryConditions()
+        if (victoryResult) {
+            // Игра закончилась
+            return {
+                result: 'victory',
+                winner: victoryResult,
+                round: gameStore.gameState.round,
+                killed: gameStore.gameState.nightKill
+            }
+        }
+        
         // 6. Сбрасываем ночные действия для следующей ночи
         gameStore.gameState.mafiaTarget = null
         gameStore.gameState.donTarget = null
@@ -104,6 +116,9 @@ export const useNightActionsStore = defineStore('nightActions', () => {
         
         // Синхронизируем раунд с фазами
         gameStore.gameState.round = gamePhasesStore.currentPhaseId
+        
+        // Сбрасываем флаг голосования для нового раунда
+        gameStore.gameState.votingHappenedThisRound = false
         
         // Синхронизируем статусы игроков с фазами
         gameStore.syncPlayersWithPhases()

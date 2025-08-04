@@ -102,7 +102,10 @@
           // 5. Синхронизируем раунд с фазами
           gameStore.gameState.round = gamePhasesStore.currentPhaseId
           
-          // 5.1. Синхронизируем статусы игроков с фазами
+          // 5.1. Сбрасываем флаг голосования для нового раунда
+          gameStore.gameState.votingHappenedThisRound = false
+          
+          // 5.2. Синхронизируем статусы игроков с фазами
           gameStore.syncPlayersWithPhases()
           
           // 6. Переходим к обсуждению нового дня

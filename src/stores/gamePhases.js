@@ -306,25 +306,12 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
         if (!gameId.value) return false
 
         try {
-            const payload = {
-                best_move: bestMove.value,
-                phases: phases.value
-            }
-            
-            await apiService.saveGamePhasesAtomic(gameId.value, payload)
+            // Используем только v1 API - обновляем текущую фазу
+            await updateCurrentPhaseOnServer()
             return true
         } catch (error) {
-            console.error('Ошибка сохранения фаз игры через v2 API:', error)
-            
-            // Fallback к v1 API - обновляем только текущую фазу
-            try {
-                console.log('Trying fallback to v1 API...')
-                await updateCurrentPhaseOnServer()
-                return true
-            } catch (fallbackError) {
-                console.error('Ошибка fallback сохранения фазы через v1 API:', fallbackError)
-                return false
-            }
+            console.error('Ошибка сохранения фазы через v1 API:', error)
+            return false
         }
     }
 
