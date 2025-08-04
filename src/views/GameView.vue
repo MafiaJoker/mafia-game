@@ -38,7 +38,11 @@
                 <h3>{{ gameTitle }}</h3>
               </div>
               <div class="game-result">
-                <el-tag :type="getResultType(gameStore.gameState.gameStatus)" size="large">
+                <el-tag 
+                  :type="getResultType(gameStore.gameState.gameStatus)" 
+                  :class="{ 'city-win-tag': gameStore.gameState.gameStatus === 'civilians_win' }"
+                  size="large"
+                >
                   {{ getResultLabel(gameStore.gameState.gameStatus) }}
                 </el-tag>
                 <div v-if="ppkInfo" class="ppk-info">
@@ -422,6 +426,13 @@
   
   .game-result :deep(.el-tag) {
       color: white;
+  }
+  
+  /* Белый фон для победы города */
+  .game-result :deep(.city-win-tag) {
+      background-color: white !important;
+      border-color: #409eff !important;
+      color: #409eff !important;
   }
   
   .game-result :deep(.el-tag:not(.el-tag--danger)) {

@@ -109,6 +109,37 @@ export const useGameStore = defineStore('game', () => {
 	    .map(p => p.nominated)
     })
 
+    // Определение кто начинает речь на текущем кругу
+    const currentSpeaker = computed(() => {
+        if (!isGameInProgress.value || gameState.value.round === 0) {
+            return null
+        }
+        
+        const alivePlayersInOrder = gameState.value.players
+            .filter(p => p.isAlive && !p.isEliminated)
+            .sort((a, b) => a.id - b.id)
+        
+        if (alivePlayersInOrder.length === 0) {
+            return null
+        }
+        
+        // Находим игрока, который должен начинать на этом кругу
+        // Логика: на N кругу начинает игрок с позицией N, но если он мертв, то следующий живой
+        const targetSlot = gameState.value.round
+        
+        // Ищем первого живого игрока начиная с нужного слота
+        for (let i = 0; i < gameState.value.players.length; i++) {
+            const slotToCheck = ((targetSlot - 1 + i) % gameState.value.players.length) + 1
+            const player = gameState.value.players.find(p => p.id === slotToCheck)
+            
+            if (player && player.isAlive && !player.isEliminated) {
+                return player.id
+            }
+        }
+        
+        return alivePlayersInOrder[0]?.id || null
+    })
+
     // Actions
     const finishGame = async (result) => {
 	try {
@@ -1025,6 +1056,7 @@ export const useGameStore = defineStore('game', () => {
 	isGameInProgress,
 	canStartGame,
 	nominatedPlayers,
+	currentSpeaker,
 	
 	// Actions
 	checkBestMove,

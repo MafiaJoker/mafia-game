@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="ППК (Право последнего слова)"
+    title="ППК (Победа Противоположной Команде)"
     width="600px"
     :before-close="handleClose"
     >
@@ -88,10 +88,10 @@
   
   const getRoleTagType = (role) => {
       const types = {
-	  'Мирный': 'success',
-	  'Шериф': 'primary',
-	  'Мафия': 'danger',
-	  'Дон': 'warning'
+	  'Мирный': 'danger',    // красный
+	  'Шериф': 'danger',     // красный
+	  'Мафия': undefined,    // черный (default)
+	  'Дон': undefined       // черный (default)
       }
       return types[role] || 'info'
   }
@@ -178,5 +178,12 @@
 
   .mb-4 {
       margin-bottom: 16px;
+  }
+
+  /* Черные теги для мафии и дона */
+  :deep(.el-tag:not(.el-tag--danger):not(.el-tag--warning):not(.el-tag--primary):not(.el-tag--success):not(.el-tag--info)) {
+      background-color: #606266 !important;
+      border-color: #606266 !important;
+      color: white !important;
   }
 </style>

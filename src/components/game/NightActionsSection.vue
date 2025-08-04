@@ -4,7 +4,7 @@
       <div class="action-group mb-3">
         <div class="action-row">
           <div class="action-icon">
-            <MafiaIcon color="#f56c6c" />
+            <MafiaIcon color="#000000" />
           </div>
           
           <div class="action-content">
@@ -22,13 +22,25 @@
                   v-for="player in aliveTargets"
                   :key="`mafia-${player.id}`"
                   :type="getMafiaTargetType(player.id)"
+                  :class="{ 'kill-target': pressingMafiaTargetId === player.id }"
                   @click="selectMafiaTarget(player.id)"
+                  @mousedown="startPressingMafiaTarget(player.id)"
+                  @mouseup="stopPressingMafiaTarget"
+                  @mouseleave="stopPressingMafiaTarget"
+                  @touchstart="startPressingMafiaTarget(player.id)"
+                  @touchend="stopPressingMafiaTarget"
                   >
                   {{ player.id }}
                 </el-button>
                 <el-button 
                   :type="getMafiaTargetType(0)"
+                  :class="{ 'miss-target': pressingMafiaTargetId === 0 }"
                   @click="selectMafiaTarget(0)"
+                  @mousedown="startPressingMafiaTarget(0)"
+                  @mouseup="stopPressingMafiaTarget"
+                  @mouseleave="stopPressingMafiaTarget"
+                  @touchstart="startPressingMafiaTarget(0)"
+                  @touchend="stopPressingMafiaTarget"
                   >
                   Промах
                 </el-button>
@@ -42,7 +54,7 @@
       <div class="action-group mb-3">
         <div class="action-row">
           <div class="action-icon">
-            <DonIcon color="#e6a23c" />
+            <DonIcon color="#000000" />
           </div>
           
           <div class="action-content">
@@ -61,21 +73,19 @@
                     v-for="player in aliveTargets"
                     :key="`don-${player.id}`"
                     :type="getDonTargetType(player.id)"
+                    :class="getDonTargetClass(player.id)"
                     @click="selectDonTarget(player.id)"
+                    @mousedown="startPressingDonTarget(player.id)"
+                    @mouseup="stopPressingDonTarget"
+                    @mouseleave="stopPressingDonTarget"
+                    @touchstart="startPressingDonTarget(player.id)"
+                    @touchend="stopPressingDonTarget"
 		    >
                     {{ player.id }}
                   </el-button>
                 </el-button-group>
               </div>
               
-              <div v-if="donCheckResult" class="check-result">
-                <el-alert 
-                  :title="donCheckResult.message"
-                  :type="donCheckResult.type"
-                  :closable="false"
-                  show-icon
-                  />
-              </div>
             </div>
           </div>
         </div>
@@ -85,7 +95,7 @@
       <div class="action-group">
         <div class="action-row">
           <div class="action-icon">
-            <SheriffIcon color="#409eff" />
+            <SheriffIcon color="#f56c6c" />
           </div>
           
           <div class="action-content">
@@ -104,21 +114,19 @@
                     v-for="player in aliveTargets"
                     :key="`sheriff-${player.id}`"
                     :type="getSheriffTargetType(player.id)"
+                    :class="getSheriffTargetClass(player.id)"
                     @click="selectSheriffTarget(player.id)"
+                    @mousedown="startPressingSheriffTarget(player.id)"
+                    @mouseup="stopPressingSheriffTarget"
+                    @mouseleave="stopPressingSheriffTarget"
+                    @touchstart="startPressingSheriffTarget(player.id)"
+                    @touchend="stopPressingSheriffTarget"
 		    >
                     {{ player.id }}
                   </el-button>
                 </el-button-group>
               </div>
               
-              <div v-if="sheriffCheckResult" class="check-result">
-                <el-alert 
-                  :title="sheriffCheckResult.message"
-                  :type="sheriffCheckResult.type"
-                  :closable="false"
-                  show-icon
-                  />
-              </div>
             </div>
           </div>
         </div>
@@ -139,8 +147,11 @@
   const gameStore = useGameStore()
   const nightActionsStore = useNightActionsStore()
 
-  const donCheckResult = ref(null)
-  const sheriffCheckResult = ref(null)
+  // Состояния для отслеживания нажатий
+  const pressingMafiaTargetId = ref(null)
+  const pressingDonTargetId = ref(null)
+  const pressingSheriffTargetId = ref(null)
+
 
   const aliveTargets = computed(() => {
       return gameStore.gameState.players.filter(p => p.isAlive && !p.isEliminated)
@@ -166,15 +177,18 @@
   })
 
   const getMafiaTargetType = (playerId) => {
-      return gameStore.gameState.mafiaTarget === playerId ? 'danger' : 'info'
+      // Не показываем стандартные типы кнопок - только через наши кастомные классы при нажатии
+      return 'info'
   }
 
   const getDonTargetType = (playerId) => {
-      return gameStore.gameState.donTarget === playerId ? 'warning' : 'info'
+      // Не показываем стандартные типы кнопок - только через наши кастомные классы при нажатии
+      return 'info'
   }
 
   const getSheriffTargetType = (playerId) => {
-      return gameStore.gameState.sheriffTarget === playerId ? 'primary' : 'info'
+      // Не показываем стандартные типы кнопок - только через наши кастомные классы при нажатии
+      return 'info'
   }
 
   const selectMafiaTarget = (playerId) => {
@@ -183,38 +197,61 @@
 
   const selectDonTarget = (playerId) => {
       gameStore.gameState.donTarget = playerId
-      
-      if (playerId) {
-	  const result = nightActionsStore.checkDon(playerId)
-	  if (result) {
-	      donCheckResult.value = {
-		  message: result.isSheriff 
-		      ? `Игрок ${result.targetId}: ${result.targetName} является шерифом!`
-		      : `Игрок ${result.targetId}: ${result.targetName} не является шерифом.`,
-		  type: result.isSheriff ? 'success' : 'error'
-	      }
-	  }
-      } else {
-	  donCheckResult.value = null
-      }
   }
 
   const selectSheriffTarget = (playerId) => {
       gameStore.gameState.sheriffTarget = playerId
-      
-      if (playerId) {
-	  const result = nightActionsStore.checkSheriff(playerId)
-	  if (result) {
-	      sheriffCheckResult.value = {
-		  message: result.isMafia 
-		      ? `Игрок ${result.targetId}: ${result.targetName} является членом мафии!`
-		      : `Игрок ${result.targetId}: ${result.targetName} является мирным жителем.`,
-		  type: result.isMafia ? 'error' : 'success'
-	      }
-	  }
-      } else {
-	  sheriffCheckResult.value = null
+  }
+
+  // Методы для обработки нажатий мафии
+  const startPressingMafiaTarget = (playerId) => {
+      pressingMafiaTargetId.value = playerId
+  }
+
+  const stopPressingMafiaTarget = () => {
+      pressingMafiaTargetId.value = null
+  }
+
+  // Методы для обработки нажатий дона
+  const startPressingDonTarget = (playerId) => {
+      pressingDonTargetId.value = playerId
+  }
+
+  const stopPressingDonTarget = () => {
+      pressingDonTargetId.value = null
+  }
+
+  // Методы для обработки нажатий шерифа
+  const startPressingSheriffTarget = (playerId) => {
+      pressingSheriffTargetId.value = playerId
+  }
+
+  const stopPressingSheriffTarget = () => {
+      pressingSheriffTargetId.value = null
+  }
+
+  // Получение класса для кнопки дона с проверкой роли
+  const getDonTargetClass = (playerId) => {
+      if (pressingDonTargetId.value !== playerId) {
+          return ''
       }
+      
+      const result = nightActionsStore.checkDon(playerId)
+      if (!result) return ''
+      
+      return result.isSheriff ? 'don-check-sheriff' : 'don-check-not-sheriff'
+  }
+
+  // Получение класса для кнопки шерифа с проверкой роли
+  const getSheriffTargetClass = (playerId) => {
+      if (pressingSheriffTargetId.value !== playerId) {
+          return ''
+      }
+      
+      const result = nightActionsStore.checkSheriff(playerId)
+      if (!result) return ''
+      
+      return result.isMafia ? 'sheriff-check-mafia' : 'sheriff-check-civilian'
   }
 </script>
 
@@ -268,5 +305,42 @@
 
   .mb-3 {
       margin-bottom: 12px;
+  }
+
+  /* Стили для скрытой подсветки результатов */
+  :deep(.kill-target) {
+      background-color: #f56c6c !important;
+      border-color: #f56c6c !important;
+      color: white !important;
+  }
+
+  :deep(.miss-target) {
+      background-color: #909399 !important;
+      border-color: #909399 !important;
+      color: white !important;
+  }
+
+  :deep(.don-check-sheriff) {
+      background-color: #f56c6c !important;
+      border-color: #f56c6c !important;
+      color: white !important;
+  }
+
+  :deep(.don-check-not-sheriff) {
+      background-color: #000000 !important;
+      border-color: #000000 !important;
+      color: white !important;
+  }
+
+  :deep(.sheriff-check-civilian) {
+      background-color: #f56c6c !important;
+      border-color: #f56c6c !important;
+      color: white !important;
+  }
+
+  :deep(.sheriff-check-mafia) {
+      background-color: #000000 !important;
+      border-color: #000000 !important;
+      color: white !important;
   }
 </style>
