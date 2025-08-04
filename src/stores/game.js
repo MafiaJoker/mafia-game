@@ -228,22 +228,38 @@ export const useGameStore = defineStore('game', () => {
     }
 
     const checkVictoryConditions = () => {
-	const alivePlayers = gameState.value.players.filter(p => p.isAlive && !p.isEliminated)
+	const alivePlayers = gameState.value.players.filter(p => p.isInGame === true)
 	const aliveMafia = alivePlayers.filter(p => p.originalRole === PLAYER_ROLES.MAFIA || p.originalRole === PLAYER_ROLES.DON)
 	const aliveCivilians = alivePlayers.filter(p => p.originalRole === PLAYER_ROLES.CIVILIAN || p.originalRole === PLAYER_ROLES.SHERIFF)
 	
+	console.log('All players status:')
+	gameState.value.players.forEach(p => {
+	    console.log(`Player ${p.id}: isInGame=${p.isInGame}, originalRole=${p.originalRole}, inGame=${p.isInGame === true}`)
+	})
+	
+	console.log('Victory check:', {
+	    alivePlayers: alivePlayers.length,
+	    aliveMafia: aliveMafia.length,
+	    aliveCivilians: aliveCivilians.length,
+	    mafiaPlayers: aliveMafia.map(p => ({ id: p.id, role: p.originalRole })),
+	    civilianPlayers: aliveCivilians.map(p => ({ id: p.id, role: p.originalRole }))
+	})
+	
 	// Победа мирных - все мафия убиты
 	if (aliveMafia.length === 0) {
+	    console.log('Civilians win - all mafia eliminated')
 	    finishGame('civilians_win')
 	    return 'civilians_win'
 	}
 	
 	// Победа мафии - мафии столько же или больше чем мирных
 	if (aliveMafia.length >= aliveCivilians.length) {
+	    console.log('Mafia win - mafia >= civilians')
 	    finishGame('mafia_win')
 	    return 'mafia_win'
 	}
 	
+	console.log('Game continues')
 	return null
     }
     
@@ -677,6 +693,9 @@ export const useGameStore = defineStore('game', () => {
 	    
 	    // Синхронизируем статусы игроков с фазами
 	    syncPlayersWithPhases()
+	    
+	    // Проверяем условия победы после выведения игрока
+	    checkVictoryConditions()
 	}
     }
 
