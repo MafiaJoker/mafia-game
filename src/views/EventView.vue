@@ -350,7 +350,20 @@
 
   const selectTable = (table) => {
     selectedTable.value = table
-    games.value = table.games || []
+    // Сортируем игры по названию (Игра 1, Игра 2, и т.д.)
+    const sortedGames = (table.games || []).sort((a, b) => {
+      // Извлекаем числа из названий игр
+      const getGameNumber = (label) => {
+        const match = label.match(/Игра\s*[#№]?\s*(\d+)/i)
+        return match ? parseInt(match[1]) : 0
+      }
+      
+      const aNum = getGameNumber(a.label)
+      const bNum = getGameNumber(b.label)
+      
+      return aNum - bNum
+    })
+    games.value = sortedGames
   }
 
 
@@ -684,6 +697,7 @@
           // Группируем игры по столам для правильной нумерации
           const gamesPerTable = {}
           
+          // Создаем игры последовательно для сохранения правильного порядка
           for (let gameIndex = 0; gameIndex < games.length; gameIndex++) {
               const gameInfo = games[gameIndex]
               const gamePlayers = gameInfo.playing || gameInfo // Поддержка обоих форматов
@@ -709,8 +723,9 @@
               }
               gamesPerTable[relativeTableNumber]++
               
+              // Используем общий номер игры (gameIndex + 1) для последовательной нумерации
               const gameData = {
-                  label: `Игра #${gamesPerTable[relativeTableNumber]}`,
+                  label: `Игра ${gameIndex + 1}`,
                   event_id: eventId,
                   table_id: tableNumber
               }
@@ -718,17 +733,18 @@
               console.log('Creating game with data:', gameData, 'Table name:', tableName)
               
               try {
+                  // Создаем игру и ждем завершения перед созданием следующей
                   const createdGame = await apiService.createGameWithPlayers(gameData, gamePlayers)
                   console.log('Game created:', createdGame)
                   createdGames++
                   
                   // Логируем информацию о пропускающих игроках
                   if (gameInfo.sittingOut && gameInfo.sittingOut.length > 0) {
-                      console.log(`Игра ${gamesPerTable[relativeTableNumber]}: пропускают ${gameInfo.sittingOut.map(p => p.nickname).join(', ')}`)
+                      console.log(`Игра ${gameIndex + 1}: пропускают ${gameInfo.sittingOut.map(p => p.nickname).join(', ')}`)
                   }
               } catch (error) {
                   console.error('Ошибка создания игры:', error)
-                  ElMessage.error(`Ошибка создания игры ${gamesPerTable[relativeTableNumber]}`)
+                  ElMessage.error(`Ошибка создания игры ${gameIndex + 1}`)
               }
           }
           
