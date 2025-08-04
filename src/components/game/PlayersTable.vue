@@ -225,23 +225,19 @@
              gameStore.isGameInProgress
   })
 
-  const handleIncrementFoul = (playerId) => {
+  const handleIncrementFoul = async (playerId) => {
       const player = gameStore.currentPlayer(playerId)
       if (!player) return
 
       if (player.fouls < MAX_FOULS.BEFORE_SILENCE || 
 	  (player.fouls === MAX_FOULS.BEFORE_SILENCE && (player.isSilent || player.silentNextRound)) ||
 	  player.fouls >= MAX_FOULS.BEFORE_ELIMINATION) {
-	  gameStore.incrementFoul(playerId)
+	  await gameStore.addFoul(playerId)
       }
   }
 
-  const handleResetFouls = (playerId) => {
-      const player = gameStore.currentPlayer(playerId)
-      if (player) {
-	  player.fouls = 0
-	  // ElMessage.success(`Фолы игрока ${player.name || `Игрок ${playerId}`} сброшены`)
-      }
+  const handleResetFouls = async (playerId) => {
+      await gameStore.resetPlayerFouls(playerId)
   }
 
   const handlePlayerSelected = ({ playerId, playerName, userId }) => {

@@ -228,7 +228,7 @@ export const apiService = {
     async saveGamePhasesAtomic(gameId, phasesData) {
 	// Заменяем v1 на v2 в URL для этого endpoint
 	const v2Url = api.defaults.baseURL.replace('/v1', '/v2')
-	const response = await axios.put(`${v2Url}/games/${gameId}`, phasesData, {
+	const response = await axios.patch(`${v2Url}/games/${gameId}`, phasesData, {
 	    withCredentials: true,
 	    headers: api.defaults.headers
 	})

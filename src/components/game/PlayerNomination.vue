@@ -54,11 +54,26 @@
   const emit = defineEmits(['nominate'])
 
   const canNominate = computed(() => {
-      return props.player.isAlive && 
+      const can = props.player.isAlive && 
           !props.player.isEliminated &&
           props.gameState.gameStatus === GAME_STATUSES.IN_PROGRESS &&
           (props.gameState.gameSubstatus === GAME_SUBSTATUS.DISCUSSION ||
 	   props.gameState.gameSubstatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION)
+      
+      // Отладка для первого игрока
+      if (props.player.id === 1) {
+          console.log(`Player ${props.player.id} canNominate:`, {
+              can,
+              isAlive: props.player.isAlive,
+              isEliminated: props.player.isEliminated,
+              gameStatus: props.gameState.gameStatus,
+              gameSubstatus: props.gameState.gameSubstatus,
+              expectedStatus: GAME_STATUSES.IN_PROGRESS,
+              expectedSubstatus: GAME_SUBSTATUS.DISCUSSION
+          })
+      }
+      
+      return can
   })
 
   const availableTargets = computed(() => {

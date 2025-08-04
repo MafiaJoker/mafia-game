@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useGameStore } from './game'
+import { useGamePhasesStore } from './gamePhases'
 import { GAME_SUBSTATUS } from '@/utils/constants'
 
 export const useVotingStore = defineStore('voting', () => {
     const gameStore = useGameStore()
+    const gamePhasesStore = useGamePhasesStore()
 
     const startVoting = () => {
 	if (gameStore.gameState.nominatedPlayers.length === 0) return false
@@ -67,6 +69,9 @@ export const useVotingStore = defineStore('voting', () => {
 	    const eliminatedId = playersWithMaxVotes[0]
 	    gameStore.eliminatePlayerByVote(eliminatedId)
 	    gameStore.gameState.noCandidatesRounds = 0
+	    
+	    // Сохраняем результат голосования в фазы
+	    gamePhasesStore.setVotedPlayer(eliminatedId)
 	}
 	
 	gameStore.gameState.shootoutPlayers = []

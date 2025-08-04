@@ -102,6 +102,13 @@ export const useGameStore = defineStore('game', () => {
 	return mafiaCount === 2 && donCount === 1 && sheriffCount === 1
     })
 
+    // Computed property для номинированных игроков (вычисляется в рантайме)
+    const nominatedPlayers = computed(() => {
+	return gameState.value.players
+	    .filter(p => p.nominated !== null && p.nominated !== undefined)
+	    .map(p => p.nominated)
+    })
+
     // Actions
     const finishGame = async (result) => {
 	try {
@@ -191,6 +198,9 @@ export const useGameStore = defineStore('game', () => {
 		const gameStatus = gameInfo.value?.gameData?.status || gameInfo.value?.gameData?.result
 		await gamePhasesStore.loadGamePhases(gameId, gameStatus, gameStateData)
 		
+		// Синхронизируем фолы из gameState в фазы
+		gamePhasesStore.syncFoulsFromGameState(gameState.value.players)
+		
 		// Синхронизируем раунд с фазами
 		gameState.value.round = gamePhasesStore.currentPhaseId
 		
@@ -240,8 +250,11 @@ export const useGameStore = defineStore('game', () => {
 		console.log('gameInfo after assignment:', gameInfo.value)
 		
 		// Инициализируем игроков из детальной информации
-		if (gameData.players && gameData.players.length > 0) {
-		    console.log('Loading players from API:', gameData.players)
+		// Используем gameStateData.players если доступно (актуальные фолы), иначе gameData.players
+		const playersSource = (gameStateData && gameStateData.players) ? gameStateData.players : gameData.players
+		if (playersSource && playersSource.length > 0) {
+		    console.log('Loading players from API:', playersSource)
+		    console.log('Using gameStateData players:', !!(gameStateData && gameStateData.players))
 		    
 		    // Создаем массив из 10 пустых слотов
 		    const playersArray = Array(10).fill(null).map((_, index) => ({
@@ -259,7 +272,7 @@ export const useGameStore = defineStore('game', () => {
 		    }))
 		    
 		    // Заполняем данными из API
-		    gameData.players.forEach((apiPlayer) => {
+		    playersSource.forEach((apiPlayer) => {
 			const slotIndex = (apiPlayer.box_id || 1) - 1 // box_id начинается с 1
 			if (slotIndex >= 0 && slotIndex < 10) {
 			    // Если роль null или не определена:
@@ -270,21 +283,25 @@ export const useGameStore = defineStore('game', () => {
 			    const playerName = apiPlayer.nickname || ''
 			    const userId = apiPlayer.id || null
 			    
+			    // Для gameStateData используем is_in_game, для gameData используем is_killed/is_removed
+			    const isAlive = gameStateData ? apiPlayer.is_in_game : (!apiPlayer.is_killed && !apiPlayer.is_removed)
+			    const isEliminated = gameStateData ? !apiPlayer.is_in_game : (apiPlayer.is_removed || false)
+			    
 			    playersArray[slotIndex] = {
 				id: apiPlayer.box_id || (slotIndex + 1),
 				name: playerName,
 				role: localRole,
 				originalRole: localRole,
-				fouls: apiPlayer.fouls_count || 0,
+				fouls: apiPlayer.fouls || 0,
 				nominated: null,
-				isAlive: !apiPlayer.is_killed && !apiPlayer.is_removed,
-				isEliminated: apiPlayer.is_removed || false,
+				isAlive: isAlive,
+				isEliminated: isEliminated,
 				isSilent: false,
 				silentNextRound: false,
 				userId: userId,
 				boxId: apiPlayer.box_id
 			    }
-			    console.log(`Player loaded: slot ${slotIndex + 1}, name: ${playerName}, role: ${localRole}, userId: ${userId}`)
+			    console.log(`Player loaded: slot ${slotIndex + 1}, name: ${playerName}, role: ${localRole}, fouls: ${apiPlayer.fouls}, isAlive: ${isAlive}, userId: ${userId}`)
 			}
 		    })
 		    
@@ -293,11 +310,37 @@ export const useGameStore = defineStore('game', () => {
 		    initPlayers()
 		}
 		
-		// Применяем данные состояния игры, если они есть (gameStateData не null означает что мы загрузили полное состояние)
+		// Сначала устанавливаем статус игры на основе данных
+		console.log('Проверяем статус игры:', { 
+		    'gameData.result': gameData.result, 
+		    'gameData.status': gameData.status 
+		})
+		
+		// Получаем статус из result или status
+		const gameStatus = gameData.result || gameData.status
+		
+		if (gameStatus === 'in_progress') {
+		    gameState.value.gameStatus = GAME_STATUSES.IN_PROGRESS
+		    gameState.value.isGameStarted = true
+		    // Подстатусы существуют только на фронте - всегда ставим DISCUSSION для активных игр
+		    gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
+		    console.log('Установлен подстатус для активной игры:', GAME_SUBSTATUS.DISCUSSION)
+		} else if (gameStatus && gameStatus !== 'in_progress') {
+		    // Завершённые игры (finished_with_scores, cancelled и т.д.)
+		    gameState.value.gameStatus = gameStatus
+		    gameState.value.isGameStarted = true
+		    console.log('Игра завершена, статус:', gameStatus)
+		} else {
+		    console.log('Игра не активна, статус:', gameStatus)
+		    setGameStatus(GAME_STATUSES.SEATING_READY)
+		    gameState.value.isGameStarted = false
+		}
+		
+		// Применяем данные состояния игры, если они есть, НО исключаем gameSubstatus
 		if (gameStateData) {
-		    // Применяем все поля состояния, кроме игроков (они уже загружены выше)
-		    const { players, ...stateWithoutPlayers } = gameStateData
-		    Object.assign(gameState.value, stateWithoutPlayers)
+		    // Исключаем players и gameSubstatus - они уже установлены выше
+		    const { players, gameSubstatus, ...stateWithoutPlayersAndSubstatus } = gameStateData
+		    Object.assign(gameState.value, stateWithoutPlayersAndSubstatus)
 		    
 		    // Обрабатываем bestMoveTargets если это массив
 		    if (gameStateData.bestMoveTargets && Array.isArray(gameStateData.bestMoveTargets)) {
@@ -305,21 +348,11 @@ export const useGameStore = defineStore('game', () => {
 		    }
 		}
 		
-		// Устанавливаем статус игры на основе данных
-		if (gameData.result) {
-		    gameState.value.gameStatus = gameData.result
-		    gameState.value.isGameStarted = true
-		} else if (gameData.status === 'in_progress') {
-		    gameState.value.gameStatus = GAME_STATUSES.IN_PROGRESS
-		    gameState.value.isGameStarted = true
-		    // Если состояние не загружено, устанавливаем подстатус по умолчанию
-		    if (!gameStateData) {
-			gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
-		    }
-		} else {
-		    setGameStatus(GAME_STATUSES.SEATING_READY)
-		    gameState.value.isGameStarted = false
-		}
+		console.log('Финальные статусы игры:', {
+		    gameStatus: gameState.value.gameStatus,
+		    gameSubstatus: gameState.value.gameSubstatus,
+		    isGameStarted: gameState.value.isGameStarted
+		})
 		
 		return gameStateData
 	    }
@@ -745,7 +778,7 @@ export const useGameStore = defineStore('game', () => {
 	}
     }
 
-    const addFoul = (playerId) => {
+    const addFoul = async (playerId) => {
 	const player = currentPlayer.value(playerId)
 	if (player) {
 	    // Обновляем в фазах
@@ -767,7 +800,31 @@ export const useGameStore = defineStore('game', () => {
 		gamePhasesStore.addRemovedPlayer(player.id)
 	    }
 	    
-	    gamePhasesStore.saveGamePhases()
+	    // Используем UpdateGamePhase API для обновления текущей фазы
+	    await gamePhasesStore.updateCurrentPhaseOnServer()
+	}
+    }
+
+    const resetPlayerFouls = async (playerId) => {
+	const player = currentPlayer.value(playerId)
+	if (player) {
+	    // Обновляем в фазах
+	    gamePhasesStore.resetFouls(player.id)
+	    
+	    // Обновляем локальное состояние
+	    player.fouls = 0
+	    player.canSpeak = true
+	    player.isEliminated = false
+	    player.isAlive = true
+	    
+	    // Убираем из списка исключённых если был там
+	    const index = gameState.value.eliminatedPlayers.indexOf(playerId)
+	    if (index !== -1) {
+		gameState.value.eliminatedPlayers.splice(index, 1)
+	    }
+	    
+	    // Используем UpdateGamePhase API для обновления текущей фазы
+	    await gamePhasesStore.updateCurrentPhaseOnServer()
 	}
     }
 
@@ -915,9 +972,8 @@ export const useGameStore = defineStore('game', () => {
 	    player.isAlive = !isKilled && !isRemoved
 	    player.isEliminated = isRemoved
 	    
-	    // Обновляем фолы из текущей фазы
-	    const foulsCount = gamePhasesStore.getPlayerFoulsAtPhase(player.id, currentPhaseId)
-	    player.fouls = foulsCount
+	    // НЕ обновляем фолы из фаз - они уже правильно загружены из API
+	    // и синхронизированы в фазы
 	})
     }
 
@@ -941,6 +997,7 @@ export const useGameStore = defineStore('game', () => {
 	canEditRoles,
 	isGameInProgress,
 	canStartGame,
+	nominatedPlayers,
 	
 	// Actions
 	checkBestMove,
@@ -968,6 +1025,7 @@ export const useGameStore = defineStore('game', () => {
 	incrementNoCandidatesRounds,
 	eliminatePlayerByVote,
 	addFoul,
+	resetPlayerFouls,
 	removeFoul,
 	setDonTarget,
 	setSheriffTarget,

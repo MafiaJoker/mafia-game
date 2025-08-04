@@ -113,7 +113,7 @@
 </template>
 
 <script setup>
-  import { computed } from 'vue'
+  import { computed, watch } from 'vue'
   import { useGameStore } from '@/stores/game'
   import { useVotingStore } from '@/stores/voting'
   import { useNightActionsStore } from '@/stores/nightActions'
@@ -130,8 +130,23 @@
   const gameState = computed(() => gameStore.gameState)
 
   const nominatedPlayersCount = computed(() => {
-      return gameState.value.nominatedPlayers.length
+      return gameStore.nominatedPlayers.length
   })
+
+  // Отладочная информация для диагностики
+  const debugInfo = computed(() => ({
+    gameStatus: gameState.value.gameStatus,
+    gameSubstatus: gameState.value.gameSubstatus,
+    nominatedCount: nominatedPlayersCount.value,
+    showButtons: gameState.value.gameStatus === GAME_STATUSES.IN_PROGRESS &&
+                (gameState.value.gameSubstatus === GAME_SUBSTATUS.DISCUSSION || 
+                 gameState.value.gameSubstatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION)
+  }))
+
+  // Выводим отладочную информацию в консоль
+  watch(debugInfo, (newInfo) => {
+    console.log('GameControls debug:', newInfo)
+  }, { immediate: true })
 
   const showBestMoveControls = computed(() => {
       return gameState.value.showBestMove
@@ -188,20 +203,22 @@
   }
 
   const startVoting = () => {
+      // Проверяем номинированных игроков только если есть данные
       if (nominatedPlayersCount.value === 1 && gameState.value.round > 0) {
 	  // Единственная кандидатура автоматически выбывает
-	  const playerId = gameState.value.nominatedPlayers[0]
+	  const playerId = gameStore.nominatedPlayers[0]
 	  const player = gameStore.currentPlayer(playerId)
 	  
 	  // ElMessage.warning(`Игрок ${player.nickname} автоматически выбывает как единственная кандидатура`)
 	  gameStore.eliminatePlayer(playerId)
 	  
-	  gameState.value.nominatedPlayers = []
+	  // Очищаем номинации
 	  gameState.value.players.forEach(p => { p.nominated = null })
 	  
 	  return
       }
       
+      // Всегда позволяем начать голосование - судья сам решает
       votingStore.startVoting()
   }
 
