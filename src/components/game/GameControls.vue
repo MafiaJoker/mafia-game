@@ -14,8 +14,26 @@
       </el-button>
       <el-button 
         type="success" 
-        @click="startGame"
+        @click="startNegotiation"
         :disabled="!gameStore.canStartGame"
+	>
+        Начать договорку
+      </el-button>
+    </template>
+
+    <!-- Кнопки для статуса NEGOTIATION -->
+    <template v-if="gameState.gameStatus === GAME_STATUSES.NEGOTIATION">
+      <el-button type="info" @click="skipToFreeSeating">
+        Пропустить договорку
+      </el-button>
+    </template>
+
+    <!-- Кнопки для статуса FREE_SEATING -->
+    <template v-if="gameState.gameStatus === GAME_STATUSES.FREE_SEATING">
+      <el-button 
+        type="success" 
+        @click="startGame"
+        size="large"
 	>
         Начать игру
       </el-button>
@@ -125,7 +143,7 @@
 
   const startRoleDistribution = () => {
       gameStore.setGameStatus(GAME_STATUSES.ROLE_DISTRIBUTION)
-      ElMessage.info('Распределите роли между игроками')
+      // ElMessage.info('Распределите роли между игроками')
   }
 
   const cancelRoleDistribution = () => {
@@ -136,21 +154,36 @@
       })
       
       gameStore.setGameStatus(GAME_STATUSES.SEATING_READY)
-      ElMessage.info('Раздача ролей отменена')
+      // ElMessage.info('Раздача ролей отменена')
+  }
+
+  const startNegotiation = () => {
+      if (!gameStore.canStartGame) {
+	  // ElMessage.error('Необходимо распределить 2 мафии, 1 дона и 1 шерифа!')
+	  return
+      }
+      
+      gameStore.setGameStatus(GAME_STATUSES.NEGOTIATION)
+      // ElMessage.info('Договорка началась (1 минута)')
+  }
+
+  const skipToFreeSeating = () => {
+      gameStore.setGameStatus(GAME_STATUSES.FREE_SEATING)
+      // ElMessage.info('Свободная посадка (40 секунд)')
   }
 
   const startGame = async () => {
       if (!gameStore.canStartGame) {
-	  ElMessage.error('Необходимо распределить 2 мафии, 1 дона и 1 шерифа!')
+	  // ElMessage.error('Необходимо распределить 2 мафии, 1 дона и 1 шерифа!')
 	  return
       }
 
       try {
           await gameStore.startGame()
-          ElMessage.success('Игра началась!')
+          // ElMessage.success('Игра началась!')
       } catch (error) {
           console.error('Ошибка при запуске игры:', error)
-          ElMessage.error('Ошибка при запуске игры: ' + error.message)
+          // ElMessage.error('Ошибка при запуске игры: ' + error.message)
       }
   }
 
@@ -160,7 +193,7 @@
 	  const playerId = gameState.value.nominatedPlayers[0]
 	  const player = gameStore.currentPlayer(playerId)
 	  
-	  ElMessage.warning(`Игрок ${player.nickname} автоматически выбывает как единственная кандидатура`)
+	  // ElMessage.warning(`Игрок ${player.nickname} автоматически выбывает как единственная кандидатура`)
 	  gameStore.eliminatePlayer(playerId)
 	  
 	  gameState.value.nominatedPlayers = []
@@ -215,7 +248,7 @@
   const confirmBestMove = () => {
       gameState.value.bestMoveUsed = true
       gameState.value.showBestMove = false
-      ElMessage.success('Лучший ход подтвержден')
+      // ElMessage.success('Лучший ход подтвержден')
   }
 
   const showScoreDialog = () => {

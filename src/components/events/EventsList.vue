@@ -14,6 +14,15 @@
           class="event-item"
           @click="navigateToEvent(event)"
           >
+          <el-button 
+            class="event-delete-btn"
+            link
+            size="small"
+            @click.stop="$emit('deleteEvent', event.id)"
+            >
+            <el-icon><Close /></el-icon>
+          </el-button>
+          
           <div class="event-content">
             <div class="event-header">
               <h4 class="event-title">
@@ -46,17 +55,6 @@
               <div class="event-info">
                 <span class="event-date">{{ formatDate(event.start_date) }}</span>
               </div>
-
-              <div class="event-actions">
-                <el-button
-                  type="danger"
-                  size="small"
-                  circle
-                  @click.stop="$emit('deleteEvent', event.id)"
-                  >
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </div>
             </div>
           </div>
         </div>
@@ -67,7 +65,7 @@
 
 <script setup>
   import { useRouter } from 'vue-router'
-  import { Delete } from '@element-plus/icons-vue'
+  import { Delete, Close } from '@element-plus/icons-vue'
 
   const router = useRouter()
 
@@ -130,6 +128,7 @@
   }
 
   .event-item {
+      position: relative;
       cursor: pointer;
       transition: all 0.3s ease;
       border-radius: 8px;
@@ -143,6 +142,28 @@
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       border-color: #409eff;
+  }
+
+  .event-item:hover .event-delete-btn {
+      opacity: 1;
+  }
+
+  .event-delete-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      padding: 4px;
+      min-width: auto;
+      width: 24px;
+      height: 24px;
+      z-index: 1;
+  }
+
+  .event-delete-btn:hover {
+      color: #f56c6c;
+      background-color: #fee;
   }
 
   .event-content {
@@ -189,10 +210,6 @@
       color: #909399;
   }
 
-  .event-actions {
-      display: flex;
-      gap: 8px;
-  }
 
   .ml-1 {
       margin-left: 4px;

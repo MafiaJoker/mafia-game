@@ -33,6 +33,8 @@ export const GAME_STATUSES = {
     CREATED: 'created',
     SEATING_READY: 'seating_ready',
     ROLE_DISTRIBUTION: 'role_distribution',
+    NEGOTIATION: 'negotiation', // Договорка
+    FREE_SEATING: 'free_seating', // Свободная посадка
     IN_PROGRESS: 'in_progress',
     FINISHED_NO_SCORES: 'finished_no_scores',
     FINISHED_WITH_SCORES: 'finished_with_scores',
@@ -53,7 +55,9 @@ export const GAME_SUBSTATUS = {
 export const GAME_STATUS_NAMES = {
     [GAME_STATUSES.CREATED]: 'С',
     [GAME_STATUSES.SEATING_READY]: 'Р',
-    [GAME_STATUSES.ROLE_DISTRIBUTION]: 'Роздача ролей',
+    [GAME_STATUSES.ROLE_DISTRIBUTION]: 'Раздача ролей',
+    [GAME_STATUSES.NEGOTIATION]: 'Договорка',
+    [GAME_STATUSES.FREE_SEATING]: 'Свободная посадка',
     [GAME_STATUSES.IN_PROGRESS]: 'В процессе',
     [GAME_STATUSES.FINISHED_NO_SCORES]: 'Завершена без баллов',
     [GAME_STATUSES.FINISHED_WITH_SCORES]: 'Завершена с баллами',

@@ -129,7 +129,7 @@
 
 	  gameStore.eliminatePlayer(selectedPlayer.value)
 	  
-	  ElMessage.success(`Игрок ${player.nickname} удален из игры`)
+	  // ElMessage.success(`Игрок ${player.nickname} удален из игры`)
 	  handleClose()
 	  
       } catch {

@@ -368,7 +368,17 @@ export const apiService = {
     },
 
     async deleteRegistration(eventId, registrationId) {
-        await api.delete(`/events/${eventId}/registrations/${registrationId}`)
+        const response = await api.patch(`/events/${eventId}/registrations/${registrationId}`, {
+            status: 'cancelled'
+        })
+        return response.data
+    },
+
+    async updateRegistrationStatus(eventId, registrationId, status) {
+        const response = await api.patch(`/events/${eventId}/registrations/${registrationId}`, {
+            status: status
+        })
+        return response.data
     },
 
     // Logout

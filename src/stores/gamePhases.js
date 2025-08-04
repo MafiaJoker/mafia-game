@@ -234,26 +234,19 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
         }
     }
 
-    const loadGamePhases = async (gameIdValue, gameStatus) => {
+    const loadGamePhases = async (gameIdValue, gameStatus, gameStateData = null) => {
         try {
             gameId.value = gameIdValue
             
-            // Загружаем состояние игры только если игра в процессе
-            if (gameStatus === 'in_progress') {
-                try {
-                    const data = await apiService.getGameState(gameIdValue)
-                    
-                    if (data && data.phases) {
-                        bestMove.value = data.best_move || null
-                        phases.value = data.phases || []
-                        currentPhaseId.value = phases.value.length > 0 ? 
-                            Math.max(...phases.value.map(p => p.phase_id)) : 1
-                    }
-                } catch (error) {
-                    console.log('Не удалось загрузить фазы из состояния игры:', error)
-                }
+            // Используем переданные данные состояния игры
+            if (gameStateData && gameStateData.phases) {
+                bestMove.value = gameStateData.best_move || null
+                phases.value = gameStateData.phases || []
+                currentPhaseId.value = phases.value.length > 0 ? 
+                    Math.max(...phases.value.map(p => p.phase_id)) : 1
+                console.log('Фазы загружены из переданных данных')
             } else {
-                console.log(`Игра не в статусе "in_progress" (текущий: ${gameStatus}), пропускаем загрузку состояния`)
+                console.log(`Состояние игры не содержит фазы или игра не в процессе (статус: ${gameStatus})`)
             }
             
             // Если нет фаз, создаем первую

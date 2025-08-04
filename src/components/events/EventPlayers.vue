@@ -117,6 +117,18 @@
                   Добавить выбранных игроков
                 </el-button>
               </div>
+
+              <!-- Кнопка для тестирования -->
+              <div class="test-section">
+                <el-button 
+                  type="warning" 
+                  @click="registerRandomPlayers"
+                  :loading="addingRandomPlayers"
+                  >
+                  <el-icon><UserFilled /></el-icon>
+                  Зарегестрировать случайных 10 игроков
+                </el-button>
+              </div>
             </div>
           </el-col>
           <el-col :span="8">
@@ -208,12 +220,31 @@
               >
                 <template #default="{ row }">
                   <el-button
-                    type="danger"
+                    v-if="row.status === 'confirmed'"
+                    type="warning"
                     size="small"
-                    @click="confirmDeleteRegistration(row)"
+                    @click="confirmRejectRegistration(row)"
                     :loading="registrationsStore.loading"
                   >
-                    Удалить
+                    Отклонить
+                  </el-button>
+                  <el-button
+                    v-else-if="row.status === 'cancelled'"
+                    type="success"
+                    size="small"
+                    @click="confirmConfirmRegistration(row)"
+                    :loading="registrationsStore.loading"
+                  >
+                    Подтвердить
+                  </el-button>
+                  <el-button
+                    v-else
+                    type="primary"
+                    size="small"
+                    @click="confirmConfirmRegistration(row)"
+                    :loading="registrationsStore.loading"
+                  >
+                    Подтвердить
                   </el-button>
                 </template>
               </el-table-column>
@@ -425,6 +456,7 @@
   const currentPage = ref(1)
   const pageSize = ref(20)
   const addingPlayer = ref(false)
+  const addingRandomPlayers = ref(false)
   const isClosedSeating = ref(false)
   const activeRegistrationTab = ref('add')
 
@@ -632,22 +664,42 @@
       return statusLabels[status] || status
   }
 
-  const confirmDeleteRegistration = async (registration) => {
+  const confirmRejectRegistration = async (registration) => {
       try {
           await ElMessageBox.confirm(
-              `Вы уверены, что хотите удалить регистрацию игрока ${registration.user_nickname}?`,
-              'Подтверждение',
+              `Вы уверены, что хотите отклонить заявку игрока ${registration.user_nickname}?`,
+              'Подтверждение отклонения',
               {
-                  confirmButtonText: 'Да',
-                  cancelButtonText: 'Отмена',
+                  confirmButtonText: 'Отклонить',
+                  cancelButtonText: 'Оставить',
                   type: 'warning'
               }
           )
           
-          await registrationsStore.deleteRegistration(props.event.id, registration.id)
+          await registrationsStore.updateRegistrationStatus(props.event.id, registration.id, 'cancelled')
       } catch (error) {
           if (error !== 'cancel') {
-              console.error('Ошибка удаления регистрации:', error)
+              console.error('Ошибка отклонения заявки:', error)
+          }
+      }
+  }
+
+  const confirmConfirmRegistration = async (registration) => {
+      try {
+          await ElMessageBox.confirm(
+              `Вы уверены, что хотите подтвердить заявку игрока ${registration.user_nickname}?`,
+              'Подтверждение заявки',
+              {
+                  confirmButtonText: 'Подтвердить',
+                  cancelButtonText: 'Отмена',
+                  type: 'success'
+              }
+          )
+          
+          await registrationsStore.updateRegistrationStatus(props.event.id, registration.id, 'confirmed')
+      } catch (error) {
+          if (error !== 'cancel') {
+              console.error('Ошибка подтверждения заявки:', error)
           }
       }
   }
@@ -750,11 +802,11 @@
   const removeConfirmedPlayer = async (player) => {
       try {
           await ElMessageBox.confirm(
-              `Вы уверены, что хотите убрать игрока ${player.nickname} с мероприятия?`,
-              'Подтверждение',
+              `Вы уверены, что хотите отклонить заявку игрока ${player.nickname}?`,
+              'Подтверждение отклонения',
               {
-                  confirmButtonText: 'Да',
-                  cancelButtonText: 'Отмена',
+                  confirmButtonText: 'Отклонить',
+                  cancelButtonText: 'Оставить',
                   type: 'warning'
               }
           )
@@ -762,12 +814,12 @@
           // Находим регистрацию игрока
           const registration = registrationsStore.registrations.find(reg => reg.user_id === player.id)
           if (registration) {
-              await registrationsStore.deleteRegistration(props.event.id, registration.id)
+              await registrationsStore.updateRegistrationStatus(props.event.id, registration.id, 'cancelled')
           }
 
       } catch (error) {
           if (error !== 'cancel') {
-              console.error('Ошибка удаления игрока:', error)
+              console.error('Ошибка отклонения заявки:', error)
           }
       }
   }
@@ -785,6 +837,40 @@
           ElMessage.error('Ошибка при обновлении настроек')
           // Возвращаем обратно при ошибке
           isClosedSeating.value = !isClosedSeating.value
+      }
+  }
+
+  // Регистрация 10 случайных игроков для тестирования
+  const registerRandomPlayers = async () => {
+      addingRandomPlayers.value = true
+      try {
+          // Получаем список всех пользователей, которые еще не зарегистрированы
+          const confirmedIds = confirmedPlayers.value.map(p => p.id)
+          const availableUsers = allUsers.value.filter(user => !confirmedIds.includes(user.id))
+          
+          if (availableUsers.length === 0) {
+              ElMessage.warning('Нет доступных игроков для регистрации')
+              return
+          }
+          
+          // Перемешиваем массив и берем первые 10 (или меньше, если недостаточно)
+          const shuffled = [...availableUsers].sort(() => Math.random() - 0.5)
+          const playersToRegister = shuffled.slice(0, Math.min(10, shuffled.length))
+          
+          // Регистрируем каждого игрока
+          let registered = 0
+          for (const user of playersToRegister) {
+              await registrationsStore.createRegistration(props.event.id, user.id)
+              registered++
+          }
+          
+          ElMessage.success(`Зарегистрировано ${registered} игроков`)
+          
+      } catch (error) {
+          console.error('Ошибка при регистрации случайных игроков:', error)
+          ElMessage.error('Ошибка при добавлении игроков')
+      } finally {
+          addingRandomPlayers.value = false
       }
   }
 
@@ -1011,6 +1097,11 @@
       margin-top: 16px;
       padding-top: 16px;
       border-top: 1px solid #ebeef5;
+      text-align: center;
+  }
+  
+  .test-section {
+      margin-top: 12px;
       text-align: center;
   }
   

@@ -106,7 +106,7 @@
 
   const confirmBestMove = () => {
       if (selectedCount.value !== 3) {
-	  ElMessage.error('Необходимо выбрать ровно 3 игроков')
+	  // ElMessage.error('Необходимо выбрать ровно 3 игроков')
 	  return
       }
       
@@ -114,7 +114,7 @@
       gameStore.gameState.showBestMove = false
       gameStore.gameState.bestMoveTargets.clear()
       
-      ElMessage.success('Лучший ход подтвержден')
+      // ElMessage.success('Лучший ход подтвержден')
   }
 </script>
 

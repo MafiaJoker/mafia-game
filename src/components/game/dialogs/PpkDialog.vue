@@ -113,7 +113,7 @@
 	  // Завершаем игру с победой города
 	  await gameStore.finishGame('city_win')
 	  
-	  ElMessage.success('Игра завершена! Победа мирного города!')
+	  // ElMessage.success('Игра завершена! Победа мирного города!')
 	  handleClose()
 	  
       } catch {
@@ -136,7 +136,7 @@
 	  // Завершаем игру с победой мафии
 	  await gameStore.finishGame('mafia_win')
 	  
-	  ElMessage.success('Игра завершена! Победа команды мафии!')
+	  // ElMessage.success('Игра завершена! Победа команды мафии!')
 	  handleClose()
 	  
       } catch {

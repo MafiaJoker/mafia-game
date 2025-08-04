@@ -128,7 +128,7 @@
               <ul>
                 <li v-for="option in suggestedOptions" :key="option">
                   <el-button 
-                    type="text" 
+                    link
                     @click="form.gamesCount = option; calculateDistribution()"
                   >
                     {{ option }} игр ({{ Math.floor((option * form.tablesCount * 10) / confirmedPlayers.length) }} игр на игрока)

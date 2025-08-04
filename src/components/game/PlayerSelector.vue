@@ -75,7 +75,7 @@ const querySearch = (queryString, cb) => {
 // Обработчик выбора игрока
 const handleSelect = (item) => {
   if (props.usedPlayerIds.includes(item.id)) {
-    ElMessage.warning('Этот игрок уже выбран')
+    // ElMessage.warning('Этот игрок уже выбран')
     return
   }
   
@@ -99,7 +99,7 @@ const handleBlur = () => {
     )
     
     if (existingUser && props.usedPlayerIds.includes(existingUser.id)) {
-      ElMessage.warning('Этот игрок уже выбран')
+      // ElMessage.warning('Этот игрок уже выбран')
       playerName.value = ''
       emit('update:modelValue', '')
       emit('player-selected', {

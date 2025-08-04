@@ -146,7 +146,7 @@
 
   const confirmCancellation = async () => {
       if (!form.reason) {
-	  ElMessage.error('Выберите причину отмены')
+	  // ElMessage.error('Выберите причину отмены')
 	  return
       }
 
@@ -179,10 +179,10 @@
 	  )
 
 	  if (success) {
-	      ElMessage.success('Игра отменена')
+	      // ElMessage.success('Игра отменена')
 	      handleClose()
 	  } else {
-	      ElMessage.error('Ошибка при отмене игры')
+	      // ElMessage.error('Ошибка при отмене игры')
 	  }
 
       } catch {

@@ -242,7 +242,7 @@
 	  additionalScores[player.id] = 0
 	  updateScore(player.id)
       })
-      ElMessage.info('Дополнительные баллы сброшены')
+      // ElMessage.info('Дополнительные баллы сброшены')
   }
 
   const saveScores = async () => {
@@ -260,12 +260,12 @@
 	  // Сохраняем состояние
 	  await gameStore.saveGameState()
 	  
-	  ElMessage.success('Баллы успешно сохранены!')
+	  // ElMessage.success('Баллы успешно сохранены!')
 	  handleClose()
 	  
       } catch (error) {
 	  console.error('Ошибка сохранения баллов:', error)
-	  ElMessage.error('Ошибка при сохранении баллов')
+	  // ElMessage.error('Ошибка при сохранении баллов')
       } finally {
 	  saving.value = false
       }

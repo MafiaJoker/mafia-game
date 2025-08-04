@@ -80,14 +80,13 @@
   const gameStore = useGameStore()
   
   const goToEvent = () => {
-    // eventId теперь получаем из загруженных данных игры
-    console.log('gameStore.gameInfo:', gameStore.gameInfo)
-    console.log('gameData:', gameStore.gameInfo?.gameData)
-    const eventId = gameStore.gameInfo?.gameData?.event?.id
-    console.log('eventId:', eventId)
+    const eventId = gameStore.gameInfo?.eventId
+    console.log('Переходим к мероприятию:', eventId)
+    
     if (eventId) {
       router.push(`/event/${eventId}`)
     } else {
+      console.warn('EventId не найден, перенаправляем на главную')
       router.push('/')
     }
   }

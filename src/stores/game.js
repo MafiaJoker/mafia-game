@@ -184,12 +184,18 @@ export const useGameStore = defineStore('game', () => {
 	    gameInfo.value = { eventId, tableId, gameId }
 	    
 	    if (gameId) {
-		await loadGameDetailed(gameId)
+		const gameStateData = await loadGameDetailed(gameId)
 		// Инициализируем gamePhasesStore
 		gamePhasesStore.initializeGame(gameId)
 		// Пытаемся загрузить фазы (может не существовать для старых игр)
 		const gameStatus = gameInfo.value?.gameData?.status || gameInfo.value?.gameData?.result
-		await gamePhasesStore.loadGamePhases(gameId, gameStatus)
+		await gamePhasesStore.loadGamePhases(gameId, gameStatus, gameStateData)
+		
+		// Синхронизируем раунд с фазами
+		gameState.value.round = gamePhasesStore.currentPhaseId
+		
+		// Синхронизируем состояния игроков с фазами
+		syncPlayersWithPhases()
 	    } else {
 		initPlayers()
 		setGameStatus(GAME_STATUSES.SEATING_READY)
@@ -207,11 +213,29 @@ export const useGameStore = defineStore('game', () => {
     const loadGameDetailed = async (gameId) => {
 	try {
 	    console.log('Loading game with ID:', gameId)
+	    
+	    // Всегда сначала загружаем базовую информацию об игре (включая eventId)
 	    const gameData = await apiService.getGame(gameId)
-	    console.log('API response:', gameData)
+	    console.log('Базовая информация об игре:', gameData)
+	    
+	    // Затем загружаем полное состояние игры если игра активна
+	    let gameStateData = null
+	    if (gameData && (gameData.status === 'in_progress' || gameData.result)) {
+		try {
+		    gameStateData = await apiService.getGameState(gameId)
+		    console.log('Полное состояние игры загружено:', gameStateData)
+		} catch (error) {
+		    console.log('Не удалось загрузить состояние игры:', error)
+		}
+	    }
+	    
 	    if (gameData) {
 		// Загружаем основную информацию об игре
 		gameInfo.value.gameData = gameData
+		
+		// Извлекаем eventId из данных игры (всегда обновляем из свежих данных)
+		gameInfo.value.eventId = gameData.event?.id || gameData.event_id
+		
 		console.log('Loaded game data:', gameData)
 		console.log('gameInfo after assignment:', gameInfo.value)
 		
@@ -269,6 +293,18 @@ export const useGameStore = defineStore('game', () => {
 		    initPlayers()
 		}
 		
+		// Применяем данные состояния игры, если они есть (gameStateData не null означает что мы загрузили полное состояние)
+		if (gameStateData) {
+		    // Применяем все поля состояния, кроме игроков (они уже загружены выше)
+		    const { players, ...stateWithoutPlayers } = gameStateData
+		    Object.assign(gameState.value, stateWithoutPlayers)
+		    
+		    // Обрабатываем bestMoveTargets если это массив
+		    if (gameStateData.bestMoveTargets && Array.isArray(gameStateData.bestMoveTargets)) {
+			gameState.value.bestMoveTargets = new Set(gameStateData.bestMoveTargets)
+		    }
+		}
+		
 		// Устанавливаем статус игры на основе данных
 		if (gameData.result) {
 		    gameState.value.gameStatus = gameData.result
@@ -276,36 +312,24 @@ export const useGameStore = defineStore('game', () => {
 		} else if (gameData.status === 'in_progress') {
 		    gameState.value.gameStatus = GAME_STATUSES.IN_PROGRESS
 		    gameState.value.isGameStarted = true
+		    // Если состояние не загружено, устанавливаем подстатус по умолчанию
+		    if (!gameStateData) {
+			gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
+		    }
 		} else {
 		    setGameStatus(GAME_STATUSES.SEATING_READY)
 		    gameState.value.isGameStarted = false
 		}
 		
-		return true
+		return gameStateData
 	    }
-	    return false
+	    return null
 	} catch (error) {
 	    console.error('Ошибка загрузки детальной информации игры:', error)
-	    return false
+	    return null
 	}
     }
 
-    const loadGameState = async (gameId) => {
-	try {
-	    const state = await apiService.getGameState(gameId)
-	    if (state) {
-		Object.assign(gameState.value, state)
-		if (state.bestMoveTargets && Array.isArray(state.bestMoveTargets)) {
-		    gameState.value.bestMoveTargets = new Set(state.bestMoveTargets)
-		}
-		return true
-	    }
-	    return false
-	} catch (error) {
-	    console.error('Ошибка загрузки состояния игры:', error)
-	    return false
-	}
-    }
 
     // saveGameState method removed - use gamePhasesStore.saveGamePhases() instead
 
@@ -405,6 +429,11 @@ export const useGameStore = defineStore('game', () => {
     const setGameStatus = (status, substatus = null) => {
 	gameState.value.gameStatus = status
 	gameState.value.gameSubstatus = substatus
+	
+	// Автоматически скрываем роли с начала договорки
+	if (status === GAME_STATUSES.NEGOTIATION || status === GAME_STATUSES.FREE_SEATING || status === GAME_STATUSES.IN_PROGRESS) {
+	    gameState.value.rolesVisible = false
+	}
     }
 
     const updatePlayer = (playerId, updates) => {
@@ -869,6 +898,28 @@ export const useGameStore = defineStore('game', () => {
 	const alivePlayers = gameState.value.players.filter(p => p.isAlive && !p.isEliminated).length
 	return alivePlayers === 3 || alivePlayers === 4
     })
+    
+    // Синхронизация состояний игроков с фазами
+    const syncPlayersWithPhases = () => {
+	if (!gamePhasesStore.phases.length) return
+	
+	const currentPhaseId = gamePhasesStore.currentPhaseId
+	const killedPlayers = gamePhasesStore.getKilledPlayersUpToPhase(currentPhaseId)
+	const removedPlayers = gamePhasesStore.getRemovedPlayersUpToPhase(currentPhaseId)
+	
+	// Обновляем состойния игроков на основе фаз
+	gameState.value.players.forEach(player => {
+	    const isKilled = killedPlayers.includes(player.id)
+	    const isRemoved = removedPlayers.includes(player.id)
+	    
+	    player.isAlive = !isKilled && !isRemoved
+	    player.isEliminated = isRemoved
+	    
+	    // Обновляем фолы из текущей фазы
+	    const foulsCount = gamePhasesStore.getPlayerFoulsAtPhase(player.id, currentPhaseId)
+	    player.fouls = foulsCount
+	})
+    }
 
     return {
 	// State
@@ -899,7 +950,6 @@ export const useGameStore = defineStore('game', () => {
 	getPlayerScore,
 	initGame,
 	loadGameDetailed,
-	loadGameState,
 	confirmSeating,
 	updateSeating,
 	initPlayers,

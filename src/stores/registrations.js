@@ -130,10 +130,33 @@ export const useRegistrationsStore = defineStore('registrations', () => {
     try {
       await apiService.deleteRegistration(eventId, registrationId)
       await fetchEventRegistrations(eventId)
-      ElMessage.success('Регистрация удалена')
+      ElMessage.success('Регистрация отменена')
     } catch (error) {
-      console.error('Failed to delete registration:', error)
-      const message = error.response?.data?.detail || 'Не удалось удалить регистрацию'
+      console.error('Failed to cancel registration:', error)
+      const message = error.response?.data?.detail || 'Не удалось отменить регистрацию'
+      ElMessage.error(message)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const updateRegistrationStatus = async (eventId, registrationId, status) => {
+    loading.value = true
+    try {
+      await apiService.updateRegistrationStatus(eventId, registrationId, status)
+      await fetchEventRegistrations(eventId)
+      
+      const statusMessages = {
+        'confirmed': 'Заявка подтверждена',
+        'cancelled': 'Заявка отклонена',
+        'pending': 'Заявка переведена в ожидание'
+      }
+      
+      ElMessage.success(statusMessages[status] || 'Статус заявки обновлен')
+    } catch (error) {
+      console.error('Failed to update registration status:', error)
+      const message = error.response?.data?.detail || 'Не удалось обновить статус заявки'
       ElMessage.error(message)
       throw error
     } finally {
@@ -180,6 +203,7 @@ export const useRegistrationsStore = defineStore('registrations', () => {
     cancelRegistration,
     createRegistration,
     deleteRegistration,
+    updateRegistrationStatus,
     setPage,
     setPageSize,
     clearState

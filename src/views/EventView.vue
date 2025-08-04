@@ -124,19 +124,30 @@
                           :class="{ active: selectedTable === table, virtual: table.isVirtual }"
                           @click="selectTable(table)"
                           >
-                          <div class="table-name">
-                            {{ table.table_name }}
-                            <el-tag 
-                              v-if="table.isVirtual" 
-                              type="warning" 
-                              size="small" 
-                              class="ml-2"
+                          <el-button 
+                            class="table-delete-btn"
+                            link
+                            size="small"
+                            @click.stop="deleteTable(table)"
                             >
-                              Временный
-                            </el-tag>
-                          </div>
-                          <div v-if="table.game_masters && table.game_masters.length > 0" class="table-judge">
-                            {{ table.game_masters.map(m => m.nickname).join(', ') }}
+                            <el-icon><Close /></el-icon>
+                          </el-button>
+                          
+                          <div class="table-content">
+                            <div class="table-name">
+                              {{ table.table_name }}
+                              <el-tag 
+                                v-if="table.isVirtual" 
+                                type="warning" 
+                                size="small" 
+                                class="ml-2"
+                              >
+                                Временный
+                              </el-tag>
+                            </div>
+                            <div v-if="table.game_masters && table.game_masters.length > 0" class="table-judge">
+                              {{ table.game_masters.map(m => m.nickname).join(', ') }}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -186,9 +197,21 @@
                             class="game-item clickable"
                             @click="openGame(game.id)"
                             >
+                            <el-button 
+                              class="game-delete-btn"
+                              link
+                              size="small"
+                              @click.stop="deleteGame(game.id)"
+                              >
+                              <el-icon><Close /></el-icon>
+                            </el-button>
+                            
                             <div class="game-main-content">
                               <div class="game-header">
                                 <h6 class="game-name">{{ game.label }}</h6>
+                                <el-tag v-if="game.result" :type="getResultType(game.result)" size="small">
+                                  {{ getResultLabel(game.result) }}
+                                </el-tag>
                               </div>
                               
                               <div class="game-info">
@@ -201,20 +224,6 @@
                                   {{ game.game_master.nickname }}
                                 </span>
                               </div>
-                            </div>
-                            
-                            <div class="game-side-actions" @click.stop>
-                              <el-tag v-if="game.result" :type="getResultType(game.result)" size="small">
-                                {{ getResultLabel(game.result) }}
-                              </el-tag>
-                              <el-button 
-                                type="danger" 
-                                size="small" 
-                                circle
-                                @click="deleteGame(game.id)"
-                                >
-                                <el-icon><Delete /></el-icon>
-                              </el-button>
                             </div>
                           </div>
                         </div>
@@ -271,9 +280,10 @@
 
     <!-- Диалог генерации рассадки -->
     <GenerateSeatingDialog
+      v-if="event"
       v-model="showSeatingDialog"
       :confirmed-players="registrationsStore.confirmedRegistrations"
-      :event-id="event?.id"
+      :event-id="event.id"
       @generated="handleSeatingGenerated"
     />
 
@@ -286,7 +296,7 @@
   import { useEventsStore } from '@/stores/events'
   import { useRegistrationsStore } from '@/stores/registrations'
   import { apiService } from '@/services/api'
-  import { ElMessage } from 'element-plus'
+  import { ElMessage, ElMessageBox } from 'element-plus'
   import EventFinances from '@/components/events/EventFinances.vue'
   import EventPlayers from '@/components/events/EventPlayers.vue'
   import EventResults from '@/components/events/EventResults.vue'
@@ -296,6 +306,7 @@
       InfoFilled,
       Plus,
       Delete,
+      Close,
       Grid,
       Calendar,
       User,
@@ -329,7 +340,7 @@
   })
 
   const canGenerateSeating = computed(() => {
-    return confirmedPlayersCount.value >= 10
+    return event.value && confirmedPlayersCount.value >= 10
   })
 
   const selectTable = (table) => {
@@ -374,6 +385,61 @@
     virtualTables.value.push(newTable)
     selectTable(newTable)
     ElMessage.success('Стол создан!')
+  }
+
+  const deleteTable = async (table) => {
+    try {
+      // Подтверждение удаления
+      await ElMessageBox.confirm(
+        `Вы уверены, что хотите удалить стол "${table.table_name}" и все его игры (${table.games?.length || 0} игр)?`,
+        'Подтверждение удаления',
+        {
+          confirmButtonText: 'Удалить',
+          cancelButtonText: 'Отмена',
+          type: 'warning'
+        }
+      )
+
+      // Если это виртуальный стол, просто удаляем его из списка
+      if (table.isVirtual) {
+        virtualTables.value = virtualTables.value.filter(t => t !== table)
+        if (selectedTable.value === table) {
+          selectedTable.value = null
+          games.value = []
+        }
+        ElMessage.success('Временный стол удален')
+        return
+      }
+
+      // Для реальных столов - удаляем все игры
+      const tableIndex = tables.value.indexOf(table)
+      if (tableIndex === -1) return
+
+      const tableId = tableIndex + 1
+      const gamesToDelete = table.games || []
+      
+      // Удаляем все игры стола
+      for (const game of gamesToDelete) {
+        await apiService.updateGame(game.id, { is_hidden: true })
+      }
+
+      // Если удаляемый стол был выбран, сбрасываем выбор
+      if (selectedTable.value === table) {
+        selectedTable.value = null
+        games.value = []
+      }
+
+      // Перезагружаем данные события
+      await loadEvent()
+      
+      ElMessage.success(`Стол "${table.table_name}" и все его игры удалены`)
+      
+    } catch (error) {
+      if (error !== 'cancel') {
+        console.error('Ошибка при удалении стола:', error)
+        ElMessage.error('Не удалось удалить стол')
+      }
+    }
   }
 
   const createNewGame = async () => {
@@ -429,6 +495,19 @@
 	  console.log('Event loaded:', event.value)
 	  console.log('Event type:', event.value?.event_type)
 	  console.log('Event type color:', event.value?.event_type?.color)
+	  
+	  // Проверяем и исправляем имена столов, если они не соответствуют шаблону
+	  if (event.value?.tables && event.value?.table_name_template) {
+	      const template = event.value.table_name_template
+	      event.value.tables.forEach((table, index) => {
+	          // Если имя стола пустое или не соответствует шаблону
+	          if (!table.table_name || table.table_name === '') {
+	              const expectedName = template.replace('{}', index + 1)
+	              table.table_name = expectedName
+	              console.log(`Fixed table name: ${expectedName}`)
+	          }
+	      })
+	  }
 	  
 	  // Загружаем регистрации для подсчета игроков
 	  try {
@@ -588,75 +667,75 @@
           const tablesCount = distribution.length
           const currentTables = tables.value.filter(t => !t.isVirtual).length
           
-          // Создаем недостающие столы
-          const neededTables = tablesCount - currentTables
-          for (let i = 0; i < neededTables; i++) {
-              const tableNumber = currentTables + i + 1
-              const template = event.value?.table_name_template || 'Стол {}'
-              const tableName = template.replace('{}', tableNumber)
-              
-              const newTable = {
-                  table_name: tableName,
-                  game_masters: [],
-                  games: [],
-                  isVirtual: true
-              }
-              
-              virtualTables.value.push(newTable)
-          }
+          // НЕ создаем виртуальные столы, так как они будут созданы автоматически
+          // при создании игр на бэкенде
           
           // Создаем игры с рассадкой
           let createdGames = 0
-          let currentTableIndex = 0
-          const tablesForDistribution = [...tables.value]
           
-          // Отслеживаем количество созданных игр для каждого стола
-          const gamesCreatedPerTable = {}
-          tablesForDistribution.forEach((table, index) => {
-              gamesCreatedPerTable[index] = table.games?.length || 0
-          })
+          // Получаем существующие столы для расчета смещения
+          const existingTablesCount = event.value?.tables?.length || 0
+          
+          // Группируем игры по столам для правильной нумерации
+          const gamesPerTable = {}
           
           for (let gameIndex = 0; gameIndex < games.length; gameIndex++) {
               const gameInfo = games[gameIndex]
               const gamePlayers = gameInfo.playing || gameInfo // Поддержка обоих форматов
               
-              // Определяем на какой стол поместить игру
-              const tableIndex = Math.floor(gameIndex / Math.ceil(games.length / tablesCount))
-              const currentTable = tablesForDistribution[tableIndex]
+              // Распределяем игры по столам равномерно
+              // Если у нас N столов и M игр, то на каждый стол приходится M/N игр
+              const gamesPerTableCount = Math.ceil(games.length / tablesCount)
+              const tableIndex = Math.floor(gameIndex / gamesPerTableCount)
               
-              if (!currentTable) {
-                  console.error('Не найден стол для игры', gameIndex)
-                  continue
+              // Добавляем смещение для новых столов
+              const tableNumber = existingTablesCount + tableIndex + 1
+              
+              console.log(`Game ${gameIndex + 1}/${games.length} -> Table ${tableNumber} (new table, offset: ${existingTablesCount})`)
+              
+              // Формируем имя стола
+              const template = event.value?.table_name_template || 'Стол {}'
+              const tableName = template.replace('{}', tableNumber)
+              
+              // Считаем количество игр на этом столе (используем относительный индекс)
+              const relativeTableNumber = tableIndex + 1
+              if (!gamesPerTable[relativeTableNumber]) {
+                  gamesPerTable[relativeTableNumber] = 0
               }
+              gamesPerTable[relativeTableNumber]++
               
-              // Используем счетчик созданных игр для правильной нумерации
-              const gameNumber = gamesCreatedPerTable[tableIndex] + 1
               const gameData = {
-                  label: `Игра #${gameNumber}`,
+                  label: `Игра #${gamesPerTable[relativeTableNumber]}`,
                   event_id: eventId,
-                  table_id: tableIndex + 1
+                  table_id: tableNumber
               }
+              
+              console.log('Creating game with data:', gameData, 'Table name:', tableName)
               
               try {
-                  await apiService.createGameWithPlayers(gameData, gamePlayers)
+                  const createdGame = await apiService.createGameWithPlayers(gameData, gamePlayers)
+                  console.log('Game created:', createdGame)
                   createdGames++
-                  // Увеличиваем счетчик созданных игр для этого стола
-                  gamesCreatedPerTable[tableIndex]++
                   
                   // Логируем информацию о пропускающих игроках
                   if (gameInfo.sittingOut && gameInfo.sittingOut.length > 0) {
-                      console.log(`Игра ${gameNumber}: пропускают ${gameInfo.sittingOut.map(p => p.nickname).join(', ')}`)
+                      console.log(`Игра ${gamesPerTable[relativeTableNumber]}: пропускают ${gameInfo.sittingOut.map(p => p.nickname).join(', ')}`)
                   }
               } catch (error) {
                   console.error('Ошибка создания игры:', error)
-                  ElMessage.error(`Ошибка создания игры ${gameNumber}`)
+                  ElMessage.error(`Ошибка создания игры ${gamesPerTable[relativeTableNumber]}`)
               }
           }
           
           ElMessage.success(`Создано ${createdGames} игр с автоматической рассадкой`)
           
+          // Очищаем виртуальные столы перед перезагрузкой
+          virtualTables.value = []
+          
           // Перезагрузить данные события
           await loadEvent()
+          
+          console.log('Event tables after reload:', event.value?.tables)
           
       } catch (error) {
           console.error('Ошибка генерации рассадки:', error)
@@ -728,6 +807,7 @@
   }
 
   .table-item {
+      position: relative;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -744,6 +824,10 @@
       border-color: #409eff;
   }
 
+  .table-item:hover .table-delete-btn {
+      opacity: 1;
+  }
+
   .table-item.active {
       background-color: #ecf5ff;
       border-color: #409eff;
@@ -756,6 +840,30 @@
 
   .table-item.virtual:hover {
       background-color: #faecd8;
+  }
+
+  .table-delete-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      padding: 4px;
+      min-width: auto;
+      width: 24px;
+      height: 24px;
+  }
+
+  .table-delete-btn:hover {
+      color: #f56c6c;
+      background-color: #fee;
+  }
+
+  .table-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
   }
 
   .table-item.virtual.active {
@@ -815,6 +923,7 @@
   }
 
   .game-item {
+      position: relative;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -835,6 +944,27 @@
       transform: translateY(-1px);
   }
 
+  .game-item:hover .game-delete-btn {
+      opacity: 1;
+  }
+
+  .game-delete-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      padding: 4px;
+      min-width: auto;
+      width: 24px;
+      height: 24px;
+  }
+
+  .game-delete-btn:hover {
+      color: #f56c6c;
+      background-color: #fee;
+  }
+
   .game-main-content {
       flex: 1;
       display: flex;
@@ -844,8 +974,8 @@
 
   .game-header {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      gap: 12px;
   }
 
   .game-name {
@@ -899,11 +1029,6 @@
       align-items: center;
   }
 
-  .game-side-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-  }
 
   .mb-2 {
       margin-bottom: 8px;

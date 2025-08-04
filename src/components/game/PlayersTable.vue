@@ -5,7 +5,7 @@
         <span>Игроки</span>
         <div class="header-actions">
           <el-button 
-            v-if="!gameStore.isGameInProgress && gameStore.gameState.gameStatus !== GAME_STATUSES.ROLE_DISTRIBUTION"
+            v-if="!gameStore.isGameInProgress && gameStore.gameState.gameStatus !== GAME_STATUSES.ROLE_DISTRIBUTION && gameStore.gameState.gameStatus !== GAME_STATUSES.NEGOTIATION && gameStore.gameState.gameStatus !== GAME_STATUSES.FREE_SEATING"
             type="warning" 
             size="small"
             :icon="Refresh"
@@ -14,7 +14,7 @@
             title="Перемешать игроков"
           />
           <el-button 
-            v-if="canConfirmSeating && !isSeatingReady && gameStore.gameState.gameStatus !== GAME_STATUSES.ROLE_DISTRIBUTION"
+            v-if="canConfirmSeating && !isSeatingReady && gameStore.gameState.gameStatus !== GAME_STATUSES.ROLE_DISTRIBUTION && gameStore.gameState.gameStatus !== GAME_STATUSES.NEGOTIATION && gameStore.gameState.gameStatus !== GAME_STATUSES.FREE_SEATING"
             type="success" 
             size="small"
             @click="handleConfirmSeating"
@@ -22,7 +22,7 @@
             Рассадка готова
           </el-button>
           <el-button 
-            v-if="canConfirmSeating && isSeatingReady && gameStore.gameState.gameStatus !== GAME_STATUSES.ROLE_DISTRIBUTION"
+            v-if="canConfirmSeating && isSeatingReady && gameStore.gameState.gameStatus !== GAME_STATUSES.ROLE_DISTRIBUTION && gameStore.gameState.gameStatus !== GAME_STATUSES.NEGOTIATION && gameStore.gameState.gameStatus !== GAME_STATUSES.FREE_SEATING"
             type="primary" 
             size="small"
             :icon="Upload"
@@ -31,7 +31,7 @@
             title="Обновить рассадку"
           />
           <el-button 
-            v-if="gameStore.isGameInProgress"
+            v-if="gameStore.isGameInProgress || gameStore.gameState.gameStatus === GAME_STATUSES.NEGOTIATION || gameStore.gameState.gameStatus === GAME_STATUSES.FREE_SEATING"
             :type="gameStore.gameState.rolesVisible ? 'primary' : 'default'"
             :icon="gameStore.gameState.rolesVisible ? Hide : View"
             size="small"
@@ -53,15 +53,19 @@
             :can-add-fouls="gameStore.isGameInProgress"
             @increment="handleIncrementFoul"
             @reset="handleResetFouls"
+            @silent-now="handleSilentNow"
+            @silent-next="handleSilentNext"
+            @eliminate="handleEliminate"
             />
         </template>
       </el-table-column>
       
-      <el-table-column v-if="gameStore.gameState.gameStatus === GAME_STATUSES.ROLE_DISTRIBUTION || gameStore.isGameInProgress" label="Роль" width="120" align="center">
+      <el-table-column v-if="shouldShowRoleColumn" label="Роль" width="120" align="center">
         <template #default="{ row }">
           <PlayerRole 
             :player="row"
-            :visible="gameStore.gameState.rolesVisible || gameStore.gameState.gameStatus === GAME_STATUSES.ROLE_DISTRIBUTION"
+            :visible="gameStore.gameState.rolesVisible || 
+                     gameStore.gameState.gameStatus === GAME_STATUSES.ROLE_DISTRIBUTION"
             :editable="gameStore.canEditRoles"
             @change-role="handleRoleChange"
             />
@@ -214,6 +218,13 @@
           gameStore.gameState.round > 0
   })
 
+  const shouldShowRoleColumn = computed(() => {
+      return gameStore.gameState.gameStatus === GAME_STATUSES.ROLE_DISTRIBUTION ||
+             gameStore.gameState.gameStatus === GAME_STATUSES.NEGOTIATION ||
+             gameStore.gameState.gameStatus === GAME_STATUSES.FREE_SEATING ||
+             gameStore.isGameInProgress
+  })
+
   const handleIncrementFoul = (playerId) => {
       const player = gameStore.currentPlayer(playerId)
       if (!player) return
@@ -229,7 +240,7 @@
       const player = gameStore.currentPlayer(playerId)
       if (player) {
 	  player.fouls = 0
-	  ElMessage.success(`Фолы игрока ${player.name || `Игрок ${playerId}`} сброшены`)
+	  // ElMessage.success(`Фолы игрока ${player.name || `Игрок ${playerId}`} сброшены`)
       }
   }
 
@@ -244,7 +255,7 @@
       const newRole = gameStore.changePlayerRole(playerId)
       if (newRole) {
 	  const player = gameStore.currentPlayer(playerId)
-	  ElMessage.info(`Роль игрока ${player.nickname} изменена на ${newRole}`)
+	  // ElMessage.info(`Роль игрока ${player.nickname} изменена на ${newRole}`)
       }
   }
 
@@ -256,7 +267,7 @@
       const player = gameStore.currentPlayer(playerId)
       if (player) {
 	  player.isSilent = true
-	  ElMessage.warning(`Игрок ${player.nickname} молчит на этом кругу`)
+	  // ElMessage.warning(`Игрок ${player.nickname} молчит на этом кругу`)
       }
   }
 
@@ -264,7 +275,7 @@
       const player = gameStore.currentPlayer(playerId)
       if (player) {
 	  player.silentNextRound = true
-	  ElMessage.warning(`Игрок ${player.nickname} будет молчать на следующем кругу`)
+	  // ElMessage.warning(`Игрок ${player.nickname} будет молчать на следующем кругу`)
       }
   }
 
@@ -280,7 +291,7 @@
       ).then(() => {
 	  gameStore.eliminatePlayer(playerId)
 	  const player = gameStore.currentPlayer(playerId)
-	  ElMessage.success(`Игрок ${player.nickname} удален из игры`)
+	  // ElMessage.success(`Игрок ${player.nickname} удален из игры`)
       }).catch(() => {
 	  // Отмена
       })
@@ -298,9 +309,9 @@
       ).then(async () => {
 	  const result = await gameStore.shufflePlayers()
 	  if (result.success) {
-	      ElMessage.success(result.message)
+	      // ElMessage.success(result.message)
 	  } else {
-	      ElMessage.warning(result.message)
+	      // ElMessage.warning(result.message)
 	  }
       }).catch(() => {
 	  // Отмена
@@ -319,9 +330,9 @@
       ).then(async () => {
 	  const result = await gameStore.confirmSeating()
 	  if (result.success) {
-	      ElMessage.success(result.message)
+	      // ElMessage.success(result.message)
 	  } else {
-	      ElMessage.error(result.message)
+	      // ElMessage.error(result.message)
 	  }
       }).catch(() => {
 	  // Отмена
@@ -331,9 +342,9 @@
   const handleUpdateSeating = async () => {
       const result = await gameStore.updateSeating()
       if (result.success) {
-	  ElMessage.success(result.message)
+	  // ElMessage.success(result.message)
       } else {
-	  ElMessage.error(result.message)
+	  // ElMessage.error(result.message)
       }
   }
 </script>
