@@ -1,6 +1,6 @@
 <template>
   <el-card class="players-table">
-    <template #header>
+    <template #header v-if="showCardHeader">
       <div class="card-header">
         <span>Игроки</span>
         <div class="header-actions">
@@ -30,15 +30,6 @@
             @click="handleUpdateSeating"
             title="Обновить рассадку"
           />
-          <el-button 
-            v-if="gameStore.isGameInProgress || gameStore.gameState.gameStatus === GAME_STATUSES.NEGOTIATION || gameStore.gameState.gameStatus === GAME_STATUSES.FREE_SEATING"
-            :type="gameStore.gameState.rolesVisible ? 'primary' : 'default'"
-            :icon="gameStore.gameState.rolesVisible ? Hide : View"
-            size="small"
-            circle
-            @click="gameStore.gameState.rolesVisible = !gameStore.gameState.rolesVisible"
-            :title="gameStore.gameState.rolesVisible ? 'Скрыть роли' : 'Показать роли'"
-          />
         </div>
       </div>
     </template>
@@ -60,7 +51,21 @@
         </template>
       </el-table-column>
       
-      <el-table-column v-if="shouldShowRoleColumn" label="Роль" width="120" align="center">
+      <el-table-column v-if="shouldShowRoleColumn" width="120" align="center">
+        <template #header>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span>Роль</span>
+            <el-button 
+              v-if="gameStore.isGameInProgress || gameStore.gameState.gameStatus === GAME_STATUSES.NEGOTIATION || gameStore.gameState.gameStatus === GAME_STATUSES.FREE_SEATING"
+              :type="gameStore.gameState.rolesVisible ? 'primary' : 'default'"
+              :icon="gameStore.gameState.rolesVisible ? Hide : View"
+              size="small"
+              circle
+              @click="gameStore.gameState.rolesVisible = !gameStore.gameState.rolesVisible"
+              :title="gameStore.gameState.rolesVisible ? 'Скрыть роли' : 'Показать роли'"
+            />
+          </div>
+        </template>
         <template #default="{ row }">
           <PlayerRole 
             :player="row"
@@ -225,6 +230,13 @@
              gameStore.isGameInProgress
   })
 
+  const showCardHeader = computed(() => {
+      // Показываем шапку только если есть действия для показа (не только кнопка роли)
+      return !gameStore.isGameInProgress && 
+             gameStore.gameState.gameStatus !== GAME_STATUSES.NEGOTIATION && 
+             gameStore.gameState.gameStatus !== GAME_STATUSES.FREE_SEATING
+  })
+
   const handleIncrementFoul = async (playerId) => {
       const player = gameStore.currentPlayer(playerId)
       if (!player) return
@@ -347,7 +359,7 @@
 
 <style scoped>
   .players-table {
-      margin-top: 16px;
+      margin-top: 4px;
   }
 
   .card-header {

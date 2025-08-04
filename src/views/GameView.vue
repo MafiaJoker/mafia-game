@@ -9,13 +9,13 @@
               @click="goToEvent"
               :icon="ArrowLeft"
               size="small"
-            >
-              К мероприятию
-            </el-button>
+            />
           </div>
           
           <div class="round-info">
-            <h2>Круг: {{ gameStore.gameState.round }}</h2>
+            <div class="round-circle" :class="roundCircleClass">
+              {{ gameStore.gameState.round }}
+            </div>
           </div>
           
           <div class="timer-section">
@@ -29,8 +29,7 @@
       </el-header>
 
       <el-main>
-        <!-- Статус игры -->
-        <GameStatusCard />
+        <!-- Статус игры убран для экономии места -->
 
         <!-- Секция голосования -->
         <VotingSection v-if="showVotingSection" />
@@ -106,6 +105,32 @@
           gameStore.gameState.showBestMove
   })
 
+  // Класс для круга в зависимости от статуса игры
+  const roundCircleClass = computed(() => {
+    const status = gameStore.gameState.gameStatus
+    const substatus = gameStore.gameState.gameSubstatus
+    
+    if (status === GAME_STATUSES.IN_PROGRESS) {
+      switch (substatus) {
+        case GAME_SUBSTATUS.DISCUSSION:
+        case GAME_SUBSTATUS.CRITICAL_DISCUSSION:
+          return 'discussion' // Синий - обсуждение
+        case GAME_SUBSTATUS.VOTING:
+          return 'voting' // Оранжевый - голосование
+        case GAME_SUBSTATUS.NIGHT:
+          return 'night' // Фиолетовый - ночь
+        default:
+          return 'in-progress' // Зеленый - в процессе
+      }
+    } else if (status === GAME_STATUSES.ROLE_DISTRIBUTION) {
+      return 'role-distribution' // Желтый - распределение ролей
+    } else if (status === GAME_STATUSES.NEGOTIATION) {
+      return 'negotiation' // Серый - договорка
+    } else {
+      return 'default' // По умолчанию
+    }
+  })
+
   onMounted(async () => {
       try {
 	  const gameId = props.id
@@ -137,6 +162,10 @@
       background-color: #f5f7fa;
   }
 
+  :deep(.el-main) {
+      padding-top: 8px !important;
+  }
+
   .game-header {
       display: flex;
       justify-content: space-between;
@@ -150,9 +179,56 @@
       align-items: center;
   }
 
-  .round-info h2 {
-      margin: 0;
-      color: #303133;
+  .round-info {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+  }
+
+  .round-circle {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 2px solid #409eff;
+      background-color: transparent;
+      color: #409eff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+  }
+
+  /* Цвета круга в зависимости от статуса игры */
+  .round-circle.discussion {
+      border-color: #409eff;
+      color: #409eff;
+  }
+
+  .round-circle.voting {
+      border-color: #e6a23c;
+      color: #e6a23c;
+  }
+
+  .round-circle.night {
+      border-color: #722ed1;
+      color: #722ed1;
+  }
+
+  .round-circle.in-progress {
+      border-color: #67c23a;
+      color: #67c23a;
+  }
+
+  .round-circle.role-distribution {
+      border-color: #f56c6c;
+      color: #f56c6c;
+  }
+
+  .round-circle.negotiation {
+      border-color: #909399;
+      color: #909399;
   }
 
   .timer-section {
