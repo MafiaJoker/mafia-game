@@ -285,7 +285,7 @@
           gameStore.gameState.gameStatus, 
           gameStore.isCriticalRound ? GAME_SUBSTATUS.CRITICAL_DISCUSSION : GAME_SUBSTATUS.DISCUSSION
       )
-      gameStore.nextRound()
+      // Не увеличиваем раунд при возврате из ночи без подтверждения
   }
 
   const goToFarewell = () => {
