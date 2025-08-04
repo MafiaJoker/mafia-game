@@ -1,30 +1,19 @@
 <template>
-  <el-card class="voting-section mb-4">
-    <template #header>
-      <div class="card-header">
-        <el-icon><Checked /></el-icon>
-        <span>Голосование</span>
-      </div>
-    </template>
-
-    <div class="voting-content">
+  <div class="voting-section mb-4">
       <!-- Кандидаты -->
       <div class="candidates-section mb-4">
-        <h5 class="section-title">Кандидаты на голосование:</h5>
-        
         <div v-if="nominatedPlayers.length === 0" class="no-candidates">
           <el-empty description="Нет кандидатур для голосования" />
         </div>
         
-        <div v-else class="candidates-grid">
+        <div v-else class="candidates-list">
           <div 
             v-for="playerId in nominatedPlayers" 
             :key="playerId"
-            class="candidate-card"
+            class="candidate-item"
             >
-            <div class="candidate-info">
+            <div class="candidate-header">
               <span class="candidate-number">{{ playerId }}</span>
-              <span class="candidate-name">{{ getPlayerName(playerId) }}</span>
             </div>
             
             <div class="voting-buttons">
@@ -53,9 +42,7 @@
 
       <!-- Результаты голосования -->
       <div v-if="hasVotes" class="results-section">
-        <h5 class="section-title">Результаты голосования:</h5>
-        
-        <div class="results-grid">
+        <div class="results-list">
           <div 
             v-for="[playerId, votes] in votingResults" 
             :key="playerId"
@@ -64,14 +51,14 @@
             <span class="result-player">
               {{ playerId }}: {{ getPlayerName(parseInt(playerId)) }}
             </span>
-            <el-tag type="primary" size="large">
+            <el-tag type="primary" size="small">
               {{ votes }} {{ getVoteNoun(votes) }}
             </el-tag>
           </div>
         </div>
         
         <div class="votes-summary">
-          <el-tag type="info" effect="plain">
+          <el-tag type="info" effect="plain" size="small">
             Осталось голосов: {{ remainingVotes }}
           </el-tag>
         </div>
@@ -86,8 +73,7 @@
           show-icon
           />
       </div>
-    </div>
-  </el-card>
+  </div>
 </template>
 
 <script setup>
@@ -165,46 +151,36 @@
 
 <style scoped>
   .voting-section {
-      border: 2px solid #e6a23c;
-  }
-
-  .card-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 600;
-      color: #e6a23c;
-  }
-
-  .section-title {
-      margin: 0 0 16px 0;
-      font-weight: 600;
-      color: #303133;
+      border: 1px solid #e6a23c;
+      border-radius: 4px;
+      padding: 8px;
+      background-color: #fefefe;
   }
 
   .no-candidates {
       text-align: center;
-      padding: 32px 0;
+      padding: 16px 0;
   }
 
-  .candidates-grid {
-      display: grid;
-      gap: 16px;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  .candidates-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
   }
 
-  .candidate-card {
-      border: 1px solid #dcdfe6;
-      border-radius: 8px;
-      padding: 16px;
-      background-color: #fafafa;
+  .candidate-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 8px;
+      border-bottom: 1px solid #e4e7ed;
+      background-color: transparent;
   }
 
-  .candidate-info {
+  .candidate-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 12px;
   }
 
   .candidate-number {
@@ -222,18 +198,18 @@
       justify-content: center;
   }
 
-  .results-grid {
+  .results-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      margin-bottom: 16px;
+      gap: 6px;
+      margin-bottom: 12px;
   }
 
   .result-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 0;
+      padding: 4px 0;
   }
 
   .result-player {
@@ -242,7 +218,7 @@
 
   .votes-summary {
       text-align: center;
-      padding-top: 16px;
+      padding-top: 8px;
       border-top: 1px solid #ebeef5;
   }
 
@@ -251,6 +227,6 @@
   }
 
   .mb-4 {
-      margin-bottom: 16px;
+      margin-bottom: 8px;
   }
 </style>

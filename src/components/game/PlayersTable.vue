@@ -116,7 +116,7 @@
         </template>
       </el-table-column>
       
-      <el-table-column label="Действия" width="200" v-if="showPlayerActions">
+      <el-table-column label="Действия" width="120" v-if="showPlayerActions">
         <template #default="{ row }">
           <PlayerActions 
             :player="row"
@@ -126,36 +126,10 @@
             />
         </template>
       </el-table-column>
+      
     </el-table>
 
-    <div class="table-footer" v-if="gameStore.isGameInProgress">
-      <el-space>
-        <el-button 
-          type="warning" 
-          @click="showPpkDialog = true"
-          :disabled="!canUsePpk"
-          >
-          ППК
-        </el-button>
-        
-        <el-button 
-          type="danger" 
-          @click="showCancelDialog = true"
-          >
-          Отменить игру
-        </el-button>
-        
-        <el-button 
-          type="info" 
-          @click="showEliminateDialog = true"
-          >
-          Удалить игрока
-        </el-button>
-      </el-space>
-    </div>
 
-    <!-- ППК контролы -->
-    <PpkControls v-model="showPpkDialog" />
   </el-card>
 </template>
 
@@ -168,15 +142,11 @@
   import PlayerNomination from './PlayerNomination.vue'
   import PlayerActions from './PlayerActions.vue'
   import PlayerSelector from './PlayerSelector.vue'
-  import PpkControls from './PpkControls.vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { Edit, View, Hide, Refresh, Upload } from '@element-plus/icons-vue'
 
   const gameStore = useGameStore()
 
-  const showPpkDialog = ref(false)
-  const showCancelDialog = ref(false)
-  const showEliminateDialog = ref(false)
   const isEditingPlayers = ref(false)
 
   const visiblePlayers = computed(() => {
@@ -217,11 +187,6 @@
       return gameStore.gameState.gameStatus === GAME_STATUSES.IN_PROGRESS
   })
 
-  const canUsePpk = computed(() => {
-      // ППК можно использовать только в определенных фазах
-      return gameStore.isGameInProgress && 
-          gameStore.gameState.round > 0
-  })
 
   const shouldShowRoleColumn = computed(() => {
       return gameStore.gameState.gameStatus === GAME_STATUSES.ROLE_DISTRIBUTION ||

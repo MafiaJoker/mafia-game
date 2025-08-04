@@ -13,7 +13,7 @@
       <el-option
         v-for="target in availableTargets"
         :key="target.id"
-        :label="`${target.id}: ${target.nickname}`"
+        :label="target.id.toString()"
         :value="target.id"
 	/>
     </el-select>
@@ -96,8 +96,7 @@
   })
 
   const getNominatedPlayerName = (playerId) => {
-      const nominatedPlayer = props.players.find(p => p.id === playerId)
-      return nominatedPlayer ? `${nominatedPlayer.id}: ${nominatedPlayer.nickname}` : `Игрок ${playerId}`
+      return playerId.toString()
   }
 
   const handleNomination = (targetId) => {

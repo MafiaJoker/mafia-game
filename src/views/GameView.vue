@@ -8,7 +8,6 @@
             <el-button 
               @click="goToEvent"
               :icon="ArrowLeft"
-              size="small"
             />
           </div>
           
@@ -42,22 +41,58 @@
 
         <!-- Список игроков -->
         <PlayersTable />
+        
+        <!-- Меню для игровых действий -->
+        <div v-if="gameStore.isGameInProgress" class="game-menu-container">
+          <el-dropdown trigger="click" placement="top">
+            <el-button 
+              type="default" 
+              :icon="MoreFilled"
+              circle
+            />
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item 
+                  @click="showPpkDialog = true"
+                  :disabled="!canUsePpk"
+                >
+                  <el-icon><Warning /></el-icon>
+                  ППК
+                </el-dropdown-item>
+                <el-dropdown-item 
+                  @click="showCancelDialog = true"
+                  divided
+                >
+                  <el-icon><Close /></el-icon>
+                  Отменить игру
+                </el-dropdown-item>
+                <el-dropdown-item 
+                  @click="showEliminateDialog = true"
+                >
+                  <el-icon><Delete /></el-icon>
+                  Удалить игрока
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
       </el-main>
     </el-container>
 
     <!-- Модальные окна -->
-    <PlayerEliminationDialog />
-    <GameCancellationDialog />
+    <PlayerEliminationDialog v-model="showEliminateDialog" />
+    <GameCancellationDialog v-model="showCancelDialog" />
     <ScoreManagerDialog />
+    <PpkControls v-model="showPpkDialog" />
   </div>
 </template>
 
 <script setup>
-  import { computed, onMounted, onUnmounted } from 'vue'
+  import { computed, onMounted, onUnmounted, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useGameStore } from '@/stores/game'
   import { GAME_STATUSES, GAME_SUBSTATUS } from '@/utils/constants'
-  import { ArrowLeft } from '@element-plus/icons-vue'
+  import { ArrowLeft, MoreFilled, Warning, Close, Delete } from '@element-plus/icons-vue'
   import GameTimer from '@/components/game/GameTimer.vue'
   import GameControls from '@/components/game/GameControls.vue'
   import GameStatusCard from '@/components/game/GameStatusCard.vue'
@@ -68,6 +103,7 @@
   import PlayerEliminationDialog from '@/components/game/dialogs/PlayerEliminationDialog.vue'
   import GameCancellationDialog from '@/components/game/dialogs/GameCancellationDialog.vue'
   import ScoreManagerDialog from '@/components/game/dialogs/ScoreManagerDialog.vue'
+  import PpkControls from '@/components/game/PpkControls.vue'
   import { ElMessage } from 'element-plus'
 
   const props = defineProps({
@@ -77,6 +113,10 @@
   const route = useRoute()
   const router = useRouter()
   const gameStore = useGameStore()
+  
+  const showPpkDialog = ref(false)
+  const showCancelDialog = ref(false)
+  const showEliminateDialog = ref(false)
   
   const goToEvent = () => {
     const eventId = gameStore.gameInfo?.eventId
@@ -103,6 +143,11 @@
   const showBestMoveSection = computed(() => {
       return gameStore.gameState.gameStatus === GAME_STATUSES.IN_PROGRESS &&
           gameStore.gameState.showBestMove
+  })
+  
+  const canUsePpk = computed(() => {
+      return gameStore.isGameInProgress && 
+          gameStore.gameState.round > 0
   })
 
   // Класс для круга в зависимости от статуса игры
@@ -186,8 +231,8 @@
   }
 
   .round-circle {
-      width: 60px;
-      height: 60px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
       border: 2px solid #409eff;
       background-color: transparent;
@@ -195,7 +240,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 24px;
+      font-size: 18px;
       font-weight: bold;
       transition: all 0.3s ease;
   }
@@ -241,6 +286,12 @@
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
+  }
+
+  .game-menu-container {
+      display: flex;
+      justify-content: center;
+      margin-top: 16px;
   }
 
   @media (max-width: 768px) {

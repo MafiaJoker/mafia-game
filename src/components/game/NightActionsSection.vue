@@ -1,129 +1,129 @@
 <template>
-  <el-card class="night-section mb-4">
-    <template #header>
-      <div class="card-header">
-        <el-icon><Moon /></el-icon>
-        <span>Ночные действия</span>
-      </div>
-    </template>
-
-    <div class="night-content">
+  <div class="night-section mb-4">
       <!-- Стрельба мафии -->
-      <div class="action-group mb-6">
-        <h5 class="action-title">
-          <el-icon><Aim /></el-icon>
-          Стрельба мафии:
-        </h5>
-        
-        <div v-if="!hasMafiaAlive" class="no-players">
-          <el-alert 
-            title="Нет живых игроков команды мафии"
-            type="info"
-            :closable="false"
-            />
-        </div>
-        
-        <div v-else class="targets-grid">
-          <el-button-group>
-            <el-button 
-              v-for="player in aliveTargets"
-              :key="`mafia-${player.id}`"
-              :type="getMafiaTargetType(player.id)"
-              @click="selectMafiaTarget(player.id)"
-              >
-              {{ player.id }}
-            </el-button>
-            <el-button 
-              :type="getMafiaTargetType(0)"
-              @click="selectMafiaTarget(0)"
-              >
-              Промах
-            </el-button>
-          </el-button-group>
+      <div class="action-group mb-3">
+        <div class="action-row">
+          <div class="action-icon">
+            <el-icon><Aim /></el-icon>
+          </div>
+          
+          <div class="action-content">
+            <div v-if="!hasMafiaAlive" class="no-players">
+              <el-alert 
+                title="Нет живых игроков команды мафии"
+                type="info"
+                :closable="false"
+                />
+            </div>
+            
+            <div v-else class="targets-buttons">
+              <el-button-group>
+                <el-button 
+                  v-for="player in aliveTargets"
+                  :key="`mafia-${player.id}`"
+                  :type="getMafiaTargetType(player.id)"
+                  @click="selectMafiaTarget(player.id)"
+                  >
+                  {{ player.id }}
+                </el-button>
+                <el-button 
+                  :type="getMafiaTargetType(0)"
+                  @click="selectMafiaTarget(0)"
+                  >
+                  Промах
+                </el-button>
+              </el-button-group>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- Проверка дона -->
-      <div class="action-group mb-6">
-        <h5 class="action-title">
-          <el-icon><Aim /></el-icon>
-          Проверка дона:
-        </h5>
-        
-        <div v-if="!hasDonAlive" class="no-players">
-          <el-alert 
-            title="Дон мертв или отсутствует"
-            type="info"
-            :closable="false"
-            />
-        </div>
-        
-        <div v-else>
-          <div class="targets-grid mb-3">
-            <el-button-group>
-              <el-button 
-                v-for="player in aliveTargets"
-                :key="`don-${player.id}`"
-                :type="getDonTargetType(player.id)"
-                @click="selectDonTarget(player.id)"
-		>
-                {{ player.id }}
-              </el-button>
-            </el-button-group>
+      <div class="action-group mb-3">
+        <div class="action-row">
+          <div class="action-icon">
+            <el-icon><Aim /></el-icon>
           </div>
           
-          <div v-if="donCheckResult" class="check-result">
-            <el-alert 
-              :title="donCheckResult.message"
-              :type="donCheckResult.type"
-              :closable="false"
-              show-icon
-              />
+          <div class="action-content">
+            <div v-if="!hasDonAlive" class="no-players">
+              <el-alert 
+                title="Дон мертв или отсутствует"
+                type="info"
+                :closable="false"
+                />
+            </div>
+            
+            <div v-else>
+              <div class="targets-buttons mb-2">
+                <el-button-group>
+                  <el-button 
+                    v-for="player in aliveTargets"
+                    :key="`don-${player.id}`"
+                    :type="getDonTargetType(player.id)"
+                    @click="selectDonTarget(player.id)"
+		    >
+                    {{ player.id }}
+                  </el-button>
+                </el-button-group>
+              </div>
+              
+              <div v-if="donCheckResult" class="check-result">
+                <el-alert 
+                  :title="donCheckResult.message"
+                  :type="donCheckResult.type"
+                  :closable="false"
+                  show-icon
+                  />
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- Проверка шерифа -->
       <div class="action-group">
-        <h5 class="action-title">
-          <el-icon><Orange /></el-icon>
-          Проверка шерифа:
-        </h5>
-        
-        <div v-if="!hasSheriffAlive" class="no-players">
-          <el-alert 
-            title="Шериф мертв или отсутствует"
-            type="info"
-            :closable="false"
-            />
-        </div>
-        
-        <div v-else>
-          <div class="targets-grid mb-3">
-            <el-button-group>
-              <el-button 
-                v-for="player in aliveTargets"
-                :key="`sheriff-${player.id}`"
-                :type="getSheriffTargetType(player.id)"
-                @click="selectSheriffTarget(player.id)"
-		>
-                {{ player.id }}
-              </el-button>
-            </el-button-group>
+        <div class="action-row">
+          <div class="action-icon">
+            <el-icon><Orange /></el-icon>
           </div>
           
-          <div v-if="sheriffCheckResult" class="check-result">
-            <el-alert 
-              :title="sheriffCheckResult.message"
-              :type="sheriffCheckResult.type"
-              :closable="false"
-              show-icon
-              />
+          <div class="action-content">
+            <div v-if="!hasSheriffAlive" class="no-players">
+              <el-alert 
+                title="Шериф мертв или отсутствует"
+                type="info"
+                :closable="false"
+                />
+            </div>
+            
+            <div v-else>
+              <div class="targets-buttons mb-2">
+                <el-button-group>
+                  <el-button 
+                    v-for="player in aliveTargets"
+                    :key="`sheriff-${player.id}`"
+                    :type="getSheriffTargetType(player.id)"
+                    @click="selectSheriffTarget(player.id)"
+		    >
+                    {{ player.id }}
+                  </el-button>
+                </el-button-group>
+              </div>
+              
+              <div v-if="sheriffCheckResult" class="check-result">
+                <el-alert 
+                  :title="sheriffCheckResult.message"
+                  :type="sheriffCheckResult.type"
+                  :closable="false"
+                  show-icon
+                  />
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </el-card>
+  </div>
 </template>
 
 <script setup>
@@ -221,55 +221,53 @@
 
 <style scoped>
   .night-section {
-      border: 2px solid #409eff;
-      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  }
-
-  .card-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 600;
-      color: #409eff;
-  }
-
-  .night-content {
-      padding: 8px 0;
+      border: 1px solid #409eff;
+      border-radius: 4px;
+      padding: 8px;
+      background-color: #fafcff;
   }
 
   .action-group {
-      padding: 16px 0;
+      padding: 4px 0;
   }
 
-  .action-title {
+  .action-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+  }
+
+  .action-icon {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin: 0 0 16px 0;
-      font-weight: 600;
-      color: #303133;
+      color: #409eff;
+      margin-top: 4px;
+  }
+
+  .action-content {
+      flex: 1;
   }
 
   .no-players {
-      padding: 16px 0;
+      padding: 8px 0;
   }
 
-  .targets-grid {
+  .targets-buttons {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      justify-content: center;
+      justify-content: flex-start;
   }
 
   .check-result {
-      margin-top: 16px;
+      margin-top: 8px;
+  }
+
+  .mb-2 {
+      margin-bottom: 8px;
   }
 
   .mb-3 {
       margin-bottom: 12px;
-  }
-
-  .mb-6 {
-      margin-bottom: 24px;
   }
 </style>

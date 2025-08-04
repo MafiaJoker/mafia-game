@@ -46,35 +46,42 @@
         <el-button 
           type="warning" 
           @click="startVoting"
-          :disabled="nominatedPlayersCount === 0"
+          v-if="shouldShowVotingButton"
           >
           Начать голосование
         </el-button>
         <el-button 
           type="info" 
           @click="goToNight"
-          v-if="nominatedPlayersCount === 0"
-          >
-          В ночь
-        </el-button>
+          v-if="shouldShowNightButton"
+          :icon="Moon"
+        />
       </template>
 
       <template v-if="gameState.gameSubstatus === GAME_SUBSTATUS.VOTING">
-        <el-button type="success" @click="confirmVoting">
-          Подтвердить голосование
-        </el-button>
-        <el-button type="danger" @click="resetVoting">
-          Начать заново
-        </el-button>
-        <el-button type="info" @click="cancelVoting">
-          Отменить голосование
-        </el-button>
+        <el-button 
+          type="success" 
+          @click="confirmVoting"
+          :icon="Check"
+        />
+        <el-button 
+          type="danger" 
+          @click="cancelVoting"
+          :icon="Close"
+        />
       </template>
 
       <template v-if="gameState.gameSubstatus === GAME_SUBSTATUS.NIGHT">
-        <el-button type="success" @click="confirmNight">
-          Подтвердить итоги ночи
-        </el-button>
+        <el-button 
+          type="warning" 
+          @click="goToDay"
+          :icon="ArrowLeft"
+        />
+        <el-button 
+          type="success" 
+          @click="confirmNight"
+          :icon="Check"
+        />
       </template>
 
       <template v-if="gameState.gameSubstatus === GAME_SUBSTATUS.SUSPECTS_SPEECH">
@@ -84,9 +91,11 @@
       </template>
 
       <template v-if="gameState.gameSubstatus === GAME_SUBSTATUS.FAREWELL_MINUTE">
-        <el-button type="info" @click="goToNight">
-          В ночь
-        </el-button>
+        <el-button 
+          type="info" 
+          @click="goToNight"
+          :icon="Moon"
+        />
       </template>
     </template>
 
@@ -122,6 +131,7 @@
       GAME_SUBSTATUS 
   } from '@/utils/constants'
   import { ElMessage, ElMessageBox } from 'element-plus'
+  import { Check, Close, ArrowLeft, Moon } from '@element-plus/icons-vue'
 
   const gameStore = useGameStore()
   const votingStore = useVotingStore()
@@ -133,20 +143,29 @@
       return gameStore.nominatedPlayers.length
   })
 
-  // Отладочная информация для диагностики
-  const debugInfo = computed(() => ({
-    gameStatus: gameState.value.gameStatus,
-    gameSubstatus: gameState.value.gameSubstatus,
-    nominatedCount: nominatedPlayersCount.value,
-    showButtons: gameState.value.gameStatus === GAME_STATUSES.IN_PROGRESS &&
-                (gameState.value.gameSubstatus === GAME_SUBSTATUS.DISCUSSION || 
-                 gameState.value.gameSubstatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION)
-  }))
+  // Показывать кнопку голосования
+  const shouldShowVotingButton = computed(() => {
+    if (nominatedPlayersCount.value === 0) return false
+    
+    // На первом круге нужно минимум 2 кандидатуры
+    if (gameState.value.round === 1) {
+      return nominatedPlayersCount.value >= 2
+    }
+    
+    // На остальных кругах показываем при любом количестве номинаций
+    return nominatedPlayersCount.value > 0
+  })
 
-  // Выводим отладочную информацию в консоль
-  watch(debugInfo, (newInfo) => {
-    console.log('GameControls debug:', newInfo)
-  }, { immediate: true })
+  // Показывать кнопку "В ночь"
+  const shouldShowNightButton = computed(() => {
+    // На первом круге кнопка "В ночь" доступна если меньше 2 кандидатур
+    if (gameState.value.round === 1) {
+      return nominatedPlayersCount.value < 2
+    }
+    
+    // На остальных кругах кнопка "В ночь" доступна только если нет номинаций
+    return nominatedPlayersCount.value === 0
+  })
 
   const showBestMoveControls = computed(() => {
       return gameState.value.showBestMove
@@ -203,8 +222,14 @@
   }
 
   const startVoting = () => {
-      // Проверяем номинированных игроков только если есть данные
-      if (nominatedPlayersCount.value === 1 && gameState.value.round > 0) {
+      // На первом круге нужно минимум 2 кандидатуры
+      if (gameState.value.round === 1 && nominatedPlayersCount.value < 2) {
+          ElMessage.warning('На первом кругу необходимо минимум 2 кандидатуры для голосования')
+          return
+      }
+      
+      // На других кругах: если одна кандидатура, игрок автоматически выбывает
+      if (nominatedPlayersCount.value === 1 && gameState.value.round > 1) {
 	  // Единственная кандидатура автоматически выбывает
 	  const playerId = gameStore.nominatedPlayers[0]
 	  const player = gameStore.currentPlayer(playerId)
@@ -226,9 +251,6 @@
       votingStore.confirmVoting()
   }
 
-  const resetVoting = () => {
-      votingStore.resetVoting()
-  }
 
   const cancelVoting = () => {
       gameStore.setGameStatus(
@@ -256,6 +278,14 @@
 
   const confirmNight = () => {
       nightActionsStore.confirmNight()
+  }
+
+  const goToDay = () => {
+      gameStore.setGameStatus(
+          gameStore.gameState.gameStatus, 
+          gameStore.isCriticalRound ? GAME_SUBSTATUS.CRITICAL_DISCUSSION : GAME_SUBSTATUS.DISCUSSION
+      )
+      gameStore.nextRound()
   }
 
   const goToFarewell = () => {
