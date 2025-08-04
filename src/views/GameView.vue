@@ -188,10 +188,12 @@
 
   // Класс для круга в зависимости от статуса игры
   const isGameFinished = computed(() => {
-    return gameStore.gameState.gameStatus === 'finished_no_scores' || 
-           gameStore.gameState.gameStatus === 'finished_with_scores' ||
-           gameStore.gameState.gameStatus === 'civilians_win' ||
-           gameStore.gameState.gameStatus === 'mafia_win'
+    const finished = gameStore.gameState.gameStatus === 'finished_no_scores' || 
+                     gameStore.gameState.gameStatus === 'finished_with_scores' ||
+                     gameStore.gameState.gameStatus === 'civilians_win' ||
+                     gameStore.gameState.gameStatus === 'mafia_win'
+    console.log('isGameFinished computed:', finished, 'status:', gameStore.gameState.gameStatus)
+    return finished
   })
 
   // Получаем результат игры для отображения

@@ -73,13 +73,6 @@ export const useVotingStore = defineStore('voting', () => {
 	    gameStore.eliminatePlayerByVote(eliminatedId)
 	    gameStore.gameState.noCandidatesRounds = 0
 	    eliminatedPlayers.push(eliminatedId)
-	    
-	    // Проверяем условия победы после выведения игрока
-	    const victoryResult = gameStore.checkVictoryConditions()
-	    if (victoryResult) {
-		// Игра закончилась, возвращаем результат
-		return { result: 'victory', winner: victoryResult, players: playersWithMaxVotes }
-	    }
 	}
 	
 	// Сохраняем результат голосования в фазы (даже если никто не выбыл)
@@ -87,6 +80,17 @@ export const useVotingStore = defineStore('voting', () => {
 	    gamePhasesStore.currentPhase.voted_box_id = eliminatedPlayers.length > 0 ? eliminatedPlayers[0] : null
 	    // Обновляем фазу на сервере
 	    await gamePhasesStore.updateCurrentPhaseOnServer()
+	}
+	
+	// Получаем обновленное состояние игры с сервера после голосования
+	await gameStore.updateGameState()
+	
+	// Проверяем результат игры с сервера
+	const gameData = gameStore.gameInfo?.gameData
+	if (gameData && (gameData.result === 'civilians_win' || gameData.result === 'mafia_win')) {
+	    console.log('Game ended with result from server:', gameData.result)
+	    gameStore.finishGame(gameData.result)
+	    return { result: 'victory', winner: gameData.result, players: playersWithMaxVotes }
 	}
 	
 	gameStore.gameState.shootoutPlayers = []
@@ -101,11 +105,13 @@ export const useVotingStore = defineStore('voting', () => {
 	// Отмечаем что голосование в этом раунде уже было
 	gameStore.gameState.votingHappenedThisRound = true
 	
-	// Возвращаемся к обсуждению после голосования
-	gameStore.setGameStatus(
-	    gameStore.gameState.gameStatus, 
-	    gameStore.isCriticalRound ? GAME_SUBSTATUS.CRITICAL_DISCUSSION : GAME_SUBSTATUS.DISCUSSION
-	)
+	// Возвращаемся к обсуждению после голосования (только если игра не закончилась)
+	if (gameStore.gameState.gameStatus !== 'finished_no_scores' && gameStore.gameState.gameStatus !== 'finished_with_scores') {
+	    gameStore.setGameStatus(
+	        gameStore.gameState.gameStatus, 
+	        gameStore.isCriticalRound ? GAME_SUBSTATUS.CRITICAL_DISCUSSION : GAME_SUBSTATUS.DISCUSSION
+	    )
+	}
 	
 	return { result: 'eliminated', players: playersWithMaxVotes }
     }

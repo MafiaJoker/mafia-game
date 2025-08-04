@@ -150,12 +150,14 @@ export const useGameStore = defineStore('game', () => {
     // Actions
     const finishGame = async (result) => {
 	try {
+            console.log('Finishing game with result:', result)
             // Устанавливаем статус завершенной игры
             setGameStatus(GAME_STATUSES.FINISHED_NO_SCORES)
             gameState.value.isGameStarted = false
             
             // Сохраняем результат игры
             gameState.value.gameResult = result
+            console.log('Game status set to:', gameState.value.gameStatus, 'result:', gameState.value.gameResult)
             
             // Устанавливаем базовые баллы в зависимости от результата
             setBaseScores(result)
@@ -677,6 +679,7 @@ export const useGameStore = defineStore('game', () => {
 	    // Обновляем локальное состояние для совместимости
 	    player.isEliminated = true
 	    player.isAlive = false
+	    player.isInGame = false  // Игрок выбывает из игры
 	    if (!gameState.value.eliminatedPlayers.includes(playerId)) {
 	        gameState.value.eliminatedPlayers.push(playerId)
 	    }
