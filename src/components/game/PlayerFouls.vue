@@ -3,6 +3,7 @@
     <div class="fouls-display">
       <el-button
         :type="getFoulsButtonType()"
+        :disabled="!canAddFouls"
         size="small"
         round
         @click="handleFoulClick"

@@ -113,6 +113,9 @@
 	  gamePhasesStore.currentPhase.ppk_box_id = selectedPlayer.value
 	  await gamePhasesStore.updateCurrentPhaseOnServer()
 	  
+	  // Синхронизируем статусы игроков с фазами
+	  gameStore.syncPlayersWithPhases()
+	  
 	  // Получаем обновленный статус игры
 	  await gameStore.updateGameState()
 	  

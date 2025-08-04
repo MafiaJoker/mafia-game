@@ -56,6 +56,7 @@
   const canNominate = computed(() => {
       const can = props.player.isAlive && 
           !props.player.isEliminated &&
+          props.player.isInGame !== false &&
           props.gameState.gameStatus === GAME_STATUSES.IN_PROGRESS &&
           (props.gameState.gameSubstatus === GAME_SUBSTATUS.DISCUSSION ||
 	   props.gameState.gameSubstatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION)

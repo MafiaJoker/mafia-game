@@ -82,6 +82,9 @@ export const useNightActionsStore = defineStore('nightActions', () => {
         // 5. Сохраняем текущую фазу с ночными действиями на сервер
         await gamePhasesStore.updateCurrentPhaseOnServer()
         
+        // 5.1. Синхронизируем статусы игроков с фазами
+        gameStore.syncPlayersWithPhases()
+        
         // 6. Сбрасываем ночные действия для следующей ночи
         gameStore.gameState.mafiaTarget = null
         gameStore.gameState.donTarget = null
@@ -101,6 +104,9 @@ export const useNightActionsStore = defineStore('nightActions', () => {
         
         // Синхронизируем раунд с фазами
         gameStore.gameState.round = gamePhasesStore.currentPhaseId
+        
+        // Синхронизируем статусы игроков с фазами
+        gameStore.syncPlayersWithPhases()
         
         // Устанавливаем статус обсуждения для нового дня
         gameStore.setGameStatus(gameStore.gameState.gameStatus, GAME_SUBSTATUS.DISCUSSION)

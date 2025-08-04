@@ -19,7 +19,7 @@
             <div v-else class="targets-buttons">
               <el-button-group>
                 <el-button 
-                  v-for="player in aliveTargets"
+                  v-for="player in mafiaTargets"
                   :key="`mafia-${player.id}`"
                   :type="getMafiaTargetType(player.id)"
                   :class="{ 'kill-target': pressingMafiaTargetId === player.id }"
@@ -155,6 +155,11 @@
 
   const aliveTargets = computed(() => {
       return gameStore.gameState.players.filter(p => p.isAlive && !p.isEliminated)
+  })
+
+  // Цели для стрельбы мафии - исключаем игроков вне игры
+  const mafiaTargets = computed(() => {
+      return gameStore.gameState.players.filter(p => p.isAlive && !p.isEliminated && p.isInGame !== false)
   })
 
   const hasMafiaAlive = computed(() => {

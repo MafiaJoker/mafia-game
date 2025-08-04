@@ -367,6 +367,10 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             }
             
             await apiService.updateGamePhase(gameId.value, phaseData)
+            
+            // Перезагружаем актуальное состояние игры с сервера
+            await refreshGameStateFromServer()
+            
             return true
         } catch (error) {
             console.error('Ошибка обновления текущей фазы игры:', error)
@@ -393,9 +397,38 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             }
             
             await apiService.createGamePhase(gameId.value, phaseData)
+            
+            // Перезагружаем актуальное состояние игры с сервера
+            await refreshGameStateFromServer()
+            
             return true
         } catch (error) {
             console.error('Ошибка создания фазы игры:', error)
+            return false
+        }
+    }
+
+    const refreshGameStateFromServer = async () => {
+        if (!gameId.value) return false
+        
+        try {
+            // Импортируем gameStore динамически для избежания циклических зависимостей
+            const { useGameStore } = await import('./game')
+            const gameStore = useGameStore()
+            
+            // Перезагружаем состояние игры с сервера
+            const gameStateData = await gameStore.loadGameDetailed(gameId.value)
+            
+            // Перезагружаем фазы из полученных данных
+            const gameStatus = gameStore.gameInfo?.gameData?.status || gameStore.gameInfo?.gameData?.result
+            await loadGamePhases(gameId.value, gameStatus, gameStateData)
+            
+            // Синхронизируем игроков с обновленными фазами
+            gameStore.syncPlayersWithPhases()
+            
+            return true
+        } catch (error) {
+            console.error('Ошибка обновления состояния игры с сервера:', error)
             return false
         }
     }
@@ -479,6 +512,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
         saveGamePhases,
         updateCurrentPhaseOnServer,
         createPhaseOnServer,
-        loadGamePhases
+        loadGamePhases,
+        refreshGameStateFromServer
     }
 })

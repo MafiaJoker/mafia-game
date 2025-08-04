@@ -102,6 +102,9 @@
           // 5. Синхронизируем раунд с фазами
           gameStore.gameState.round = gamePhasesStore.currentPhaseId
           
+          // 5.1. Синхронизируем статусы игроков с фазами
+          gameStore.syncPlayersWithPhases()
+          
           // 6. Переходим к обсуждению нового дня
           const { GAME_SUBSTATUS } = await import('@/utils/constants')
           gameStore.setGameStatus(gameStore.gameState.gameStatus, GAME_SUBSTATUS.DISCUSSION)

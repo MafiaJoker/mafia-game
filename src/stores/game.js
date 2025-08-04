@@ -299,13 +299,20 @@ export const useGameStore = defineStore('game', () => {
 			isEliminated: false,
 			isSilent: false,
 			silentNextRound: false,
-			userId: null
+			userId: null,
+			isInGame: true
 		    }))
 		    
 		    // Заполняем данными из API
 		    playersSource.forEach((apiPlayer) => {
 			const slotIndex = (apiPlayer.box_id || 1) - 1 // box_id начинается с 1
 			if (slotIndex >= 0 && slotIndex < 10) {
+			    // Проверяем is_in_game - если false, игрок не участвует в игре
+			    const isInGame = gameStateData ? (apiPlayer.is_in_game !== false) : true
+			    if (!isInGame) {
+				console.log(`Player slot ${slotIndex + 1} is not in game (is_in_game: false)`)
+			    }
+			    
 			    // Если роль null или не определена:
 			    // - Для игр в процессе или завершенных - это мирный житель
 			    // - Для новых игр - оставляем null
@@ -330,7 +337,8 @@ export const useGameStore = defineStore('game', () => {
 				isSilent: false,
 				silentNextRound: false,
 				userId: userId,
-				boxId: apiPlayer.box_id
+				boxId: apiPlayer.box_id,
+				isInGame: isInGame
 			    }
 			    console.log(`Player loaded: slot ${slotIndex + 1}, name: ${playerName}, role: ${localRole}, fouls: ${apiPlayer.fouls}, isAlive: ${isAlive}, userId: ${userId}`)
 			}
@@ -641,6 +649,9 @@ export const useGameStore = defineStore('game', () => {
 	    
 	    // Сохраняем фазы
 	    gamePhasesStore.saveGamePhases()
+	    
+	    // Синхронизируем статусы игроков с фазами
+	    syncPlayersWithPhases()
 	}
     }
 
@@ -1099,6 +1110,7 @@ export const useGameStore = defineStore('game', () => {
 	addPlayer,
 	nextPhase,
 	updateGameState,
+	syncPlayersWithPhases,
 	
 	// Computed for tests
 	players,

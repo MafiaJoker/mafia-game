@@ -34,7 +34,7 @@
       </div>
     </template>
 
-    <el-table :data="visiblePlayers" stripe style="width: 100%">
+    <el-table :data="visiblePlayers" stripe style="width: 100%" :row-class-name="getRowClassName">
       <el-table-column label="№" width="60" align="center">
         <template #default="{ row }">
           <div class="player-number-cell" :class="{ 'current-speaker': gameStore.currentSpeaker === row.id && gameStore.isGameInProgress }">
@@ -47,7 +47,7 @@
         <template #default="{ row }">
           <PlayerFouls 
             :player="row"
-            :can-add-fouls="gameStore.isGameInProgress"
+            :can-add-fouls="gameStore.isGameInProgress && row.isInGame && row.isAlive && !row.isEliminated"
             @increment="handleIncrementFoul"
             @reset="handleResetFouls"
             @silent-now="handleSilentNow"
@@ -98,12 +98,15 @@
         </template>
         <template #default="{ row }">
           <PlayerSelector
-            v-if="isEditingPlayers"
+            v-if="isEditingPlayers && row.isInGame !== false"
             v-model="row.name"
             :player-id="row.id"
             :used-player-ids="getUsedPlayerIds(row.id)"
             @player-selected="handlePlayerSelected"
           />
+          <span v-else-if="isEditingPlayers && row.isInGame === false" class="player-name-display disabled-slot">
+            {{ row.name || `Слот ${row.id}` }} (не в игре)
+          </span>
           <span v-else class="player-name-display" :class="{ 'empty-slot': !row.name }">
             {{ row.name || `Слот ${row.id}` }}
           </span>
@@ -393,6 +396,16 @@
 	  // ElMessage.error(result.message)
       }
   }
+
+  const getRowClassName = ({ row }) => {
+      if (row.isInGame === false) {
+          return 'not-in-game'
+      }
+      if (!row.isAlive || row.isEliminated) {
+          return 'dead'
+      }
+      return ''
+  }
 </script>
 
 <style scoped>
@@ -424,8 +437,20 @@
   }
 
   :deep(.el-table .el-table__row.dead) {
-      background-color: #909399 !important;
-      color: white;
+      background-color: #f5f7fa !important;
+      color: #c0c4cc !important;
+      opacity: 0.6;
+  }
+
+  :deep(.el-table .el-table__row.not-in-game) {
+      background-color: #f5f7fa !important;
+      color: #c0c4cc !important;
+      opacity: 0.6;
+  }
+
+  :deep(.el-table .el-table__row.not-in-game .el-button) {
+      opacity: 0.5;
+      pointer-events: none;
   }
 
   .player-name-display {
@@ -438,6 +463,12 @@
   .empty-slot {
       color: #909399;
       font-style: italic;
+  }
+
+  .disabled-slot {
+      color: #c0c4cc !important;
+      font-style: italic;
+      opacity: 0.6;
   }
 
   /* Стили для ячейки с номером игрока */
