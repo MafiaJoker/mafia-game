@@ -533,7 +533,7 @@
 
   const checkPlayerWin = (role, gameResult) => {
       // Логика определения победы игрока по роли и результату игры
-      if (gameResult === 'city_win') {
+      if (gameResult === 'civilians_win') {
           return ['Мирный', 'Шериф'].includes(role)
       } else if (gameResult === 'mafia_win') {
           return ['Мафия', 'Дон'].includes(role)

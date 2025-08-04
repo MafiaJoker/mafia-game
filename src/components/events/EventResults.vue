@@ -68,7 +68,7 @@
               style="width: 150px;"
               @change="filterByResult"
               >
-              <el-option label="Победа города" value="city_win" />
+              <el-option label="Победа города" value="civilians_win" />
               <el-option label="Победа мафии" value="mafia_win" />
               <el-option label="Ничья" value="draw" />
               <el-option label="В процессе" value="in_progress" />
@@ -126,7 +126,11 @@
 
           <el-table-column label="Результат" width="140" align="center" sortable>
             <template #default="{ row }">
-              <el-tag :type="getResultType(row.result)" size="small">
+              <el-tag 
+                :type="getResultType(row.result)" 
+                :class="{ 'mafia-win-tag': row.result === 'mafia_win' }"
+                size="small"
+              >
                 {{ getResultLabel(row.result) }}
               </el-tag>
             </template>
@@ -284,7 +288,7 @@
   const totalGames = computed(() => games.value.length)
   
   const cityWins = computed(() => {
-      return games.value.filter(game => game.result === 'city_win').length
+      return games.value.filter(game => game.result === 'civilians_win').length
   })
 
   const mafiaWins = computed(() => {
@@ -293,7 +297,7 @@
 
   const cityWinRate = computed(() => {
       const finishedGames = games.value.filter(game => 
-          ['city_win', 'mafia_win'].includes(game.result)
+          ['civilians_win', 'mafia_win'].includes(game.result)
       ).length
       
       return finishedGames > 0 ? Math.round((cityWins.value / finishedGames) * 100) : 0
@@ -349,8 +353,8 @@
 
   const getResultType = (result) => {
       const types = {
-          'city_win': 'success',
-          'mafia_win': 'danger',
+          'civilians_win': 'danger',
+          'mafia_win': undefined,
           'draw': 'warning',
           'created': 'info',
           'seating_ready': 'warning',
@@ -365,7 +369,7 @@
 
   const getResultLabel = (result) => {
       const labels = {
-          'city_win': 'Победа города',
+          'civilians_win': 'Победа города',
           'mafia_win': 'Победа мафии',
           'draw': 'Ничья',
           'created': 'Создана',
@@ -537,5 +541,19 @@
 
   .mb-4 {
       margin-bottom: 16px;
+  }
+  
+  /* Серый фон для победы мафии */
+  :deep(.el-tag:not(.el-tag--danger):not(.el-tag--warning):not(.el-tag--primary):not(.el-tag--success):not(.el-tag--info)) {
+      background-color: #606266 !important;
+      border-color: #606266 !important;
+      color: white !important;
+  }
+  
+  /* Прямой стиль для победы мафии */
+  :deep(.mafia-win-tag) {
+      background-color: #606266 !important;
+      border-color: #606266 !important;
+      color: white !important;
   }
 </style>

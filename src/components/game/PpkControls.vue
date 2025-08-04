@@ -1,44 +1,63 @@
 <template>
-  <div v-if="showPpk" class="ppk-controls">
-    <el-alert
-      title="ППК (Право последнего слова)"
-      description="Выберите результат голосования ППК"
-      type="warning"
-      :closable="false"
-      show-icon
-      class="mb-3"
-      />
-
-    <div class="ppk-actions">
-      <el-space>
-        <el-button type="info" @click="handleCancel">
-          <el-icon><Close /></el-icon>
-          Отменить
-        </el-button>
-        
-        <el-button type="danger" @click="declareMafiaWin">
-          <el-icon><Aim /></el-icon>
-          Победа мафии
-        </el-button>
-        
-        <el-button type="success" @click="declareCityWin">
-          <el-icon><Trophy /></el-icon>
-          Победа города
-        </el-button>
-      </el-space>
+  <el-dialog
+    v-model="visible"
+    title="ППК (Право последнего слова)"
+    width="600px"
+    :before-close="handleClose"
+    >
+    <div class="ppk-dialog">
+      <el-alert
+        title="Выберите игрока, который совершил ППК"
+        type="warning"
+        :closable="false"
+        show-icon
+        class="mb-4"
+	/>
+      
+      <div class="players-grid">
+        <div 
+          v-for="player in alivePlayers"
+          :key="player.id"
+          class="player-card"
+          :class="{ 'selected': selectedPlayer === player.id }"
+          @click="selectPlayer(player.id)"
+          >
+          <div class="player-number">{{ player.id }}</div>
+          <div class="player-info">
+            <div class="player-name">{{ player.nickname }}</div>
+            <div class="player-role">
+              <el-tag 
+                :type="getRoleTagType(player.originalRole)"
+                size="small"
+		>
+                {{ player.originalRole }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
+
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="handleClose">Отмена</el-button>
+        <el-button 
+          type="primary" 
+          @click="confirmPpk"
+          :disabled="!selectedPlayer"
+          >
+          Подтвердить ППК
+        </el-button>
+      </div>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
-  import { computed } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import { useGameStore } from '@/stores/game'
+  import { useGamePhasesStore } from '@/stores/gamePhases'
   import { ElMessage, ElMessageBox } from 'element-plus'
-  import { 
-      Close, 
-      Aim, 
-      Trophy 
-  } from '@element-plus/icons-vue'
 
   const props = defineProps({
       modelValue: {
@@ -50,78 +69,114 @@
   const emit = defineEmits(['update:modelValue'])
 
   const gameStore = useGameStore()
+  const gamePhasesStore = useGamePhasesStore()
 
-  const showPpk = computed({
-      get: () => props.modelValue,
-      set: (value) => emit('update:modelValue', value)
-  })
-
-  const handleCancel = () => {
-      showPpk.value = false
-  }
-
-  const declareCityWin = async () => {
-      try {
-	  await ElMessageBox.confirm(
-	      'Подтвердите победу города в результате ППК',
-	      'Подтверждение',
-	      {
-		  confirmButtonText: 'Да, город победил',
-		  cancelButtonText: 'Отмена',
-		  type: 'success'
-	      }
-	  )
-
-	  // Завершаем игру с победой города
-	  await gameStore.finishGame('city_win')
-	  
-	  // ElMessage.success('Игра завершена! Победа мирного города!')
-	  showPpk.value = false
-	  
-      } catch {
-	  // Пользователь отменил действие
+  const visible = ref(false)
+  const selectedPlayer = ref(null)
+  
+  // Синхронизация с v-model
+  watch(() => props.modelValue, (newVal) => {
+      visible.value = newVal
+      if (newVal) {
+          selectedPlayer.value = null
       }
+  })
+  
+  const alivePlayers = computed(() => {
+      return gameStore.gameState.players.filter(p => p.isAlive && !p.isEliminated)
+  })
+  
+  const getRoleTagType = (role) => {
+      const types = {
+	  'Мирный': 'success',
+	  'Шериф': 'primary',
+	  'Мафия': 'danger',
+	  'Дон': 'warning'
+      }
+      return types[role] || 'info'
+  }
+  
+  const selectPlayer = (playerId) => {
+      selectedPlayer.value = playerId
   }
 
-  const declareMafiaWin = async () => {
+  const handleClose = () => {
+      visible.value = false
+      emit('update:modelValue', false)
+  }
+  
+  const confirmPpk = async () => {
+      if (!selectedPlayer.value) return
+      
       try {
-	  await ElMessageBox.confirm(
-	      'Подтвердите победу мафии в результате ППК',
-	      'Подтверждение',
-	      {
-		  confirmButtonText: 'Да, мафия победила',
-		  cancelButtonText: 'Отмена',
-		  type: 'warning'
-	      }
-	  )
-
-	  // Завершаем игру с победой мафии
-	  await gameStore.finishGame('mafia_win')
+	  // Обновляем текущую фазу с ppk_box_id
+	  gamePhasesStore.currentPhase.ppk_box_id = selectedPlayer.value
+	  await gamePhasesStore.updateCurrentPhaseOnServer()
 	  
-	  // ElMessage.success('Игра завершена! Победа команды мафии!')
-	  showPpk.value = false
+	  // Получаем обновленный статус игры
+	  await gameStore.updateGameState()
 	  
-      } catch {
-	  // Пользователь отменил действие
+	  ElMessage.success('ППК зарегистрировано')
+	  handleClose()
+	  
+      } catch (error) {
+	  console.error('Ошибка при регистрации ППК:', error)
+	  ElMessage.error('Ошибка при регистрации ППК')
       }
   }
 </script>
 
 <style scoped>
-  .ppk-controls {
-      padding: 16px;
-      background-color: #fff7e6;
-      border: 2px solid #e6a23c;
+  .ppk-dialog {
+      padding: 8px 0;
+  }
+
+  .players-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+  }
+
+  .player-card {
+      border: 2px solid #dcdfe6;
       border-radius: 8px;
-      margin-top: 16px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 12px;
   }
 
-  .ppk-actions {
-      margin-top: 16px;
-      text-align: center;
+  .player-card:hover {
+      border-color: #409eff;
+      background-color: #f0f9ff;
   }
 
-  .mb-3 {
-      margin-bottom: 12px;
+  .player-card.selected {
+      border-color: #e6a23c;
+      background-color: #fff7e6;
+  }
+
+  .player-number {
+      font-size: 24px;
+      font-weight: bold;
+      color: #409eff;
+      min-width: 32px;
+  }
+
+  .player-info {
+      flex: 1;
+  }
+
+  .player-name {
+      font-weight: 500;
+      margin-bottom: 4px;
+  }
+
+  .mb-4 {
+      margin-bottom: 16px;
   }
 </style>

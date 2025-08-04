@@ -111,7 +111,7 @@
 	  )
 
 	  // Завершаем игру с победой города
-	  await gameStore.finishGame('city_win')
+	  await gameStore.finishGame('civilians_win')
 	  
 	  // ElMessage.success('Игра завершена! Победа мирного города!')
 	  handleClose()

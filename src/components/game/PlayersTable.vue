@@ -51,12 +51,12 @@
         </template>
       </el-table-column>
       
-      <el-table-column v-if="shouldShowRoleColumn" width="120" align="center">
+      <el-table-column v-if="shouldShowRoleColumn" :width="isGameFinished ? '80' : '120'" :min-width="isGameFinished ? undefined : undefined" align="center">
         <template #header>
-          <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
             <span>Роль</span>
             <el-button 
-              v-if="gameStore.isGameInProgress || gameStore.gameState.gameStatus === GAME_STATUSES.NEGOTIATION || gameStore.gameState.gameStatus === GAME_STATUSES.FREE_SEATING"
+              v-if="!isGameFinished && (gameStore.isGameInProgress || gameStore.gameState.gameStatus === GAME_STATUSES.NEGOTIATION || gameStore.gameState.gameStatus === GAME_STATUSES.FREE_SEATING)"
               :type="gameStore.gameState.rolesVisible ? 'primary' : 'default'"
               :icon="gameStore.gameState.rolesVisible ? Hide : View"
               size="small"
@@ -69,15 +69,14 @@
         <template #default="{ row }">
           <PlayerRole 
             :player="row"
-            :visible="gameStore.gameState.rolesVisible || 
-                     gameStore.gameState.gameStatus === GAME_STATUSES.ROLE_DISTRIBUTION"
-            :editable="gameStore.canEditRoles"
+            :visible="isGameFinished || gameStore.gameState.rolesVisible"
+            :editable="gameStore.canEditRoles && !isGameFinished"
             @change-role="handleRoleChange"
             />
         </template>
       </el-table-column>
       
-      <el-table-column label="Игрок" width="200">
+      <el-table-column label="Игрок" :width="isGameFinished ? undefined : '200'" :min-width="isGameFinished ? '200' : undefined">
         <template #header>
           <div style="display: flex; align-items: center; gap: 8px;">
             <span>Игрок</span>
@@ -105,7 +104,7 @@
         </template>
       </el-table-column>
       
-      <el-table-column label="Номинация">
+      <el-table-column v-if="!isGameFinished" label="Номинация" min-width="150">
         <template #default="{ row }">
           <PlayerNomination 
             :player="row"
@@ -113,6 +112,39 @@
             :game-state="gameStore.gameState"
             @nominate="handleNomination"
             />
+        </template>
+      </el-table-column>
+      
+      <!-- Колонки баллов для завершенных игр -->
+      <el-table-column v-if="isGameFinished" label="Авто" min-width="80" align="center">
+        <template #default="{ row }">
+          <span>{{ getPlayerPoints(row.id, 'auto_points') }}</span>
+        </template>
+      </el-table-column>
+      
+      <el-table-column v-if="isGameFinished" label="Доп." min-width="80" align="center">
+        <template #default="{ row }">
+          <span>{{ getPlayerPoints(row.id, 'extra_points') }}</span>
+        </template>
+      </el-table-column>
+      
+      <el-table-column v-if="isGameFinished" label="Штраф" min-width="80" align="center">
+        <template #default="{ row }">
+          <span>{{ getPlayerPoints(row.id, 'penalty_points') }}</span>
+        </template>
+      </el-table-column>
+      
+      <el-table-column v-if="isGameFinished" label="ЛХ" min-width="80" align="center">
+        <template #default="{ row }">
+          <span>{{ getPlayerPoints(row.id, 'best_move_points') }}</span>
+        </template>
+      </el-table-column>
+      
+      <el-table-column v-if="isGameFinished" label="Итого" min-width="100" align="center">
+        <template #default="{ row }">
+          <el-tag :type="getTotalPointsType(row)" size="large">
+            {{ getTotalPoints(row) }}
+          </el-tag>
         </template>
       </el-table-column>
       
@@ -148,6 +180,36 @@
   const gameStore = useGameStore()
 
   const isEditingPlayers = ref(false)
+  
+  const isGameFinished = computed(() => {
+      return gameStore.gameState.gameStatus === 'civilians_win' || gameStore.gameState.gameStatus === 'mafia_win'
+  })
+  
+  const getPlayerPoints = (playerId, pointType) => {
+      const gameData = gameStore.gameInfo?.gameData
+      if (!gameData?.players) return 0
+      
+      const apiPlayer = gameData.players.find(p => p.box_id === playerId)
+      if (!apiPlayer) return 0
+      
+      const value = apiPlayer[pointType]
+      return value !== null && value !== undefined ? value : 0
+  }
+  
+  const getTotalPoints = (player) => {
+      const auto = getPlayerPoints(player.id, 'auto_points')
+      const extra = getPlayerPoints(player.id, 'extra_points')
+      const penalty = getPlayerPoints(player.id, 'penalty_points')
+      const bestMove = getPlayerPoints(player.id, 'best_move_points')
+      return auto + extra - penalty + bestMove
+  }
+  
+  const getTotalPointsType = (player) => {
+      const total = getTotalPoints(player)
+      if (total > 0) return 'success'
+      if (total < 0) return 'danger'
+      return 'info'
+  }
 
   const visiblePlayers = computed(() => {
       return gameStore.gameState.players.filter(p => !p.isEliminated)
@@ -176,7 +238,8 @@
   })
 
   const canEditPlayers = computed(() => {
-      return !gameStore.isGameInProgress
+      const isGameFinished = gameStore.gameState.gameStatus === 'civilians_win' || gameStore.gameState.gameStatus === 'mafia_win'
+      return !gameStore.isGameInProgress && !isGameFinished
   })
 
   const togglePlayerEdit = () => {
@@ -192,14 +255,17 @@
       return gameStore.gameState.gameStatus === GAME_STATUSES.ROLE_DISTRIBUTION ||
              gameStore.gameState.gameStatus === GAME_STATUSES.NEGOTIATION ||
              gameStore.gameState.gameStatus === GAME_STATUSES.FREE_SEATING ||
-             gameStore.isGameInProgress
+             gameStore.isGameInProgress ||
+             isGameFinished.value
   })
 
   const showCardHeader = computed(() => {
       // Показываем шапку только если есть действия для показа (не только кнопка роли)
+      const isGameFinished = gameStore.gameState.gameStatus === 'civilians_win' || gameStore.gameState.gameStatus === 'mafia_win'
       return !gameStore.isGameInProgress && 
              gameStore.gameState.gameStatus !== GAME_STATUSES.NEGOTIATION && 
-             gameStore.gameState.gameStatus !== GAME_STATUSES.FREE_SEATING
+             gameStore.gameState.gameStatus !== GAME_STATUSES.FREE_SEATING &&
+             !isGameFinished
   })
 
   const handleIncrementFoul = async (playerId) => {

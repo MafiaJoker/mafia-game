@@ -44,7 +44,7 @@ export const useGameResultsStore = defineStore('gameResults', () => {
 	    let baseScore = 0
 	    
 	    const isWinner = (
-		(result === 'city_win' && (player.originalRole === PLAYER_ROLES.CIVILIAN || player.originalRole === PLAYER_ROLES.SHERIFF)) ||
+		(result === 'civilians_win' && (player.originalRole === PLAYER_ROLES.CIVILIAN || player.originalRole === PLAYER_ROLES.SHERIFF)) ||
 		    (result === 'mafia_win' && (player.originalRole === PLAYER_ROLES.MAFIA || player.originalRole === PLAYER_ROLES.DON))
 	    )
 	    

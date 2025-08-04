@@ -106,9 +106,18 @@
 </template>
 
 <script setup>
-  import { ref, reactive } from 'vue'
+  import { ref, reactive, watch } from 'vue'
   import { useGameStore } from '@/stores/game'
   import { ElMessage, ElMessageBox } from 'element-plus'
+
+  const props = defineProps({
+      modelValue: {
+          type: Boolean,
+          default: false
+      }
+  })
+  
+  const emit = defineEmits(['update:modelValue'])
 
   const gameStore = useGameStore()
 
@@ -119,19 +128,23 @@
       comment: '',
       withRestart: false
   })
-
-  const show = () => {
-      visible.value = true
-      Object.assign(form, {
-	  reason: '',
-	  playerSlot: null,
-	  comment: '',
-	  withRestart: false
-      })
-  }
+  
+  // Синхронизация с v-model
+  watch(() => props.modelValue, (newVal) => {
+      visible.value = newVal
+      if (newVal) {
+          Object.assign(form, {
+	      reason: '',
+	      playerSlot: null,
+	      comment: '',
+	      withRestart: false
+          })
+      }
+  })
 
   const handleClose = () => {
       visible.value = false
+      emit('update:modelValue', false)
   }
 
   const getReasonText = (reason) => {
@@ -190,9 +203,6 @@
       }
   }
 
-  defineExpose({
-      show
-  })
 </script>
 
 <style scoped>

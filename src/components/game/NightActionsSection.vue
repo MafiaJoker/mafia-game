@@ -4,7 +4,7 @@
       <div class="action-group mb-3">
         <div class="action-row">
           <div class="action-icon">
-            <el-icon><Aim /></el-icon>
+            <MafiaIcon color="#f56c6c" />
           </div>
           
           <div class="action-content">
@@ -42,7 +42,7 @@
       <div class="action-group mb-3">
         <div class="action-row">
           <div class="action-icon">
-            <el-icon><Aim /></el-icon>
+            <DonIcon color="#e6a23c" />
           </div>
           
           <div class="action-content">
@@ -85,7 +85,7 @@
       <div class="action-group">
         <div class="action-row">
           <div class="action-icon">
-            <el-icon><Orange /></el-icon>
+            <SheriffIcon color="#409eff" />
           </div>
           
           <div class="action-content">
@@ -131,11 +131,10 @@
   import { useGameStore } from '@/stores/game'
   import { useNightActionsStore } from '@/stores/nightActions'
   import { PLAYER_ROLES } from '@/utils/constants'
-  import { 
-      Moon, 
-      Aim, 
-      Orange 
-  } from '@element-plus/icons-vue'
+  import { Moon } from '@element-plus/icons-vue'
+  import MafiaIcon from './icons/MafiaIcon.vue'
+  import DonIcon from './icons/DonIcon.vue'
+  import SheriffIcon from './icons/SheriffIcon.vue'
 
   const gameStore = useGameStore()
   const nightActionsStore = useNightActionsStore()

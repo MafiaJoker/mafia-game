@@ -1,22 +1,15 @@
 <template>
   <div class="player-role">
-    <el-button 
+    <div 
       v-if="editable"
-      :type="getRoleButtonType(player.role)"
-      size="small"
-      circle
+      class="role-editable"
       @click="$emit('changeRole', player.id)"
       >
-      <el-icon>
-        <component :is="getRoleIcon(player.role)" />
-      </el-icon>
-    </el-button>
+      <component :is="getRoleIcon(player.role)" :color="getRoleColor(player.role)" />
+    </div>
     
     <div v-else-if="visible" class="role-display">
-      <el-icon :color="getRoleColor(player.role)">
-        <component :is="getRoleIcon(player.role)" />
-      </el-icon>
-      <span class="role-text">{{ getRoleText(player.role) }}</span>
+      <component :is="getRoleIcon(player.role)" :color="getRoleColor(player.role)" />
     </div>
     
     <div v-else class="role-hidden">
@@ -27,12 +20,11 @@
 
 <script setup>
   import { PLAYER_ROLES } from '@/utils/constants'
-  import { 
-      User, 
-      Orange, 
-      Aim, 
-      Hide 
-  } from '@element-plus/icons-vue'
+  import { Hide } from '@element-plus/icons-vue'
+  import CitizenIcon from './icons/CitizenIcon.vue'
+  import SheriffIcon from './icons/SheriffIcon.vue'
+  import MafiaIcon from './icons/MafiaIcon.vue'
+  import DonIcon from './icons/DonIcon.vue'
 
   defineProps({
       player: {
@@ -52,48 +44,28 @@
   defineEmits(['changeRole'])
 
   const getRoleIcon = (role) => {
-      if (!role) return User // Для null ролей показываем иконку User
+      if (!role) return CitizenIcon // Для null ролей показываем иконку мирного
       switch (role) {
-      case PLAYER_ROLES.CIVILIAN: return User
-      case PLAYER_ROLES.SHERIFF: return Orange
-      case PLAYER_ROLES.MAFIA: return Aim
-      case PLAYER_ROLES.DON: return Aim
-      default: return User
+      case PLAYER_ROLES.CIVILIAN: return CitizenIcon
+      case PLAYER_ROLES.SHERIFF: return SheriffIcon
+      case PLAYER_ROLES.MAFIA: return MafiaIcon
+      case PLAYER_ROLES.DON: return DonIcon
+      default: return CitizenIcon
       }
   }
 
   const getRoleColor = (role) => {
       if (!role) return '#909399' // Для null ролей серый цвет
       switch (role) {
-      case PLAYER_ROLES.CIVILIAN: return '#67c23a'
-      case PLAYER_ROLES.SHERIFF: return '#409eff'
-      case PLAYER_ROLES.MAFIA: return '#f56c6c'
-      case PLAYER_ROLES.DON: return '#e6a23c'
+      case PLAYER_ROLES.CIVILIAN: return '#909399' // серый
+      case PLAYER_ROLES.SHERIFF: return '#f56c6c' // красный
+      case PLAYER_ROLES.MAFIA: return '#000000' // черный
+      case PLAYER_ROLES.DON: return '#000000' // черный
       default: return '#909399'
       }
   }
 
-  const getRoleButtonType = (role) => {
-      if (!role) return 'info' // Для null ролей info тип
-      switch (role) {
-      case PLAYER_ROLES.CIVILIAN: return 'success'
-      case PLAYER_ROLES.SHERIFF: return 'primary'
-      case PLAYER_ROLES.MAFIA: return 'danger'
-      case PLAYER_ROLES.DON: return 'warning'
-      default: return 'info'
-      }
-  }
 
-  const getRoleText = (role) => {
-      if (!role) return '?' // Для null ролей показываем вопросительный знак
-      switch (role) {
-      case PLAYER_ROLES.CIVILIAN: return 'М'
-      case PLAYER_ROLES.SHERIFF: return 'Ш'
-      case PLAYER_ROLES.MAFIA: return 'М'
-      case PLAYER_ROLES.DON: return 'Д'
-      default: return '?'
-      }
-  }
 </script>
 
 <style scoped>
@@ -106,12 +78,23 @@
   .role-display {
       display: flex;
       align-items: center;
-      gap: 4px;
+      justify-content: center;
+      min-height: 24px;
   }
 
-  .role-text {
-      font-weight: bold;
-      font-size: 12px;
+  .role-editable {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+  }
+
+  .role-editable:hover {
+      background-color: #f5f7fa;
   }
 
   .role-hidden {

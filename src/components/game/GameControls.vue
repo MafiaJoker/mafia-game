@@ -2,29 +2,35 @@
   <div class="game-controls">
     <!-- Кнопки для статуса SEATING_READY -->
     <template v-if="gameState.gameStatus === GAME_STATUSES.SEATING_READY">
-      <el-button type="primary" @click="startRoleDistribution">
-        Начать раздачу ролей
-      </el-button>
+      <el-button 
+        type="primary" 
+        @click="startRoleDistribution"
+        :icon="ArrowRight"
+        title="Начать раздачу ролей"
+      />
     </template>
 
     <!-- Кнопки для статуса ROLE_DISTRIBUTION -->
     <template v-if="gameState.gameStatus === GAME_STATUSES.ROLE_DISTRIBUTION">
-      <el-button type="warning" @click="cancelRoleDistribution">
-        Отменить раздачу
-      </el-button>
+      <el-button 
+        type="danger" 
+        @click="cancelRoleDistribution"
+        :icon="Close"
+        title="Отменить раздачу"
+      />
       <el-button 
         type="success" 
         @click="startNegotiation"
         :disabled="!gameStore.canStartGame"
-	>
-        Начать договорку
-      </el-button>
+        :icon="Check"
+        title="Начать договорку"
+      />
     </template>
 
     <!-- Кнопки для статуса NEGOTIATION -->
     <template v-if="gameState.gameStatus === GAME_STATUSES.NEGOTIATION">
       <el-button type="info" @click="skipToFreeSeating">
-        Пропустить договорку
+        Свободная посадка
       </el-button>
     </template>
 
@@ -134,7 +140,7 @@
       GAME_SUBSTATUS 
   } from '@/utils/constants'
   import { ElMessage, ElMessageBox } from 'element-plus'
-  import { Check, Close, ArrowLeft, Moon } from '@element-plus/icons-vue'
+  import { Check, Close, ArrowLeft, Moon, ArrowRight } from '@element-plus/icons-vue'
 
   const gameStore = useGameStore()
   const votingStore = useVotingStore()
@@ -312,6 +318,8 @@
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
+      min-width: 180px;
+      justify-content: flex-end;
   }
 
   .voting-controls {

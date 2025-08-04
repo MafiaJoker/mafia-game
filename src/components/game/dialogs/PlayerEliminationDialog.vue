@@ -71,9 +71,18 @@
 </template>
 
 <script setup>
-  import { ref, computed } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import { useGameStore } from '@/stores/game'
   import { ElMessage, ElMessageBox } from 'element-plus'
+
+  const props = defineProps({
+      modelValue: {
+          type: Boolean,
+          default: false
+      }
+  })
+  
+  const emit = defineEmits(['update:modelValue'])
 
   const gameStore = useGameStore()
 
@@ -81,6 +90,16 @@
   const selectedPlayer = ref(null)
   const eliminationReason = ref('foul_limit')
   const customReason = ref('')
+  
+  // Синхронизация с v-model
+  watch(() => props.modelValue, (newVal) => {
+      visible.value = newVal
+      if (newVal) {
+          selectedPlayer.value = null
+          eliminationReason.value = 'foul_limit'
+          customReason.value = ''
+      }
+  })
 
   const alivePlayers = computed(() => {
       return gameStore.gameState.players.filter(p => p.isAlive && !p.isEliminated)
@@ -96,15 +115,9 @@
       return types[role] || 'info'
   }
 
-  const show = () => {
-      visible.value = true
-      selectedPlayer.value = null
-      eliminationReason.value = 'foul_limit'
-      customReason.value = ''
-  }
-
   const handleClose = () => {
       visible.value = false
+      emit('update:modelValue', false)
   }
 
   const selectPlayer = (playerId) => {
@@ -137,9 +150,6 @@
       }
   }
 
-  defineExpose({
-      show
-  })
 </script>
 
 <style scoped>

@@ -1,6 +1,6 @@
 <template>
   <div class="game-timer">
-    <div class="timer-container" @click="resetTimer">
+    <div class="timer-container" :class="{ 'timer-expired': isTimerExpired }" @click="resetTimer">
       <div class="timer-display">
         {{ formattedTime }}
       </div>
@@ -19,10 +19,36 @@
   const seconds = ref(0)
   let interval = null
 
+  // Получение времени для текущей фазы
+  const getPhaseTime = () => {
+      if (gameStore.gameState.gameStatus === GAME_STATUSES.NEGOTIATION) {
+          return 60 // 1 минута для договорки
+      } else if (gameStore.gameState.gameStatus === GAME_STATUSES.FREE_SEATING) {
+          return 40 // 40 секунд для свободной посадки
+      }
+      return 0 // Для других фаз таймер отсчитывает вперёд
+  }
+
   const formattedTime = computed(() => {
-      const mins = Math.floor(seconds.value / 60)
-      const secs = seconds.value % 60
+      const phaseTime = getPhaseTime()
+      let displaySeconds
+      
+      if (phaseTime > 0) {
+          // Обратный отсчёт для договорки и свободной посадки
+          displaySeconds = Math.max(0, phaseTime - seconds.value)
+      } else {
+          // Прямой отсчёт для остальных фаз
+          displaySeconds = seconds.value
+      }
+      
+      const mins = Math.floor(displaySeconds / 60)
+      const secs = displaySeconds % 60
       return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  })
+
+  const isTimerExpired = computed(() => {
+      const phaseTime = getPhaseTime()
+      return phaseTime > 0 && seconds.value >= phaseTime
   })
 
   // Запуск таймера
@@ -30,7 +56,12 @@
       if (interval) return // уже запущен
       
       interval = setInterval(() => {
-	  seconds.value++
+          const phaseTime = getPhaseTime()
+          if (phaseTime > 0 && seconds.value >= phaseTime) {
+              // Таймер достиг лимита для фазы - останавливаем на 0
+              return
+          }
+          seconds.value++
       }, 1000)
   }
 
@@ -92,10 +123,23 @@
       background: #e8f4ff;
   }
 
+  .timer-container.timer-expired {
+      background: #fef0f0;
+      border: 2px solid #f56c6c;
+  }
+
+  .timer-container.timer-expired:hover {
+      background: #fdf2f2;
+  }
+
   .timer-display {
       font-size: 48px;
       font-weight: bold;
       color: #409eff;
       font-family: 'Courier New', monospace;
+  }
+
+  .timer-expired .timer-display {
+      color: #f56c6c;
   }
 </style>

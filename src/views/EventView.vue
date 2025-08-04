@@ -209,7 +209,12 @@
                             <div class="game-main-content">
                               <div class="game-header">
                                 <h6 class="game-name">{{ game.label }}</h6>
-                                <el-tag v-if="game.result" :type="getResultType(game.result)" size="small">
+                                <el-tag 
+                                  v-if="game.result" 
+                                  :type="getResultType(game.result)" 
+                                  :class="{ 'mafia-win-tag': game.result === 'mafia_win' }"
+                                  size="small"
+                                >
                                   {{ getResultLabel(game.result) }}
                                 </el-tag>
                               </div>
@@ -569,7 +574,7 @@
 
   const getResultLabel = (result) => {
     const labels = {
-      'city_win': 'Победа города',
+      'civilians_win': 'Победа города',
       'mafia_win': 'Победа мафии',
       'draw': 'Ничья',
       'created': 'Создана',
@@ -586,8 +591,8 @@
   const getResultType = (result) => {
     if (!result) return 'info'
     const types = {
-      'city_win': 'success',
-      'mafia_win': 'danger',
+      'civilians_win': 'danger',
+      'mafia_win': undefined,
       'draw': 'warning',
       'created': 'info',
       'seating_ready': 'warning',
@@ -1064,5 +1069,26 @@
   .tab-header .header-actions {
       display: flex;
       gap: 8px;
+  }
+  
+  /* Серый фон для победы мафии */
+  :deep(.el-tag.el-tag--small:not(.el-tag--danger):not(.el-tag--warning):not(.el-tag--primary):not(.el-tag--success):not(.el-tag--info)) {
+      background-color: #606266 !important;
+      border-color: #606266 !important;
+      color: white !important;
+  }
+  
+  /* Альтернативный селектор для тегов с дефолтным стилем */
+  :deep(.el-tag.el-tag--small[class*="el-tag"]:not([class*="el-tag--"])) {
+      background-color: #606266 !important;
+      border-color: #606266 !important;
+      color: white !important;
+  }
+  
+  /* Прямой стиль для победы мафии */
+  :deep(.mafia-win-tag) {
+      background-color: #606266 !important;
+      border-color: #606266 !important;
+      color: white !important;
   }
 </style>

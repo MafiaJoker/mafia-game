@@ -143,7 +143,7 @@ export const useGameStore = defineStore('game', () => {
             let baseScore = 0
             
             const isWinner = (
-		(result === 'city_win' && (player.originalRole === PLAYER_ROLES.CIVILIAN || player.originalRole === PLAYER_ROLES.SHERIFF)) ||
+		(result === 'civilians_win' && (player.originalRole === PLAYER_ROLES.CIVILIAN || player.originalRole === PLAYER_ROLES.SHERIFF)) ||
 		    (result === 'mafia_win' && (player.originalRole === PLAYER_ROLES.MAFIA || player.originalRole === PLAYER_ROLES.DON))
             )
             
@@ -463,6 +463,11 @@ export const useGameStore = defineStore('game', () => {
 	gameState.value.gameStatus = status
 	gameState.value.gameSubstatus = substatus
 	
+	// Автоматически показываем роли во время раздачи ролей
+	if (status === GAME_STATUSES.ROLE_DISTRIBUTION) {
+	    gameState.value.rolesVisible = true
+	}
+	
 	// Автоматически скрываем роли с начала договорки
 	if (status === GAME_STATUSES.NEGOTIATION || status === GAME_STATUSES.FREE_SEATING || status === GAME_STATUSES.IN_PROGRESS) {
 	    gameState.value.rolesVisible = false
@@ -707,8 +712,7 @@ export const useGameStore = defineStore('game', () => {
 		console.warn('Ошибка при коммите рассадки, но продолжаем:', error)
 	    }
 	    
-	    gameState.value.gameStatus = GAME_STATUSES.IN_PROGRESS
-	    gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
+	    setGameStatus(GAME_STATUSES.IN_PROGRESS, GAME_SUBSTATUS.DISCUSSION)
 	    gameState.value.isGameStarted = true
 	    gameState.value.round = 1
 	    gameState.value.phase = 'DAY'
@@ -976,6 +980,29 @@ export const useGameStore = defineStore('game', () => {
 	    // и синхронизированы в фазы
 	})
     }
+    
+    const updateGameState = async () => {
+	try {
+	    if (!gameInfo.value?.gameId) return false
+	    
+	    // Получаем актуальные данные игры
+	    const gameStateData = await loadGameDetailed(gameInfo.value.gameId)
+	    
+	    // Проверяем статус игры
+	    const gameStatus = gameInfo.value?.gameData?.status || gameInfo.value?.gameData?.result
+	    if (gameStatus !== 'in_progress') {
+		// Игра завершена
+		gameState.value.gameStatus = gameStatus
+		gameState.value.isGameStarted = false
+		return true
+	    }
+	    
+	    return true
+	} catch (error) {
+	    console.error('Ошибка обновления состояния игры:', error)
+	    throw error
+	}
+    }
 
     return {
 	// State
@@ -1037,6 +1064,7 @@ export const useGameStore = defineStore('game', () => {
 	initializeGame,
 	addPlayer,
 	nextPhase,
+	updateGameState,
 	
 	// Computed for tests
 	players,

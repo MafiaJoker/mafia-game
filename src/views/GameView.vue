@@ -3,78 +3,99 @@
     <el-container>
       <!-- Заголовок игры -->
       <el-header>
-        <div class="game-header">
-          <div class="navigation-section">
-            <el-button 
-              @click="goToEvent"
-              :icon="ArrowLeft"
-            />
-          </div>
-          
-          <div class="round-info">
-            <div class="round-circle" :class="roundCircleClass">
-              {{ gameStore.gameState.round }}
+        <div class="game-header-container">
+          <div class="game-header">
+            <div class="navigation-section">
+              <el-button 
+                @click="goToEvent"
+                :icon="ArrowLeft"
+              />
             </div>
-          </div>
-          
-          <div class="timer-section">
-            <GameTimer />
-          </div>
-          
-          <div class="game-actions">
-            <GameControls />
+            
+            <div v-if="!isGameFinished" class="round-info">
+              <div class="round-circle" :class="roundCircleClass">
+                {{ gameStore.gameState.round }}
+              </div>
+            </div>
+            
+            <div v-if="!isGameFinished" class="timer-section">
+              <GameTimer />
+            </div>
+            
+            <div class="game-actions">
+              <GameControls />
+            </div>
           </div>
         </div>
       </el-header>
 
       <el-main>
-        <!-- Статус игры убран для экономии места -->
+        <div class="game-content">
+          <!-- Информация о завершенной игре -->
+          <el-card v-if="isGameFinished" class="game-result-card mb-4">
+            <div class="game-result-content">
+              <div class="game-title">
+                <h3>{{ gameTitle }}</h3>
+              </div>
+              <div class="game-result">
+                <el-tag :type="getResultType(gameStore.gameState.gameStatus)" size="large">
+                  {{ getResultLabel(gameStore.gameState.gameStatus) }}
+                </el-tag>
+                <div v-if="ppkInfo" class="ppk-info">
+                  <el-tag type="warning" size="small">
+                    ППК: {{ ppkInfo }}
+                  </el-tag>
+                </div>
+              </div>
+            </div>
+          </el-card>
 
-        <!-- Секция голосования -->
-        <VotingSection v-if="showVotingSection" />
+          <!-- Секция голосования -->
+          <VotingSection v-if="showVotingSection" />
 
-        <!-- Секция ночных действий -->
-        <NightActionsSection v-if="showNightSection" />
+          <!-- Секция ночных действий -->
+          <NightActionsSection v-if="showNightSection" />
 
-        <!-- Секция лучшего хода -->
-        <BestMoveSection v-if="showBestMoveSection" />
+          <!-- Секция лучшего хода -->
+          <BestMoveSection v-if="showBestMoveSection" />
 
-        <!-- Список игроков -->
-        <PlayersTable />
-        
-        <!-- Меню для игровых действий -->
-        <div v-if="gameStore.isGameInProgress" class="game-menu-container">
-          <el-dropdown trigger="click" placement="top">
-            <el-button 
-              type="default" 
-              :icon="MoreFilled"
-              circle
-            />
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item 
-                  @click="showPpkDialog = true"
-                  :disabled="!canUsePpk"
-                >
-                  <el-icon><Warning /></el-icon>
-                  ППК
-                </el-dropdown-item>
-                <el-dropdown-item 
-                  @click="showCancelDialog = true"
-                  divided
-                >
-                  <el-icon><Close /></el-icon>
-                  Отменить игру
-                </el-dropdown-item>
-                <el-dropdown-item 
-                  @click="showEliminateDialog = true"
-                >
-                  <el-icon><Delete /></el-icon>
-                  Удалить игрока
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <!-- Список игроков -->
+          <PlayersTable />
+          
+          <!-- Меню для игровых действий -->
+          <div v-if="gameStore.isGameInProgress" class="game-menu-container">
+            <el-dropdown trigger="click" placement="top">
+              <el-button 
+                type="default" 
+                :icon="MoreFilled"
+                circle
+              />
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item 
+                    @click="showPpkDialog = true"
+                    :disabled="!canUsePpk"
+                  >
+                    <el-icon><Warning /></el-icon>
+                    ППК
+                  </el-dropdown-item>
+                  <el-dropdown-item 
+                    @click="showCancelDialog = true"
+                    divided
+                  >
+                    <el-icon><Close /></el-icon>
+                    Отменить игру
+                  </el-dropdown-item>
+                  <el-dropdown-item 
+                    @click="showEliminateDialog = true"
+                  >
+                    <el-icon><Delete /></el-icon>
+                    Удалить игрока
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
       </el-main>
     </el-container>
@@ -91,6 +112,7 @@
   import { computed, onMounted, onUnmounted, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useGameStore } from '@/stores/game'
+  import { useGamePhasesStore } from '@/stores/gamePhases'
   import { GAME_STATUSES, GAME_SUBSTATUS } from '@/utils/constants'
   import { ArrowLeft, MoreFilled, Warning, Close, Delete } from '@element-plus/icons-vue'
   import GameTimer from '@/components/game/GameTimer.vue'
@@ -113,6 +135,7 @@
   const route = useRoute()
   const router = useRouter()
   const gameStore = useGameStore()
+  const gamePhasesStore = useGamePhasesStore()
   
   const showPpkDialog = ref(false)
   const showCancelDialog = ref(false)
@@ -151,6 +174,52 @@
   })
 
   // Класс для круга в зависимости от статуса игры
+  const isGameFinished = computed(() => {
+    return gameStore.gameState.gameStatus === 'civilians_win' || gameStore.gameState.gameStatus === 'mafia_win'
+  })
+  
+  const gameTitle = computed(() => {
+    const gameData = gameStore.gameInfo?.gameData
+    if (!gameData) return 'Игра'
+    
+    const eventName = gameData.event?.label || 'Мероприятие'
+    const tableName = gameData.table_name || 'Стол'
+    const gameLabel = gameData.label || 'Игра'
+    
+    return `${eventName} / ${tableName} / ${gameLabel}`
+  })
+  
+  const getResultLabel = (result) => {
+    const labels = {
+      'civilians_win': 'Победа города',
+      'mafia_win': 'Победа мафии'
+    }
+    return labels[result] || result
+  }
+  
+  const getResultType = (result) => {
+    const types = {
+      'civilians_win': 'danger',
+      'mafia_win': ''
+    }
+    return types[result] || 'info'
+  }
+  
+  const ppkInfo = computed(() => {
+    const gameData = gameStore.gameInfo?.gameData
+    if (!gameData?.players) return null
+    
+    // Получаем ppk_box_id из текущей фазы
+    const currentPhase = gamePhasesStore.currentPhase
+    if (!currentPhase?.ppk_box_id) return null
+    
+    // Находим игрока по box_id
+    const ppkPlayer = gameData.players.find(player => player.box_id === currentPhase.ppk_box_id)
+    if (!ppkPlayer) return null
+    
+    return `${ppkPlayer.box_id}: ${ppkPlayer.nickname}`
+  })
+  
   const roundCircleClass = computed(() => {
     const status = gameStore.gameState.gameStatus
     const substatus = gameStore.gameState.gameSubstatus
@@ -209,6 +278,28 @@
 
   :deep(.el-main) {
       padding-top: 8px !important;
+      display: flex;
+      justify-content: center;
+  }
+
+  .game-content {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 16px;
+  }
+
+  @media (max-width: 768px) {
+      .game-content {
+          padding: 0 8px;
+      }
+  }
+
+  .game-header-container {
+      display: flex;
+      justify-content: center;
+      height: 100%;
+      padding: 0 16px;
   }
 
   .game-header {
@@ -216,7 +307,8 @@
       justify-content: space-between;
       align-items: center;
       height: 100%;
-      padding: 0 16px;
+      width: 100%;
+      max-width: 1000px;
   }
 
   .navigation-section {
@@ -292,6 +384,49 @@
       display: flex;
       justify-content: center;
       margin-top: 16px;
+  }
+  
+  .game-result-card {
+      text-align: center;
+      border: 2px solid #409eff;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  }
+  
+  .game-result-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+  }
+  
+  .game-result {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+  }
+  
+  .ppk-info {
+      margin-top: 8px;
+  }
+  
+  .game-title h3 {
+      margin: 0;
+      color: #303133;
+      font-size: 24px;
+  }
+  
+  .mb-4 {
+      margin-bottom: 16px;
+  }
+  
+  .game-result :deep(.el-tag) {
+      color: white;
+  }
+  
+  .game-result :deep(.el-tag:not(.el-tag--danger)) {
+      background-color: #606266;
+      border-color: #606266;
   }
 
   @media (max-width: 768px) {

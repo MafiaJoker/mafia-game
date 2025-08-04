@@ -29,7 +29,7 @@ export const SEED_CONFIG = {
     
     games: {
         statuses: ['not_started', 'in_progress', 'finished'],
-        results: ['city_win', 'mafia_win', 'draw'],
+        results: ['civilians_win', 'mafia_win', 'draw'],
         rounds: [1, 2, 3, 4, 5]
     },
     
