@@ -25,7 +25,7 @@ export const useVotingStore = defineStore('voting', () => {
 	}
     }
 
-    const confirmVoting = () => {
+    const confirmVoting = async () => {
 	const results = gameStore.gameState.votingResults
 	
 	if (Object.keys(results).length === 0) return null
@@ -65,18 +65,37 @@ export const useVotingStore = defineStore('voting', () => {
 	    return { result: 'multipleElimination', players: playersWithMaxVotes }
 	}
 	
+	// Список выведенных игроков для записи в фазу
+	const eliminatedPlayers = []
+	
 	if (playersWithMaxVotes.length === 1) {
 	    const eliminatedId = playersWithMaxVotes[0]
 	    gameStore.eliminatePlayerByVote(eliminatedId)
 	    gameStore.gameState.noCandidatesRounds = 0
-	    
-	    // Сохраняем результат голосования в фазы
-	    gamePhasesStore.setVotedPlayer(eliminatedId)
+	    eliminatedPlayers.push(eliminatedId)
+	}
+	
+	// Сохраняем результат голосования в фазы (даже если никто не выбыл)
+	if (gamePhasesStore.currentPhase) {
+	    gamePhasesStore.currentPhase.voted_box_id = eliminatedPlayers.length > 0 ? eliminatedPlayers[0] : null
+	    // Обновляем фазу на сервере
+	    await gamePhasesStore.updateCurrentPhaseOnServer()
 	}
 	
 	gameStore.gameState.shootoutPlayers = []
 	gameStore.gameState.nominatedPlayers = []
 	gameStore.gameState.votingResults = {}
+	
+	// Очищаем все номинации у игроков
+	gameStore.gameState.players.forEach(p => {
+	    p.nominated = null
+	})
+	
+	// Возвращаемся к обсуждению после голосования
+	gameStore.setGameStatus(
+	    gameStore.gameState.gameStatus, 
+	    gameStore.isCriticalRound ? GAME_SUBSTATUS.CRITICAL_DISCUSSION : GAME_SUBSTATUS.DISCUSSION
+	)
 	
 	return { result: 'eliminated', players: playersWithMaxVotes }
     }

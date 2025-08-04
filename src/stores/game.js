@@ -815,12 +815,6 @@ export const useGameStore = defineStore('game', () => {
 	    player.status = 'VOTED_OUT'
 	    gameState.value.deadPlayers.push(playerId)
 	    
-	    // Если это первый выбывший в первом раунде, активируем лучший ход
-	    if (gameState.value.deadPlayers.length === 1 && gameState.value.round === 1) {
-		gameState.value.showBestMove = true
-		gameState.value.firstEliminatedPlayer = playerId
-	    }
-	    
 	    // Сбрасываем счетчик раундов без кандидатов
 	    gameState.value.noCandidatesRounds = 0
 	}
