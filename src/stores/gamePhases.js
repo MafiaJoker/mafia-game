@@ -368,8 +368,9 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             
             await apiService.updateGamePhase(gameId.value, phaseData)
             
-            // Перезагружаем актуальное состояние игры с сервера
-            await refreshGameStateFromServer()
+            // НЕ перезагружаем состояние после обновления текущей фазы
+            // чтобы не потерять локальные изменения
+            // await refreshGameStateFromServer()
             
             return true
         } catch (error) {
