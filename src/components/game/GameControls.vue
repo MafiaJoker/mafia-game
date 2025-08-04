@@ -285,8 +285,8 @@
       })
   }
 
-  const confirmNight = () => {
-      nightActionsStore.confirmNight()
+  const confirmNight = async () => {
+      await nightActionsStore.confirmNight()
   }
 
   const goToDay = () => {

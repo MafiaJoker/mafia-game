@@ -1,57 +1,27 @@
 <template>
   <el-card class="best-move-section mb-4">
-    <template #header>
-      <div class="card-header">
-        <el-icon><Star /></el-icon>
-        <span>Лучший ход</span>
-        <el-badge :value="selectedCount" :max="3" class="ml-2">
-          <span class="selected-count">Выбрано: {{ selectedCount }}/3</span>
-        </el-badge>
-      </div>
-    </template>
-
     <div class="best-move-content">
       <div class="best-move-info mb-4">
         <el-alert
           :title="bestMovePlayerInfo"
-          type="info"
+          type="success"
           :closable="false"
           show-icon
           />
       </div>
 
       <div class="players-selection">
-        <h6 class="section-title">Выберите 3 игроков для лучшего хода:</h6>
-        
-        <div class="players-grid">
+        <el-button-group>
           <el-button
             v-for="player in availablePlayers"
             :key="player.id"
             :type="getPlayerButtonType(player.id)"
-            size="large"
             @click="togglePlayer(player.id)"
             :disabled="!canSelectPlayer(player.id)"
-            class="player-button"
             >
-            <div class="player-info">
-              <div class="player-number">{{ player.id }}</div>
-              <div class="player-name">{{ player.nickname }}</div>
-            </div>
+            {{ player.id }}
           </el-button>
-        </div>
-      </div>
-
-      <div class="best-move-actions mt-4">
-        <el-button
-          type="success"
-          size="large"
-          @click="confirmBestMove"
-          :disabled="selectedCount !== 3"
-          style="width: 100%"
-          >
-          <el-icon><Check /></el-icon>
-          Подтвердить лучший ход
-        </el-button>
+        </el-button-group>
       </div>
     </div>
   </el-card>
@@ -80,7 +50,7 @@
       const firstDead = gameStore.gameState.deadPlayers[0]
       if (firstDead) {
 	  const player = gameStore.currentPlayer(firstDead)
-	  return `Лучший ход для игрока ${firstDead}: ${player?.name || 'Неизвестно'}`
+	  return `${firstDead}: ${player?.name || 'Неизвестно'}`
       }
       return 'Лучший ход'
   })
@@ -101,27 +71,53 @@
 	  targets.delete(playerId)
       } else if (targets.size < 3) {
 	  targets.add(playerId)
+	  
+	  // Автоматически подтверждаем при выборе 3 игроков
+	  if (targets.size === 3) {
+	      setTimeout(() => {
+	          confirmBestMove()
+	      }, 500) // Небольшая задержка для UX
+	  }
       }
   }
 
-  const confirmBestMove = () => {
-      if (selectedCount.value !== 3) {
-	  // ElMessage.error('Необходимо выбрать ровно 3 игроков')
-	  return
+  const confirmBestMove = async () => {
+      if (selectedCount.value === 3) {
+          // Получаем gamePhasesStore
+          const { useGamePhasesStore } = await import('@/stores/gamePhases')
+          const gamePhasesStore = useGamePhasesStore()
+          
+          // 1. Записываем лучший ход в ТЕКУЩУЮ фазу (не создаем новую)
+          gamePhasesStore.setBestMove([...gameStore.gameState.bestMoveTargets])
+          
+          // 2. Обновляем текущую фазу на сервере с лучшим ходом
+          await gamePhasesStore.updateCurrentPhaseOnServer()
+          
+          // 3. ТЕПЕРЬ создаем новую фазу (увеличиваем currentPhaseId)
+          gamePhasesStore.nextPhase()
+          
+          // 4. Создаем новую пустую фазу на сервере
+          await gamePhasesStore.createPhaseOnServer()
+          
+          // 5. Синхронизируем раунд с фазами
+          gameStore.gameState.round = gamePhasesStore.currentPhaseId
+          
+          // 6. Переходим к обсуждению нового дня
+          const { GAME_SUBSTATUS } = await import('@/utils/constants')
+          gameStore.setGameStatus(gameStore.gameState.gameStatus, GAME_SUBSTATUS.DISCUSSION)
+          
+          // 7. Обновляем состояние игры
+          gameStore.gameState.bestMoveUsed = true
+          gameStore.gameState.showBestMove = false
+          gameStore.gameState.bestMoveTargets.clear()
       }
-      
-      gameStore.gameState.bestMoveUsed = true
-      gameStore.gameState.showBestMove = false
-      gameStore.gameState.bestMoveTargets.clear()
-      
-      // ElMessage.success('Лучший ход подтвержден')
   }
 </script>
 
 <style scoped>
   .best-move-section {
-      border: 2px solid #f56c6c;
-      background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+      border: 2px solid #67c23a;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e1f5fe 100%);
   }
 
   .card-header {
@@ -138,54 +134,12 @@
   }
 
   .best-move-content {
-      padding: 8px 0;
+      padding: 0;
   }
 
-  .section-title {
-      margin: 0 0 16px 0;
-      font-weight: 600;
-      color: #303133;
-      text-align: center;
-  }
-
-  .players-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 12px;
-      margin-bottom: 24px;
-  }
-
-  .player-button {
-      height: 80px;
-      transition: all 0.3s ease;
-  }
-
-  .player-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-
-  .player-info {
+  .players-selection {
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-  }
-
-  .player-number {
-      font-size: 20px;
-      font-weight: bold;
-  }
-
-  .player-name {
-      font-size: 12px;
-      opacity: 0.8;
-  }
-
-  .best-move-actions {
-      text-align: center;
-      padding-top: 16px;
-      border-top: 1px solid #ebeef5;
+      justify-content: flex-start;
   }
 
   .ml-2 {

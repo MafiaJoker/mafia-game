@@ -208,7 +208,7 @@ export const useGameStore = defineStore('game', () => {
 	// Проверка на первого убитого для лучшего хода
 	if (gameState.value.deadPlayers.length === 1 && 
 	    gameState.value.eliminatedPlayers.length === 0 && 
-	    gameState.value.round === 1 &&
+	    gameState.value.round === 1 &&  // Проверяем в первом раунде (до создания новой фазы)
 	    !gameState.value.bestMoveUsed) {
 	    
 	    gameState.value.showBestMove = true
@@ -783,11 +783,13 @@ export const useGameStore = defineStore('game', () => {
     }
 
     const nextRound = () => {
-	gameState.value.round++
-	gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
-	
 	// Переходим к следующей фазе
 	gamePhasesStore.nextPhase()
+	
+	// Синхронизируем раунд с фазами
+	gameState.value.round = gamePhasesStore.currentPhaseId
+	gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
+	
 	gamePhasesStore.saveGamePhases()
     }
 

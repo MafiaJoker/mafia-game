@@ -89,7 +89,8 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             removed_box_ids: null,
             ppk_box_id: null,
             voted_box_id: null,
-            fouls_summary: []
+            fouls_summary: [],
+            voting_summary: []
         }
 
         // Инициализируем фолы для всех игроков
@@ -313,8 +314,17 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             await apiService.saveGamePhasesAtomic(gameId.value, payload)
             return true
         } catch (error) {
-            console.error('Ошибка сохранения фаз игры:', error)
-            return false
+            console.error('Ошибка сохранения фаз игры через v2 API:', error)
+            
+            // Fallback к v1 API - обновляем только текущую фазу
+            try {
+                console.log('Trying fallback to v1 API...')
+                await updateCurrentPhaseOnServer()
+                return true
+            } catch (fallbackError) {
+                console.error('Ошибка fallback сохранения фазы через v1 API:', fallbackError)
+                return false
+            }
         }
     }
 
@@ -378,6 +388,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
                 ppk_box_id: phase.ppk_box_id || null,
                 voted_box_id: phase.voted_box_id || null,
                 fouls_summary: phase.fouls_summary || [],
+                voting_summary: [], // Пустой список для новых фаз
                 best_move: bestMove.value || []
             }
             
