@@ -41,8 +41,9 @@
 
     <!-- Кнопки для процесса игры -->
     <template v-if="gameState.gameStatus === GAME_STATUSES.IN_PROGRESS">
-      <template v-if="gameState.gameSubstatus === GAME_SUBSTATUS.DISCUSSION || 
-                      gameState.gameSubstatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION">
+      <div v-if="gameState.gameSubstatus === GAME_SUBSTATUS.DISCUSSION || 
+                  gameState.gameSubstatus === GAME_SUBSTATUS.CRITICAL_DISCUSSION"
+           class="voting-controls">
         <el-button 
           type="warning" 
           @click="startVoting"
@@ -56,9 +57,10 @@
           v-if="shouldShowNightButton"
           :icon="Moon"
         />
-      </template>
+      </div>
 
-      <template v-if="gameState.gameSubstatus === GAME_SUBSTATUS.VOTING">
+      <div v-if="gameState.gameSubstatus === GAME_SUBSTATUS.VOTING"
+           class="voting-controls">
         <el-button 
           type="success" 
           @click="confirmVoting"
@@ -69,9 +71,10 @@
           @click="cancelVoting"
           :icon="Close"
         />
-      </template>
+      </div>
 
-      <template v-if="gameState.gameSubstatus === GAME_SUBSTATUS.NIGHT">
+      <div v-if="gameState.gameSubstatus === GAME_SUBSTATUS.NIGHT"
+           class="voting-controls">
         <el-button 
           type="warning" 
           @click="goToDay"
@@ -82,7 +85,7 @@
           @click="confirmNight"
           :icon="Check"
         />
-      </template>
+      </div>
 
       <template v-if="gameState.gameSubstatus === GAME_SUBSTATUS.SUSPECTS_SPEECH">
         <el-button type="primary" @click="goToFarewell">
@@ -311,8 +314,19 @@
       flex-wrap: wrap;
   }
 
+  .voting-controls {
+      min-width: 180px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+  }
+
   @media (max-width: 768px) {
       .game-controls {
+	  justify-content: center;
+      }
+      
+      .voting-controls {
 	  justify-content: center;
       }
   }
