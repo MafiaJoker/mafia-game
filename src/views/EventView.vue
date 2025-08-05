@@ -181,6 +181,7 @@
                             v-model:value="editForm.description"
                             :plugins="markdownPlugins"
                             :placeholder="markdownPlaceholder"
+                            :upload-images="uploadImages"
                             mode="split"
                           />
                         </div>
@@ -477,6 +478,13 @@
 
   // Настройки для Markdown редактора
   const markdownPlugins = [gfm()]
+  
+  // Функция загрузки изображений (пока отключена)
+  const uploadImages = async (files) => {
+    // Пока не реализована загрузка изображений
+    return []
+  }
+  
   const markdownPlaceholder = `# Информация о мероприятии
 
 ## Описание
@@ -1460,6 +1468,25 @@
   .markdown-editor :deep(.bytemd) {
     height: 500px;
     font-size: 14px;
+  }
+
+  .markdown-editor :deep(.bytemd-toolbar) {
+    border-bottom: 1px solid #e4e7ed;
+  }
+
+  .markdown-editor :deep(.bytemd-body) {
+    display: flex !important;
+  }
+
+  .markdown-editor :deep(.bytemd-editor) {
+    flex: 1 !important;
+    border-right: 1px solid #e4e7ed;
+  }
+
+  .markdown-editor :deep(.bytemd-preview) {
+    flex: 1 !important;
+    overflow-y: auto;
+    padding: 16px;
   }
 
   .description-markdown {
