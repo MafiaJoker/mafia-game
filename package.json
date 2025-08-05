@@ -39,11 +39,10 @@
     "electron:build:all:prod": "cross-env ELECTRON=true VITE_API_BASE_URL=https://dev.jokermafia.am/api/v1 npm run build && electron-builder -mwl"
   },
   "dependencies": {
-    "@bytemd/plugin-gfm": "^1.22.0",
-    "@bytemd/vue-next": "^1.22.0",
     "@element-plus/icons-vue": "^2.3.0",
     "axios": "^1.6.0",
     "element-plus": "^2.8.0",
+    "md-editor-v3": "^5.8.4",
     "pinia": "^2.1.0",
     "vue": "^3.5.17",
     "vue-i18n": "^9.8.0",

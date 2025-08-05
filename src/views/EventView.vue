@@ -170,19 +170,20 @@
                         <h3>Информация о мероприятии</h3>
                         <div v-if="!isEditMode" class="description-content">
                           <div v-if="editForm.description" class="description-markdown">
-                            <BytemdViewer :value="editForm.description" :plugins="markdownPlugins" />
+                            <MdPreview :model-value="editForm.description" />
                           </div>
                           <div v-else class="description-placeholder">
                             Информация о мероприятии не добавлена. Нажмите "Редактировать" чтобы добавить подробное описание.
                           </div>
                         </div>
                         <div v-else class="markdown-editor">
-                          <BytemdEditor
-                            v-model:value="editForm.description"
-                            :plugins="markdownPlugins"
+                          <MdEditor
+                            v-model="editForm.description"
                             :placeholder="markdownPlaceholder"
-                            :upload-images="uploadImages"
-                            mode="split"
+                            language="ru"
+                            preview-theme="default"
+                            code-theme="atom"
+                            :toolbars="markdownToolbars"
                           />
                         </div>
                       </div>
@@ -432,7 +433,6 @@
   import { useEventTypesStore } from '@/stores/eventTypes'
   import { apiService } from '@/services/api'
   import { ElMessage, ElMessageBox } from 'element-plus'
-  import gfm from '@bytemd/plugin-gfm'
   import EventFinances from '@/components/events/EventFinances.vue'
   import EventPlayers from '@/components/events/EventPlayers.vue'
   import EventResults from '@/components/events/EventResults.vue'
@@ -477,13 +477,12 @@
   })
 
   // Настройки для Markdown редактора
-  const markdownPlugins = [gfm()]
-  
-  // Функция загрузки изображений (пока отключена)
-  const uploadImages = async (files) => {
-    // Пока не реализована загрузка изображений
-    return []
-  }
+  const markdownToolbars = [
+    'bold', 'underline', 'italic', 'strikeThrough', '-',
+    'title', 'sub', 'sup', 'quote', 'unorderedList', 'orderedList', 'task', '-',
+    'codeRow', 'code', 'link', 'image', 'table', 'mermaid', 'katex', '-',
+    'revoke', 'next', 'save', '=', 'pageFullscreen', 'fullscreen', 'preview', 'previewOnly'
+  ]
   
   const markdownPlaceholder = `# Информация о мероприятии
 
@@ -1465,35 +1464,16 @@
     margin-top: 16px;
   }
 
-  .markdown-editor :deep(.bytemd) {
+  .markdown-editor :deep(.md-editor) {
     height: 500px;
     font-size: 14px;
-  }
-
-  .markdown-editor :deep(.bytemd-toolbar) {
-    border-bottom: 1px solid #e4e7ed;
-  }
-
-  .markdown-editor :deep(.bytemd-body) {
-    display: flex !important;
-  }
-
-  .markdown-editor :deep(.bytemd-editor) {
-    flex: 1 !important;
-    border-right: 1px solid #e4e7ed;
-  }
-
-  .markdown-editor :deep(.bytemd-preview) {
-    flex: 1 !important;
-    overflow-y: auto;
-    padding: 16px;
   }
 
   .description-markdown {
     padding: 16px 0;
   }
 
-  .description-markdown :deep(.bytemd-preview) {
+  .description-markdown :deep(.md-preview) {
     padding: 0;
     font-size: 16px;
     line-height: 1.6;
