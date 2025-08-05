@@ -39,56 +39,22 @@ export default defineConfig(({ command, mode }) => {
     },
     build: {
       sourcemap: false,
-      minify: 'esbuild', // Возвращаем esbuild минификацию
+      minify: false, // Полностью отключаем минификацию
       // Для Electron нужно убедиться что все ассеты встроены правильно
       assetsDir: 'assets',
-      chunkSizeWarningLimit: 1000, // Увеличиваем лимит до 1MB
+      chunkSizeWarningLimit: 2000, // Увеличиваем лимит до 2MB
       rollupOptions: {
         output: {
           // Добавляем хеш к файлам для предотвращения кеширования
           entryFileNames: 'assets/[name]-[hash].js',
           chunkFileNames: 'assets/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash].[ext]',
-          manualChunks: (id) => {
-            // Более продвинутая логика разделения чанков
-            if (id.includes('node_modules')) {
-              if (id.includes('vue') && !id.includes('vue-router') && !id.includes('@vue/')) {
-                return 'vue'
-              }
-              if (id.includes('@vue/')) {
-                return 'vue-runtime'
-              }
-              if (id.includes('vue-router')) {
-                return 'vue-router'
-              }
-              if (id.includes('pinia')) {
-                return 'pinia'
-              }
-              if (id.includes('element-plus')) {
-                return 'element-plus'
-              }
-              if (id.includes('@element-plus/icons-vue')) {
-                return 'element-icons'
-              }
-              if (id.includes('md-editor-v3')) {
-                return 'md-editor'
-              }
-              if (id.includes('axios')) {
-                return 'axios'
-              }
-              return 'vendor'
-            }
-            
-            // Группируем наши модули
-            if (id.includes('/stores/')) {
-              return 'stores'
-            }
-            if (id.includes('/components/')) {
-              return 'components'
-            }
-            if (id.includes('/views/')) {
-              return 'views'
-            }
+          // Упрощаем разделение чанков - оставляем Vue как единый блок
+          manualChunks: {
+            'vue-ecosystem': ['vue', '@vue/runtime-core', '@vue/runtime-dom', '@vue/reactivity', '@vue/shared', 'vue-router', 'pinia'],
+            'ui-library': ['element-plus', '@element-plus/icons-vue'],
+            'markdown': ['md-editor-v3'],
+            'http': ['axios']
           }
         }
       }
@@ -100,30 +66,31 @@ export default defineConfig(({ command, mode }) => {
       sourcemap: false,
       target: 'es2020',
       format: 'esm',
-      drop: isDev ? [] : ['console', 'debugger'],
-      // Более консервативная обработка для предотвращения ошибок области видимости
+      drop: isDev ? [] : [], // Не удаляем ничего в production для безопасности
+      // Максимально консервативная обработка
       keepNames: true,
       legalComments: 'none',
-      treeShaking: true,
-      minifyIdentifiers: false, // Отключаем минификацию идентификаторов
-      minifySyntax: true,
-      minifyWhitespace: true
+      treeShaking: false, // Отключаем tree shaking
+      minifyIdentifiers: false,
+      minifySyntax: false,
+      minifyWhitespace: false
     },
     optimizeDeps: {
-      force: true,
+      force: false, // Не форсируем пересборку зависимостей
       esbuildOptions: {
         sourcemap: false,
-        target: 'es2020'
+        target: 'es2020',
+        keepNames: true
       },
       include: [
         'vue',
-        'vue-router',
+        'vue-router', 
         'pinia',
         'element-plus',
         '@element-plus/icons-vue',
-        'axios'
-      ],
-      exclude: ['md-editor-v3']
+        'axios',
+        'md-editor-v3' // Включаем md-editor-v3 в оптимизацию
+      ]
     },
     server: {
         allowedHosts: [
