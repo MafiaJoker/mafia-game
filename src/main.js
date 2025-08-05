@@ -5,6 +5,11 @@ import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import { createI18n } from 'vue-i18n'
 
+// ByteMD для Markdown
+import { Editor, Viewer } from '@bytemd/vue-next'
+import gfm from '@bytemd/plugin-gfm'
+import 'bytemd/dist/index.css'
+
 // Глобальные стили
 import './assets/global.css'
 
@@ -27,6 +32,10 @@ const pinia = createPinia()
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
 }
+
+// Регистрируем ByteMD компоненты
+app.component('BytemdEditor', Editor)
+app.component('BytemdViewer', Viewer)
 
 app.use(pinia)
 app.use(router)

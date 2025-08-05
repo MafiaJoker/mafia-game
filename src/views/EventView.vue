@@ -169,29 +169,22 @@
                       <div class="event-description">
                         <h3>Информация о мероприятии</h3>
                         <div v-if="!isEditMode" class="description-content">
-                          <div v-if="editForm.description" class="description-text">
-                            {{ editForm.description }}
+                          <div v-if="editForm.description" class="description-markdown">
+                            <BytemdViewer :value="editForm.description" :plugins="markdownPlugins" />
                           </div>
                           <div v-else class="description-placeholder">
                             Информация о мероприятии не добавлена. Нажмите "Редактировать" чтобы добавить подробное описание.
                           </div>
                         </div>
-                        <el-input
-                          v-else
-                          v-model="editForm.description"
-                          type="textarea"
-                          :rows="12"
-                          placeholder="Добавьте подробную информацию о мероприятии:
-
-• Цели и задачи мероприятия
-• Формат проведения 
-• Особенности турнира
-• Правила и регламент
-• Призовой фонд
-• Контактная информация
-• Дополнительные условия"
-                          resize="vertical"
-                        />
+                        <div v-else class="markdown-editor">
+                          <BytemdEditor
+                            v-model:value="editForm.description"
+                            :plugins="markdownPlugins"
+                            :placeholder="markdownPlaceholder"
+                            mode="split"
+                            locale="ru"
+                          />
+                        </div>
                       </div>
 
                       <!-- Дополнительная информация если есть -->
@@ -439,6 +432,7 @@
   import { useEventTypesStore } from '@/stores/eventTypes'
   import { apiService } from '@/services/api'
   import { ElMessage, ElMessageBox } from 'element-plus'
+  import gfm from '@bytemd/plugin-gfm'
   import EventFinances from '@/components/events/EventFinances.vue'
   import EventPlayers from '@/components/events/EventPlayers.vue'
   import EventResults from '@/components/events/EventResults.vue'
@@ -481,6 +475,35 @@
     event_type_id: '',
     status: 'planned'
   })
+
+  // Настройки для Markdown редактора
+  const markdownPlugins = [gfm()]
+  const markdownPlaceholder = `# Информация о мероприятии
+
+## Описание
+Добавьте краткое описание мероприятия...
+
+## Цели и задачи
+- Первая цель
+- Вторая цель
+
+## Формат проведения
+Опишите формат турнира...
+
+## Правила и регламент
+1. Первое правило
+2. Второе правило
+
+## Контактная информация
+**Организатор:** Ваше имя  
+**Телефон:** +7 (xxx) xxx-xx-xx  
+**Email:** example@example.com
+
+## Дополнительные условия
+> Важная информация для участников
+
+---
+*Используйте Markdown для форматирования текста*`
 
   const tables = computed(() => {
     const realTables = event.value?.tables || []
@@ -1420,5 +1443,100 @@
       background-color: #606266 !important;
       border-color: #606266 !important;
       color: white !important;
+  }
+
+  /* Стили для Markdown редактора и просмотра */
+  .markdown-editor {
+    margin-top: 16px;
+  }
+
+  .markdown-editor :deep(.bytemd) {
+    height: 500px;
+    font-size: 14px;
+  }
+
+  .description-markdown {
+    padding: 16px 0;
+  }
+
+  .description-markdown :deep(.bytemd-preview) {
+    padding: 0;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .description-markdown :deep(h1) {
+    font-size: 24px;
+    margin: 24px 0 16px 0;
+    border-bottom: 2px solid #409eff;
+    padding-bottom: 8px;
+  }
+
+  .description-markdown :deep(h2) {
+    font-size: 20px;
+    margin: 20px 0 12px 0;
+    color: #303133;
+  }
+
+  .description-markdown :deep(h3) {
+    font-size: 18px;
+    margin: 16px 0 8px 0;
+    color: #606266;
+  }
+
+  .description-markdown :deep(p) {
+    margin: 12px 0;
+    line-height: 1.8;
+  }
+
+  .description-markdown :deep(ul, ol) {
+    margin: 12px 0;
+    padding-left: 24px;
+  }
+
+  .description-markdown :deep(li) {
+    margin: 8px 0;
+    line-height: 1.6;
+  }
+
+  .description-markdown :deep(blockquote) {
+    border-left: 4px solid #409eff;
+    background-color: #f0f9ff;
+    padding: 12px 16px;
+    margin: 16px 0;
+    color: #606266;
+  }
+
+  .description-markdown :deep(code) {
+    background-color: #f5f7fa;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+  }
+
+  .description-markdown :deep(pre) {
+    background-color: #f5f7fa;
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 16px 0;
+  }
+
+  .description-markdown :deep(table) {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0;
+  }
+
+  .description-markdown :deep(th, td) {
+    border: 1px solid #e4e7ed;
+    padding: 8px 12px;
+    text-align: left;
+  }
+
+  .description-markdown :deep(th) {
+    background-color: #f5f7fa;
+    font-weight: 600;
   }
 </style>
