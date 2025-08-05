@@ -52,74 +52,95 @@
                 <div 
                   v-for="player in sortedPlayers" 
                   :key="player.id"
-                  class="player-scoring-row"
-                  :class="{ 
-                    'winner': isWinner(player)
-                  }"
+                  class="player-scoring-container"
                 >
-                  <!-- Информация об игроке -->
-                  <div class="player-info">
-                    <div class="player-number">{{ player.id }}</div>
-                    <div class="player-role">
-                      <component 
-                        :is="getRoleIconComponent(player.originalRole)" 
-                        :color="getRoleColor(player.originalRole)"
-                        :title="getRoleLabel(player.originalRole)"
-                      />
+                  <!-- Основная строка игрока -->
+                  <div class="player-scoring-row"
+                    :class="{ 
+                      'winner': isWinner(player)
+                    }"
+                  >
+                    <!-- Информация об игроке -->
+                    <div class="player-info">
+                      <div class="player-number">{{ player.id }}</div>
+                      <div class="player-role">
+                        <component 
+                          :is="getRoleIconComponent(player.originalRole)" 
+                          :color="getRoleColor(player.originalRole)"
+                          :title="getRoleLabel(player.originalRole)"
+                        />
+                      </div>
+                      <div class="player-details">
+                        <div class="player-name">{{ getPlayerName(player) }}</div>
+                      </div>
                     </div>
-                    <div class="player-details">
-                      <div class="player-name">{{ getPlayerName(player) }}</div>
+
+                    <!-- Баллы -->
+                    <div class="scoring-section">
+                      <!-- Автоматические баллы -->
+                      <div class="score-group">
+                        <div class="score-label">Авто</div>
+                        <div class="score-value auto">
+                          {{ getPlayerScore(player.id, 'auto') }}
+                        </div>
+                      </div>
+
+                      <!-- Доп. баллы -->
+                      <div class="score-group">
+                        <div class="score-label">Доп. баллы</div>
+                        <el-input-number
+                          v-if="playerScores[player.id]"
+                          v-model="playerScores[player.id].additional"
+                          :min="-3"
+                          :max="3"
+                          :step="0.1"
+                          :precision="1"
+                          size="small"
+                          :controls="false"
+                          @change="onScoreChange(player.id)"
+                        />
+                      </div>
+
+                      <!-- Штрафные баллы -->
+                      <div class="score-group">
+                        <div class="score-label">Штраф</div>
+                        <el-input-number
+                          v-if="playerScores[player.id]"
+                          v-model="playerScores[player.id].manual"
+                          :min="0"
+                          :max="5"
+                          :step="0.1"
+                          :precision="1"
+                          size="small"
+                          :controls="false"
+                          @change="onScoreChange(player.id)"
+                        />
+                      </div>
+
+                      <!-- Итого -->
+                      <div class="score-group total">
+                        <div class="score-label">Итого</div>
+                        <div class="score-value total">
+                          {{ getTotalScore(player.id).toFixed(1) }}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <!-- Баллы -->
-                  <div class="scoring-section">
-                    <!-- Автоматические баллы -->
-                    <div class="score-group">
-                      <div class="score-label">Авто</div>
-                      <div class="score-value auto">
-                        {{ getPlayerScore(player.id, 'auto') }}
-                      </div>
-                    </div>
-
-                    <!-- Доп. баллы -->
-                    <div class="score-group">
-                      <div class="score-label">Доп. баллы</div>
-                      <el-input-number
+                  <!-- Комментарии к баллам (показываются только если есть доп. баллы или штрафы) -->
+                  <div 
+                    v-if="hasScoreAdjustments(player.id)" 
+                    class="player-comment-section"
+                  >
+                    <div class="comment-field">
+                      <el-input
                         v-if="playerScores[player.id]"
-                        v-model="playerScores[player.id].additional"
-                        :min="-3"
-                        :max="3"
-                        :step="0.1"
-                        :precision="1"
-                        size="small"
-                        :controls="false"
-                        @change="onScoreChange(player.id)"
+                        v-model="playerScores[player.id].comment"
+                        type="textarea"
+                        :rows="2"
+                        placeholder="Комментарий к дополнительным баллам/штрафам (например: 'Лучший ход в 3-м раунде', 'Нарушение регламента')"
+                        @input="onScoreChange(player.id)"
                       />
-                    </div>
-
-                    <!-- Штрафные баллы -->
-                    <div class="score-group">
-                      <div class="score-label">Штраф</div>
-                      <el-input-number
-                        v-if="playerScores[player.id]"
-                        v-model="playerScores[player.id].manual"
-                        :min="0"
-                        :max="5"
-                        :step="0.1"
-                        :precision="1"
-                        size="small"
-                        :controls="false"
-                        @change="onScoreChange(player.id)"
-                      />
-                    </div>
-
-                    <!-- Итого -->
-                    <div class="score-group total">
-                      <div class="score-label">Итого</div>
-                      <div class="score-value total">
-                        {{ getTotalScore(player.id).toFixed(1) }}
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -210,16 +231,34 @@
         const autoScore = getPlayerScore(player.id, 'auto')
         const penaltyScore = getPlayerScore(player.id, 'manual')
         const extraScore = getPlayerScore(player.id, 'additional')
+        const existingComment = getPlayerComment(player.id)
         
-        console.log(`Игрок ${player.id}: авто=${autoScore}, штраф=${penaltyScore}, доп=${extraScore}`)
+        console.log(`Игрок ${player.id}: авто=${autoScore}, штраф=${penaltyScore}, доп=${extraScore}, комментарий=${existingComment}`)
         
         playerScores[player.id] = {
           auto: autoScore,
           manual: penaltyScore || 0,
-          additional: extraScore || 0
+          additional: extraScore || 0,
+          comment: existingComment || ''
         }
       }
     })
+  }
+
+  const getPlayerComment = (playerId) => {
+    const gameData = gameStore.gameInfo?.gameData
+    if (!gameData?.players) return ''
+    
+    const apiPlayer = gameData.players.find(p => p.box_id === playerId)
+    return apiPlayer?.comment || ''
+  }
+
+  const hasScoreAdjustments = (playerId) => {
+    const scores = playerScores[playerId]
+    if (!scores) return false
+    
+    // Показываем поле комментария если есть дополнительные баллы или штрафы
+    return (scores.additional && scores.additional !== 0) || (scores.manual && scores.manual !== 0)
   }
 
   const getPlayerScore = (playerId, scoreType) => {
@@ -373,13 +412,18 @@
         box_id: parseInt(playerId),
         extra_points: scores.additional || 0,
         penalty_points: scores.manual || 0,
-        comment: gameComment.value || ""
+        comment: scores.comment || ""
       }))
       
       console.log('Отправляем данные на API:', updates)
       
       // Сохраняем баллы через API
       await apiService.setPlayersPoints(route.params.id, updates)
+      
+      // Также сохраняем общий комментарий к игре если он изменился
+      if (gameComment.value !== (gameInfo.value?.comment || '')) {
+        await apiService.updateGame(route.params.id, { comment: gameComment.value })
+      }
       
       ElMessage.success('Все изменения сохранены!')
       hasChanges.value = false
@@ -462,6 +506,12 @@
   }
 
   .players-scoring {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .player-scoring-container {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -594,6 +644,38 @@
     color: #303133;
   }
 
+  /* Стили для секции комментариев к баллам */
+  .player-comment-section {
+    margin-left: 80px; /* Отступ для выравнивания с содержимым строки игрока */
+    margin-top: 4px;
+  }
+
+  .comment-field {
+    max-width: 600px;
+  }
+
+  .comment-field :deep(.el-textarea__inner) {
+    font-size: 13px;
+    line-height: 1.4;
+    resize: vertical;
+    min-height: 48px !important;
+  }
+
+  .comment-field :deep(.el-input__wrapper) {
+    border: 1px solid #e4e7ed;
+    border-radius: 4px;
+    background-color: #fafbfc;
+  }
+
+  .comment-field :deep(.el-input__wrapper):hover {
+    border-color: #c0c4cc;
+  }
+
+  .comment-field :deep(.el-input__wrapper.is-focus) {
+    border-color: #409eff;
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+  }
+
   @media (max-width: 768px) {
     .results-header {
       flex-direction: column;
@@ -618,6 +700,15 @@
 
     .score-group {
       min-width: 60px;
+    }
+
+    .player-comment-section {
+      margin-left: 0;
+      margin-top: 8px;
+    }
+
+    .comment-field {
+      max-width: 100%;
     }
   }
 </style>
