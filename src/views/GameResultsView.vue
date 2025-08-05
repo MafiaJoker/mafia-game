@@ -38,8 +38,8 @@
 
       <el-main>
         <el-row :gutter="20" class="results-content">
-          <!-- Левая панель - баллы игроков -->
-          <el-col :lg="16" :md="14" :sm="24">
+          <!-- Панель с баллами игроков на всю ширину -->
+          <el-col :span="24">
             <el-card>
               <template #header>
                 <div class="card-header">
@@ -148,27 +148,6 @@
             </el-card>
           </el-col>
 
-          <!-- Правая панель - комментарии и дополнительная информация -->
-          <el-col :lg="8" :md="10" :sm="24">
-            <!-- Комментарий к игре -->
-            <el-card class="mb-4">
-              <template #header>
-                <div class="card-header">
-                  <el-icon><ChatDotRound /></el-icon>
-                  <span>Комментарий к игре</span>
-                </div>
-              </template>
-
-              <el-input
-                v-model="gameComment"
-                type="textarea"
-                :rows="6"
-                placeholder="Добавьте комментарий к игре: интересные моменты, заметки судьи, особенности игры..."
-                @input="onCommentChange"
-              />
-            </el-card>
-
-          </el-col>
         </el-row>
       </el-main>
     </el-container>
@@ -184,8 +163,7 @@
   import { ElMessage } from 'element-plus'
   import { 
     ArrowLeft, 
-    Trophy, 
-    ChatDotRound
+    Trophy
   } from '@element-plus/icons-vue'
   import CitizenIcon from '@/components/game/icons/CitizenIcon.vue'
   import SheriffIcon from '@/components/game/icons/SheriffIcon.vue'
@@ -198,7 +176,6 @@
 
   const saving = ref(false)
   const hasChanges = ref(false)
-  const gameComment = ref('')
   const playerScores = reactive({})
 
   const sortedPlayers = computed(() => {
@@ -399,9 +376,6 @@
     hasChanges.value = true
   }
 
-  const onCommentChange = () => {
-    hasChanges.value = true
-  }
 
 
   const saveAllScores = async () => {
@@ -419,11 +393,6 @@
       
       // Сохраняем баллы через API
       await apiService.setPlayersPoints(route.params.id, updates)
-      
-      // Также сохраняем общий комментарий к игре если он изменился
-      if (gameComment.value !== (gameInfo.value?.comment || '')) {
-        await apiService.updateGame(route.params.id, { comment: gameComment.value })
-      }
       
       ElMessage.success('Все изменения сохранены!')
       hasChanges.value = false
@@ -452,9 +421,6 @@
     if (gameId) {
       await gameStore.loadGameDetailed(gameId)
       initializePlayerScores()
-      
-      // Загружаем комментарий если есть
-      gameComment.value = gameInfo.value?.comment || ''
     }
   })
 </script>
