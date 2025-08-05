@@ -45,6 +45,10 @@ export default defineConfig(({ command, mode }) => {
       chunkSizeWarningLimit: 1000, // Увеличиваем лимит до 1MB
       rollupOptions: {
         output: {
+          // Добавляем хеш к файлам для предотвращения кеширования
+          entryFileNames: 'assets/[name]-[hash].js',
+          chunkFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]',
           manualChunks(id) {
             // Разделяем vendor чанки для лучшего кеширования
             if (id.includes('node_modules')) {
@@ -65,7 +69,12 @@ export default defineConfig(({ command, mode }) => {
     },
     esbuild: {
       sourcemap: false,
-      drop: isDev ? [] : ['console', 'debugger']
+      target: 'es2020',
+      format: 'esm',
+      drop: isDev ? [] : ['console', 'debugger'],
+      // Улучшенная обработка областей видимости
+      keepNames: true,
+      legalComments: 'none'
     },
     optimizeDeps: {
       force: true,
