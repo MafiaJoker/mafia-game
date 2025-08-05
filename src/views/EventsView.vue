@@ -71,6 +71,7 @@
 		  :events="filteredActiveEvents" 
 		  :loading="eventsStore.loading"
 		  @delete-event="handleDeleteEvent"
+		  @edit-event="handleEditEvent"
 		  />
 	      </div>
 	    </el-card>
@@ -90,6 +91,13 @@
       <TestDataGenerator />
     </el-dialog>
 
+    <!-- Диалог редактирования мероприятия -->
+    <EditEventDialog 
+      v-model:visible="showEditDialog"
+      :event="eventToEdit"
+      @event-updated="handleEventUpdated"
+    />
+
   </div>
 </template>
 
@@ -99,6 +107,7 @@
   import { useEventsStore } from '@/stores/events'
   import CreateEventForm from '@/components/events/CreateEventForm.vue'
   import EventsList from '@/components/events/EventsList.vue'
+  import EditEventDialog from '@/components/events/EditEventDialog.vue'
   import TestDataGenerator from '@/components/admin/TestDataGenerator.vue'
     import { ElMessage, ElMessageBox } from 'element-plus'
   import { 
@@ -113,6 +122,8 @@
 
   const searchTerm = ref('')
   const showTestDataGenerator = ref(false)
+  const showEditDialog = ref(false)
+  const eventToEdit = ref(null)
   
   // Показываем генератор только в режиме разработки
   const isDevelopment = import.meta.env.DEV
@@ -144,6 +155,16 @@
       } catch (error) {
 	  ElMessage.error('Ошибка обновления мероприятия')
       }
+  }
+
+  const handleEditEvent = (event) => {
+      eventToEdit.value = event
+      showEditDialog.value = true
+  }
+
+  const handleEventUpdated = (updatedEvent) => {
+      // Событие уже обновлено в store через EditEventDialog
+      // Можно добавить дополнительную логику если нужно
   }
 
   const handleDeleteEvent = async (eventId) => {

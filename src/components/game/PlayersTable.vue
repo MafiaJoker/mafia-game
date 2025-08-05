@@ -152,7 +152,7 @@
       <el-table-column v-if="isGameFinished" label="Итого" min-width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="getTotalPointsType(row)" size="large">
-            {{ getTotalPoints(row) }}
+            {{ getTotalPoints(row).toFixed(1) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -210,7 +210,8 @@
       const extra = getPlayerPoints(player.id, 'extra_points')
       const penalty = getPlayerPoints(player.id, 'penalty_points')
       const bestMove = getPlayerPoints(player.id, 'best_move_points')
-      return auto + extra - penalty + bestMove
+      const total = auto + extra - penalty + bestMove
+      return Math.round(total * 10) / 10  // Округляем до 1 знака после запятой
   }
   
   const getTotalPointsType = (player) => {

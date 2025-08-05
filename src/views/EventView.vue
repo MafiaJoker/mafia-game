@@ -23,60 +23,195 @@
       </el-header>
 
       <el-main>
-        <el-row :gutter="20">
-          <!-- Информация о мероприятии -->
-          <el-col :md="8">
-            <el-card class="mb-4">
-              <template #header>
-                <div class="card-header">
-                  <el-icon><InfoFilled /></el-icon>
-                  <span>Информация о мероприятии</span>
-                </div>
-              </template>
-
-              <div v-if="event" class="event-info">
-                <div class="info-item" v-if="event.event_type">
-                  <el-tag 
-                    class="mb-2"
-                    :style="{ 
-                      backgroundColor: getEventTypeColor(), 
-                      color: 'white',
-                      border: 'none'
-                    }"
-                  >
-                    {{ event.event_type.label }}
-                  </el-tag>
-                </div>
-
-                <div class="info-item">
-                  <h6>Описание:</h6>
-                  <p>{{ event.description || 'Описание отсутствует' }}</p>
-                </div>
-
-                <div class="info-item">
-                  <h6>Дата проведения:</h6>
-                  <p>{{ formatDate(event.start_date) }}</p>
-                </div>
-
-                <div class="info-item">
-                  <h6>Язык:</h6>
-                  <p>{{ getLanguageLabel(event.language) }}</p>
-                </div>
-
-                <div class="info-item">
-                  <h6>Столы:</h6>
-                  <p>{{ tableCount }} {{ getTableNoun(tableCount) }}</p>
-                </div>
-              </div>
-
-              <el-skeleton v-else :rows="5" animated />
-            </el-card>
-          </el-col>
-
-          <!-- Основной контент с вкладками -->
-          <el-col :md="16">
+        <el-row>
+          <!-- Основной контент с вкладками на всю ширину -->
+          <el-col :span="24">
             <el-card>
               <el-tabs v-model="activeTab" type="border-card">
+                <!-- Вкладка Информация -->
+                <el-tab-pane label="Информация" name="info">
+                  <template #label>
+                    <span style="display: flex; align-items: center; gap: 4px;">
+                      <el-icon><InfoFilled /></el-icon>
+                      Информация
+                    </span>
+                  </template>
+
+                  <div class="tab-content">
+                    <div v-if="event" class="event-detailed-info">
+                      <!-- Режим редактирования / просмотра -->
+                      <div class="edit-mode-controls">
+                        <el-button 
+                          v-if="!isEditMode" 
+                          type="primary" 
+                          size="small"
+                          @click="isEditMode = true"
+                          :icon="Edit"
+                        >
+                          Редактировать
+                        </el-button>
+                        <div v-else>
+                          <el-button 
+                            type="success" 
+                            size="small"
+                            @click="saveEventChanges"
+                            :loading="saving"
+                          >
+                            Сохранить
+                          </el-button>
+                          <el-button 
+                            size="small"
+                            @click="cancelEdit"
+                          >
+                            Отмена
+                          </el-button>
+                        </div>
+                      </div>
+
+                      <!-- Основная информация -->
+                      <el-row :gutter="20">
+                        <el-col :md="12">
+                          <div class="info-section">
+                            <h4>Основная информация</h4>
+                            <el-form :model="editForm" label-position="left" label-width="150px">
+                              <el-form-item label="Название">
+                                <span v-if="!isEditMode">{{ event.label }}</span>
+                                <el-input v-else v-model="editForm.label" />
+                              </el-form-item>
+                              
+                              <el-form-item label="Дата проведения">
+                                <span v-if="!isEditMode">{{ formatDate(event.start_date) }}</span>
+                                <el-date-picker
+                                  v-else
+                                  v-model="editForm.start_date"
+                                  type="date"
+                                  placeholder="Выберите дату"
+                                  format="DD.MM.YYYY"
+                                  value-format="YYYY-MM-DD"
+                                  style="width: 100%"
+                                />
+                              </el-form-item>
+                              
+                              <el-form-item label="Язык">
+                                <span v-if="!isEditMode">{{ getLanguageLabel(event.language) }}</span>
+                                <el-select v-else v-model="editForm.language" style="width: 100%">
+                                  <el-option label="Русский" value="rus" />
+                                  <el-option label="English" value="eng" />
+                                  <el-option label="Հայերեն" value="arm" />
+                                </el-select>
+                              </el-form-item>
+                              
+                              <el-form-item label="Статус">
+                                <el-tag v-if="!isEditMode" :type="getStatusTagType(event.status)">
+                                  {{ getStatusLabel(event.status) }}
+                                </el-tag>
+                                <el-select v-else v-model="editForm.status" style="width: 100%">
+                                  <el-option label="Запланировано" value="planned" />
+                                  <el-option label="Активно" value="active" />
+                                  <el-option label="Завершено" value="completed" />
+                                </el-select>
+                              </el-form-item>
+                              
+                              <el-form-item label="Категория" v-if="event.event_type || isEditMode">
+                                <el-tag 
+                                  v-if="!isEditMode && event.event_type"
+                                  :style="{ 
+                                    backgroundColor: getEventTypeColor(), 
+                                    color: 'white',
+                                    border: 'none'
+                                  }"
+                                >
+                                  {{ event.event_type.label }}
+                                </el-tag>
+                                <el-select 
+                                  v-else-if="isEditMode && eventTypes.length > 0" 
+                                  v-model="editForm.event_type_id" 
+                                  style="width: 100%"
+                                  placeholder="Выберите категорию"
+                                >
+                                  <el-option 
+                                    v-for="eventType in eventTypes" 
+                                    :key="eventType.id" 
+                                    :label="eventType.label" 
+                                    :value="eventType.id" 
+                                  />
+                                </el-select>
+                              </el-form-item>
+                            </el-form>
+                          </div>
+                        </el-col>
+                        
+                        <el-col :md="12">
+                          <div class="info-section">
+                            <h4>Статистика</h4>
+                            <el-descriptions :column="1" border>
+                              <el-descriptions-item label="Всего столов">
+                                {{ tableCount }}
+                              </el-descriptions-item>
+                              <el-descriptions-item label="Активных столов">
+                                {{ activeTables.length }}
+                              </el-descriptions-item>
+                              <el-descriptions-item label="Всего игр">
+                                {{ totalGamesCount }}
+                              </el-descriptions-item>
+                              <el-descriptions-item label="Завершенных игр">
+                                {{ completedGamesCount }}
+                              </el-descriptions-item>
+                              <el-descriptions-item label="Дата создания">
+                                {{ formatDateTime(event.created_at) }}
+                              </el-descriptions-item>
+                            </el-descriptions>
+                          </div>
+                        </el-col>
+                      </el-row>
+
+                      <!-- Информация о мероприятии -->
+                      <div class="event-description">
+                        <h3>Информация о мероприятии</h3>
+                        <div v-if="!isEditMode" class="description-content">
+                          <div v-if="editForm.description" class="description-text">
+                            {{ editForm.description }}
+                          </div>
+                          <div v-else class="description-placeholder">
+                            Информация о мероприятии не добавлена. Нажмите "Редактировать" чтобы добавить подробное описание.
+                          </div>
+                        </div>
+                        <el-input
+                          v-else
+                          v-model="editForm.description"
+                          type="textarea"
+                          :rows="12"
+                          placeholder="Добавьте подробную информацию о мероприятии:
+
+• Цели и задачи мероприятия
+• Формат проведения 
+• Особенности турнира
+• Правила и регламент
+• Призовой фонд
+• Контактная информация
+• Дополнительные условия"
+                          resize="vertical"
+                        />
+                      </div>
+
+                      <!-- Дополнительная информация если есть -->
+                      <div v-if="event.notes || event.location" class="info-section mt-4">
+                        <h4>Дополнительная информация</h4>
+                        <el-descriptions :column="1" border>
+                          <el-descriptions-item label="Место проведения" v-if="event.location">
+                            {{ event.location }}
+                          </el-descriptions-item>
+                          <el-descriptions-item label="Заметки" v-if="event.notes">
+                            {{ event.notes }}
+                          </el-descriptions-item>
+                        </el-descriptions>
+                      </div>
+                    </div>
+
+                    <el-skeleton v-else :rows="8" animated />
+                  </div>
+                </el-tab-pane>
+
                 <!-- Вкладка Столы -->
                 <el-tab-pane label="Столы" name="tables">
                   <template #label>
@@ -292,14 +427,16 @@
       @generated="handleSeatingGenerated"
     />
 
+
   </div>
 </template>
 
 <script setup>
-  import { ref, computed, onMounted } from 'vue'
+  import { ref, computed, reactive, onMounted } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useEventsStore } from '@/stores/events'
   import { useRegistrationsStore } from '@/stores/registrations'
+  import { useEventTypesStore } from '@/stores/eventTypes'
   import { apiService } from '@/services/api'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import EventFinances from '@/components/events/EventFinances.vue'
@@ -316,20 +453,34 @@
       Calendar,
       User,
       Money,
-      Trophy
+      Trophy,
+      Edit
   } from '@element-plus/icons-vue'
 
   const route = useRoute()
   const router = useRouter()
   const eventsStore = useEventsStore()
   const registrationsStore = useRegistrationsStore()
+  const eventTypesStore = useEventTypesStore()
 
   const event = ref(null)
   const selectedTable = ref(null)
   const games = ref([])
   const virtualTables = ref([])
-  const activeTab = ref('tables')
+  const activeTab = ref('info')
   const showSeatingDialog = ref(false)
+  const isEditMode = ref(false)
+  const saving = ref(false)
+  const eventTypes = ref([])
+  
+  const editForm = reactive({
+    label: '',
+    description: '',
+    start_date: '',
+    language: 'rus',
+    event_type_id: '',
+    status: 'planned'
+  })
 
   const tables = computed(() => {
     const realTables = event.value?.tables || []
@@ -514,6 +665,16 @@
 	  console.log('Event type:', event.value?.event_type)
 	  console.log('Event type color:', event.value?.event_type?.color)
 	  
+	  // Заполняем форму редактирования
+	  if (event.value) {
+	      editForm.label = event.value.label || ''
+	      editForm.description = event.value.description || ''
+	      editForm.start_date = event.value.start_date || ''
+	      editForm.language = event.value.language || 'rus'
+	      editForm.event_type_id = event.value.event_type_id || ''
+	      editForm.status = event.value.status || 'planned'
+	  }
+	  
 	  // Проверяем и исправляем имена столов, если они не соответствуют шаблону
 	  if (event.value?.tables && event.value?.table_name_template) {
 	      const template = event.value.table_name_template
@@ -674,6 +835,43 @@
       router.push(`/event/${route.params.id}/register`)
   }
 
+  const getStatusLabel = (status) => {
+      const labels = {
+          'planned': 'Запланировано',
+          'active': 'Активно',
+          'completed': 'Завершено'
+      }
+      return labels[status] || 'Неизвестно'
+  }
+
+  const getStatusTagType = (status) => {
+      const types = {
+          'planned': 'info',
+          'active': 'success',
+          'completed': 'warning'
+      }
+      return types[status] || 'info'
+  }
+
+
+  // Computed properties для статистики
+  const activeTables = computed(() => {
+      return tables.value.filter(table => !table.isVirtual)
+  })
+
+  const totalGamesCount = computed(() => {
+      return tables.value.reduce((total, table) => {
+          return total + (table.games ? table.games.length : 0)
+      }, 0)
+  })
+
+  const completedGamesCount = computed(() => {
+      return tables.value.reduce((total, table) => {
+          const completedGames = table.games ? table.games.filter(game => game.status === 'finished').length : 0
+          return total + completedGames
+      }, 0)
+  })
+
   const handleSeatingGenerated = async (result) => {
       console.log('Seating generated:', result)
       
@@ -764,8 +962,56 @@
       }
   }
 
-  onMounted(() => {
+  const saveEventChanges = async () => {
+      saving.value = true
+      try {
+          const updatedEvent = await eventsStore.updateEvent(event.value.id, editForm)
+          
+          if (updatedEvent) {
+              ElMessage.success('Изменения сохранены!')
+              event.value = updatedEvent
+              isEditMode.value = false
+              await loadEvent()
+          } else {
+              ElMessage.error('Не удалось сохранить изменения')
+          }
+      } catch (error) {
+          console.error('Ошибка сохранения:', error)
+          ElMessage.error(error.response?.data?.message || 'Ошибка при сохранении изменений')
+      } finally {
+          saving.value = false
+      }
+  }
+
+  const cancelEdit = () => {
+      // Восстанавливаем оригинальные значения
+      if (event.value) {
+          editForm.label = event.value.label || ''
+          editForm.description = event.value.description || ''
+          editForm.start_date = event.value.start_date || ''
+          editForm.language = event.value.language || 'rus'
+          editForm.event_type_id = event.value.event_type_id || ''
+          editForm.status = event.value.status || 'planned'
+      }
+      isEditMode.value = false
+  }
+
+  const handleEventUpdated = (updatedEvent) => {
+      // Обновляем локальное состояние события
+      event.value = updatedEvent
+      // Перезагружаем данные события
       loadEvent()
+  }
+
+  onMounted(async () => {
+      await loadEvent()
+      // Загружаем типы событий для редактирования
+      try {
+          await eventTypesStore.loadEventTypes()
+          eventTypes.value = eventTypesStore.eventTypes
+      } catch (error) {
+          console.error('Ошибка загрузки типов событий:', error)
+      }
   })
 </script>
 
@@ -803,24 +1049,6 @@
   }
 
 
-  .event-info .info-item {
-      margin-bottom: 16px;
-  }
-
-  .event-info .info-item:last-child {
-      margin-bottom: 0;
-  }
-
-  .event-info h6 {
-      margin: 0 0 4px 0;
-      font-weight: 600;
-      color: #909399;
-  }
-
-  .event-info p {
-      margin: 0;
-      color: #303133;
-  }
 
   .no-tables, .no-selection, .no-games {
       padding: 32px 0;
@@ -1085,6 +1313,92 @@
   .tab-header .header-actions {
       display: flex;
       gap: 8px;
+  }
+
+  .event-detailed-info {
+      max-width: 100%;
+  }
+
+  .info-section {
+      margin-bottom: 24px;
+  }
+
+  .info-section h4 {
+      margin: 0 0 16px 0;
+      color: #303133;
+      font-weight: 600;
+      font-size: 16px;
+      border-bottom: 2px solid #409eff;
+      padding-bottom: 8px;
+  }
+
+  .mt-4 {
+      margin-top: 24px;
+  }
+
+  .edit-mode-controls {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #e4e7ed;
+  }
+
+  .edit-mode-controls div {
+      display: flex;
+      gap: 8px;
+  }
+
+  .event-description {
+      margin: 32px 0;
+  }
+
+  .event-description h3 {
+      margin: 0 0 20px 0;
+      color: #303133;
+      font-size: 20px;
+      font-weight: 600;
+      border-bottom: 2px solid #409eff;
+      padding-bottom: 8px;
+  }
+
+  .description-content {
+      min-height: 120px;
+  }
+
+  .description-text {
+      font-size: 16px;
+      line-height: 1.8;
+      color: #303133;
+      white-space: pre-wrap;
+      padding: 16px 0;
+  }
+
+  .description-placeholder {
+      font-size: 16px;
+      line-height: 1.6;
+      color: #909399;
+      font-style: italic;
+      padding: 16px 0;
+  }
+
+  .event-description :deep(.el-textarea__inner) {
+      font-size: 16px;
+      line-height: 1.6;
+      min-height: 300px !important;
+  }
+
+  .event-description :deep(.el-textarea) {
+      margin-top: 8px;
+  }
+
+  .event-detailed-info :deep(.el-form-item__label) {
+      font-weight: 600;
+      color: #606266;
+  }
+
+  .event-detailed-info :deep(.el-form-item__content) {
+      font-size: 14px;
   }
   
   /* Серый фон для победы мафии */

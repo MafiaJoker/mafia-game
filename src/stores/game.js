@@ -323,6 +323,11 @@ export const useGameStore = defineStore('game', () => {
 	    }
 	    
 	    if (gameData) {
+		// Инициализируем gameInfo если он null
+		if (!gameInfo.value) {
+		    gameInfo.value = { gameId: gameId }
+		}
+		
 		// Загружаем основную информацию об игре
 		gameInfo.value.gameData = gameData
 		

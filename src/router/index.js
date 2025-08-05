@@ -30,6 +30,12 @@ const routes = [
 	props: true
     },
     {
+	path: '/game/:id/results',
+	name: 'GameResults',
+	component: () => import('@/views/GameResultsView.vue'),
+	props: true
+    },
+    {
 	path: '/event-types',
 	name: 'EventTypes',
 	component: () => import('@/views/EventTypesView.vue')

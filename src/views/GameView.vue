@@ -51,6 +51,16 @@
                   </el-tag>
                 </div>
               </div>
+              
+              <div class="game-actions">
+                <el-button 
+                  type="primary" 
+                  @click="goToResults"
+                  :icon="Trophy"
+                >
+                  Расставить баллы
+                </el-button>
+              </div>
             </div>
           </el-card>
 
@@ -127,7 +137,7 @@
   import { useGameStore } from '@/stores/game'
   import { useGamePhasesStore } from '@/stores/gamePhases'
   import { GAME_STATUSES, GAME_SUBSTATUS } from '@/utils/constants'
-  import { ArrowLeft, MoreFilled, Warning, Close, Delete } from '@element-plus/icons-vue'
+  import { ArrowLeft, MoreFilled, Warning, Close, Delete, Trophy } from '@element-plus/icons-vue'
   import GameTimer from '@/components/game/GameTimer.vue'
   import GameControls from '@/components/game/GameControls.vue'
   import GameStatusCard from '@/components/game/GameStatusCard.vue'
@@ -164,6 +174,11 @@
       console.warn('EventId не найден, перенаправляем на главную')
       router.push('/')
     }
+  }
+
+  const goToResults = () => {
+    const gameId = route.params.gameId || route.params.id
+    router.push(`/game/${gameId}/results`)
   }
 
   const showVotingSection = computed(() => {

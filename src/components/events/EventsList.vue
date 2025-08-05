@@ -14,14 +14,24 @@
           class="event-item"
           @click="navigateToEvent(event)"
           >
-          <el-button 
-            class="event-delete-btn"
-            link
-            size="small"
-            @click.stop="$emit('deleteEvent', event.id)"
-            >
-            <el-icon><Close /></el-icon>
-          </el-button>
+          <div class="event-actions">
+            <el-button 
+              class="event-edit-btn"
+              link
+              size="small"
+              @click.stop="$emit('editEvent', event)"
+              >
+              <el-icon><Edit /></el-icon>
+            </el-button>
+            <el-button 
+              class="event-delete-btn"
+              link
+              size="small"
+              @click.stop="$emit('deleteEvent', event.id)"
+              >
+              <el-icon><Close /></el-icon>
+            </el-button>
+          </div>
           
           <div class="event-content">
             <div class="event-header">
@@ -65,7 +75,7 @@
 
 <script setup>
   import { useRouter } from 'vue-router'
-  import { Delete, Close } from '@element-plus/icons-vue'
+  import { Delete, Close, Edit } from '@element-plus/icons-vue'
 
   const router = useRouter()
 
@@ -80,7 +90,7 @@
       }
   })
 
-  defineEmits(['deleteEvent'])
+  defineEmits(['deleteEvent', 'editEvent'])
 
   const getLanguageLabel = (language) => {
       const labels = {
@@ -144,21 +154,31 @@
       border-color: #409eff;
   }
 
-  .event-item:hover .event-delete-btn {
+  .event-item:hover .event-actions {
       opacity: 1;
   }
 
-  .event-delete-btn {
+  .event-actions {
       position: absolute;
       top: 8px;
       right: 8px;
       opacity: 0;
       transition: opacity 0.3s ease;
+      z-index: 1;
+      display: flex;
+      gap: 4px;
+  }
+
+  .event-edit-btn, .event-delete-btn {
       padding: 4px;
       min-width: auto;
       width: 24px;
       height: 24px;
-      z-index: 1;
+  }
+
+  .event-edit-btn:hover {
+      color: #409eff;
+      background-color: #ecf5ff;
   }
 
   .event-delete-btn:hover {
