@@ -182,7 +182,6 @@
                             :plugins="markdownPlugins"
                             :placeholder="markdownPlaceholder"
                             mode="split"
-                            locale="ru"
                           />
                         </div>
                       </div>
@@ -694,8 +693,12 @@
 	      editForm.description = event.value.description || ''
 	      editForm.start_date = event.value.start_date || ''
 	      editForm.language = event.value.language || 'rus'
-	      editForm.event_type_id = event.value.event_type_id || ''
+	      // Берем ID типа события из объекта event_type или напрямую из event_type_id
+	      editForm.event_type_id = event.value.event_type?.id || event.value.event_type_id || ''
 	      editForm.status = event.value.status || 'planned'
+	      
+	      console.log('Form initialized with event_type_id:', editForm.event_type_id)
+	      console.log('Available event types:', eventTypes.value)
 	  }
 	  
 	  // Проверяем и исправляем имена столов, если они не соответствуют шаблону
@@ -1013,7 +1016,8 @@
           editForm.description = event.value.description || ''
           editForm.start_date = event.value.start_date || ''
           editForm.language = event.value.language || 'rus'
-          editForm.event_type_id = event.value.event_type_id || ''
+          // Берем ID типа события из объекта event_type или напрямую из event_type_id
+          editForm.event_type_id = event.value.event_type?.id || event.value.event_type_id || ''
           editForm.status = event.value.status || 'planned'
       }
       isEditMode.value = false
@@ -1027,14 +1031,17 @@
   }
 
   onMounted(async () => {
-      await loadEvent()
-      // Загружаем типы событий для редактирования
+      // Сначала загружаем типы событий для редактирования
       try {
           await eventTypesStore.loadEventTypes()
           eventTypes.value = eventTypesStore.eventTypes
+          console.log('Event types loaded:', eventTypes.value)
       } catch (error) {
           console.error('Ошибка загрузки типов событий:', error)
       }
+      
+      // Затем загружаем мероприятие (форма будет правильно инициализирована)
+      await loadEvent()
   })
 </script>
 
