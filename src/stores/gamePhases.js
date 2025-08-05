@@ -400,19 +400,15 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
         if (!gameId.value) return false
         
         try {
-            // Импортируем gameStore динамически для избежания циклических зависимостей
-            const { useGameStore } = await import('./game')
-            const gameStore = useGameStore()
-            
-            // Перезагружаем состояние игры с сервера
-            const gameStateData = await gameStore.loadGameDetailed(gameId.value)
+            // Вместо циклического импорта, используем прямой API вызов
+            const gameData = await apiService.getGame(gameId.value)
             
             // Перезагружаем фазы из полученных данных
-            const gameStatus = gameStore.gameInfo?.gameData?.status || gameStore.gameInfo?.gameData?.result
-            await loadGamePhases(gameId.value, gameStatus, gameStateData)
+            const gameStatus = gameData?.status || gameData?.result
+            await loadGamePhases(gameId.value, gameStatus, gameData)
             
-            // Синхронизируем игроков с обновленными фазами
-            gameStore.syncPlayersWithPhases()
+            // Уведомляем об успешном обновлении фаз
+            // (синхронизация игроков должна происходить в компонентах)
             
             return true
         } catch (error) {
