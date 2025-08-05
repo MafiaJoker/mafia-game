@@ -1,8 +1,17 @@
 <template>
   <div class="voting-section mb-4">
-      <!-- Кандидаты -->
-      <div class="candidates-section mb-4">
-        <div v-if="nominatedPlayers.length > 0" class="candidates-list">
+      <!-- Голосование за поднятие всех при повторной перестрелке -->
+      <RaiseAllVoting 
+        v-if="showRaiseAllVoting"
+        :shootout-players="gameStore.gameState.shootoutPlayers"
+        @complete="handleRaiseAllComplete"
+      />
+      
+      <!-- Обычное голосование -->
+      <template v-else>
+        <!-- Кандидаты -->
+        <div class="candidates-section mb-4">
+          <div v-if="nominatedPlayers.length > 0" class="candidates-list">
           <div 
             v-for="playerId in nominatedPlayers" 
             :key="playerId"
@@ -32,27 +41,40 @@
                 </el-button>
               </el-button-group>
             </div>
+            </div>
           </div>
         </div>
-      </div>
-
-
+      </template>
   </div>
 </template>
 
 <script setup>
-  import { computed } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import { useGameStore } from '@/stores/game'
   import { useVotingStore } from '@/stores/voting'
+  import RaiseAllVoting from './RaiseAllVoting.vue'
   import { Checked } from '@element-plus/icons-vue'
 
   const gameStore = useGameStore()
   const votingStore = useVotingStore()
+  
+  const showRaiseAllVoting = ref(false)
+  
+  // Проверяем нужно ли показать голосование за поднятие всех
+  const needsRaiseAllVoting = computed(() => {
+    // Если есть shootoutPlayers и нет обычных номинаций - показываем голосование за поднятие
+    return gameStore.gameState.shootoutPlayers.length > 0 && 
+           gameStore.gameState.nominatedPlayers.length === 0
+  })
+  
+  watch(needsRaiseAllVoting, (needs) => {
+    showRaiseAllVoting.value = needs
+  })
 
   const nominatedPlayers = computed(() => gameStore.gameState.nominatedPlayers)
 
   const alivePlayers = computed(() => {
-      return gameStore.gameState.players.filter(p => p.isAlive && !p.isEliminated).length
+      return gameStore.gameState.players.filter(p => p.isInGame === true).length
   })
 
   const usedVotes = computed(() => {
@@ -82,6 +104,10 @@
 
   const registerVote = (playerId, votes) => {
       votingStore.registerVotes(playerId, votes)
+  }
+  
+  const handleRaiseAllComplete = () => {
+      showRaiseAllVoting.value = false
   }
 </script>
 

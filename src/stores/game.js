@@ -106,7 +106,7 @@ export const useGameStore = defineStore('game', () => {
 
     const hasVotingInCurrentPhase = computed(() => {
 	const currentPhase = gamePhasesStore.currentPhase
-	return currentPhase && currentPhase.voted_box_id !== null && currentPhase.voted_box_id !== undefined
+	return currentPhase && Array.isArray(currentPhase.voted_box_id)
     })
 
     // Computed property для номинированных игроков (вычисляется в рантайме)
@@ -175,6 +175,10 @@ export const useGameStore = defineStore('game', () => {
             }
             
             await gamePhasesStore.saveGamePhases()
+            
+            // Обновляем страницу после завершения игры
+            window.location.reload()
+            
             return true
 	} catch (error) {
             console.error('Ошибка завершения игры:', error)
@@ -858,8 +862,9 @@ export const useGameStore = defineStore('game', () => {
 
     const eliminatePlayerByVote = (playerId) => {
 	const player = currentPlayer.value(playerId)
-	if (player && player.isAlive) {
+	if (player && player.isInGame === true) {
 	    player.isAlive = false
+	    player.isInGame = false  // Игрок выбывает из игры
 	    player.status = 'VOTED_OUT'
 	    gameState.value.deadPlayers.push(playerId)
 	    
@@ -1080,6 +1085,12 @@ export const useGameStore = defineStore('game', () => {
 		// Игра завершена
 		gameState.value.gameStatus = gameStatus
 		gameState.value.isGameStarted = false
+		
+		// Если игра завершена - перезагружаем страницу
+		if (gameStatus === 'civilians_win' || gameStatus === 'mafia_win' || gameStatus === 'finished') {
+		    window.location.reload()
+		}
+		
 		return true
 	    }
 	    

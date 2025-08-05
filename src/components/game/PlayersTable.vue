@@ -398,10 +398,10 @@
   }
 
   const getRowClassName = ({ row }) => {
-      if (row.isInGame === false) {
+      if (row.isInGame === false && !isGameFinished.value) {
           return 'not-in-game'
       }
-      if (!row.isAlive || row.isEliminated) {
+      if ((!row.isAlive || row.isEliminated) && !isGameFinished.value) {
           return 'dead'
       }
       return ''

@@ -55,14 +55,11 @@ export const useVotingStore = defineStore('voting', () => {
 		return { result: 'shootout', players: playersWithMaxVotes }
 	    }
 	    
-	    const alivePlayers = gameStore.alivePlayers.length
-	    
-	    if (playersWithMaxVotes.length >= alivePlayers / 2) {
-		gameStore.gameState.noCandidatesRounds++
-		return { result: 'tooMany', count: playersWithMaxVotes.length, totalAlive: alivePlayers }
-	    }
-	    
-	    return { result: 'multipleElimination', players: playersWithMaxVotes }
+	    // Если та же перестрелка повторяется - нужно голосование за поднятие всех
+	    // Очищаем номинации но оставляем shootoutPlayers для отображения
+	    gameStore.gameState.nominatedPlayers = []
+	    gameStore.gameState.votingResults = {}
+	    return { result: 'raise_all_voting', players: playersWithMaxVotes }
 	}
 	
 	// Список выведенных игроков для записи в фазу
@@ -77,7 +74,7 @@ export const useVotingStore = defineStore('voting', () => {
 	
 	// Сохраняем результат голосования в фазы (даже если никто не выбыл)
 	if (gamePhasesStore.currentPhase) {
-	    gamePhasesStore.currentPhase.voted_box_id = eliminatedPlayers.length > 0 ? eliminatedPlayers[0] : null
+	    gamePhasesStore.currentPhase.voted_box_id = eliminatedPlayers.length > 0 ? eliminatedPlayers : []
 	    // Обновляем фазу на сервере
 	    await gamePhasesStore.updateCurrentPhaseOnServer()
 	}

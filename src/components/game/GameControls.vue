@@ -131,7 +131,7 @@
 </template>
 
 <script setup>
-  import { computed, watch } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import { useGameStore } from '@/stores/game'
   import { useVotingStore } from '@/stores/voting'
   import { useNightActionsStore } from '@/stores/nightActions'
@@ -145,6 +145,7 @@
   const gameStore = useGameStore()
   const votingStore = useVotingStore()
   const nightActionsStore = useNightActionsStore()
+  
 
   const gameState = computed(() => gameStore.gameState)
 
@@ -256,8 +257,10 @@
       votingStore.startVoting()
   }
 
-  const confirmVoting = () => {
-      votingStore.confirmVoting()
+  const confirmVoting = async () => {
+      const result = await votingStore.confirmVoting()
+      
+      // Результат 'raise_all_voting' будет обработан в VotingSection
   }
 
 
@@ -337,5 +340,25 @@
       .voting-controls {
 	  justify-content: center;
       }
+  }
+  
+  .raise-all-content {
+    padding: 10px 0;
+  }
+
+  .voting-info {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f5f7fa;
+    border-radius: 4px;
+  }
+
+  .voting-info p {
+    margin: 8px 0;
+    line-height: 1.6;
+  }
+
+  .mb-4 {
+    margin-bottom: 16px;
   }
 </style>

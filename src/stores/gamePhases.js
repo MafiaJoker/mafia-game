@@ -346,7 +346,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
                 sheriff_checked_box_id: phase.sheriff_checked_box_id || null,
                 killed_box_id: phase.killed_box_id || null,
                 removed_box_ids: phase.removed_box_ids || null,
-                voted_box_ids: phase.voted_box_id ? [phase.voted_box_id] : null, // Конвертируем в массив
+                voted_box_ids: Array.isArray(phase.voted_box_id) ? phase.voted_box_id : null,
                 ppk_box_id: phase.ppk_box_id || null,
                 fouls_summary: foulsSummary,
                 voting_summary: [], // Пустой список вместо null
