@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiService } from '@/services/api.js'
+import { GAME_RULES } from '@/utils/gameConstants.js'
 
 export const useGamePhasesStore = defineStore('gamePhases', () => {
     // State
@@ -52,7 +53,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
         const allDead = [...killed, ...removed]
         
         const aliveBoxIds = []
-        for (let boxId = 1; boxId <= 10; boxId++) {
+        for (let boxId = 1; boxId <= GAME_RULES.PLAYERS.MAX; boxId++) {
             if (!allDead.includes(boxId)) {
                 aliveBoxIds.push(boxId)
             }
@@ -94,7 +95,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
         }
 
         // Инициализируем фолы для всех игроков
-        for (let boxId = 1; boxId <= 10; boxId++) {
+        for (let boxId = 1; boxId <= GAME_RULES.PLAYERS.MAX; boxId++) {
             newPhase.fouls_summary.push({
                 box_id: boxId,
                 count_fouls: 0
@@ -168,7 +169,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             if (!phase.fouls_summary) {
                 phase.fouls_summary = []
                 // Создаем записи для всех игроков
-                for (let id = 1; id <= 10; id++) {
+                for (let id = 1; id <= GAME_RULES.PLAYERS.MAX; id++) {
                     phase.fouls_summary.push({
                         box_id: id,
                         count_fouls: 0
@@ -200,7 +201,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             // Инициализируем fouls_summary если он не существует
             if (!phase.fouls_summary) {
                 phase.fouls_summary = []
-                for (let id = 1; id <= 10; id++) {
+                for (let id = 1; id <= GAME_RULES.PLAYERS.MAX; id++) {
                     phase.fouls_summary.push({
                         box_id: id,
                         count_fouls: 0
@@ -221,7 +222,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             // Инициализируем fouls_summary если он не существует
             if (!phase.fouls_summary) {
                 phase.fouls_summary = []
-                for (let id = 1; id <= 10; id++) {
+                for (let id = 1; id <= GAME_RULES.PLAYERS.MAX; id++) {
                     phase.fouls_summary.push({
                         box_id: id,
                         count_fouls: 0
@@ -266,7 +267,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             })
 
             // Добавляем недостающих игроков с 0 фолами
-            for (let boxId = 1; boxId <= 10; boxId++) {
+            for (let boxId = 1; boxId <= GAME_RULES.PLAYERS.MAX; boxId++) {
                 if (!phase.fouls_summary.find(f => f.box_id === boxId)) {
                     phase.fouls_summary.push({
                         box_id: boxId,
@@ -325,8 +326,8 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             // Убеждаемся, что fouls_summary содержит данные для всех игроков
             let foulsSummary = [...(phase.fouls_summary || [])] // Клонируем массив
             
-            // Проверяем, что все игроки от 1 до 10 присутствуют в fouls_summary
-            for (let boxId = 1; boxId <= 10; boxId++) {
+            // Проверяем, что все игроки присутствуют в fouls_summary
+            for (let boxId = 1; boxId <= GAME_RULES.PLAYERS.MAX; boxId++) {
                 const existingFoul = foulsSummary.find(f => f.box_id === boxId)
                 if (!existingFoul) {
                     foulsSummary.push({

@@ -160,6 +160,7 @@
   import { useGameStore } from '@/stores/game'
   import { apiService } from '@/services/api'
   import { PLAYER_ROLES } from '@/utils/constants'
+  import { UI_MESSAGES } from '@/utils/uiConstants'
   import { ElMessage } from 'element-plus'
   import { 
     ArrowLeft, 
@@ -394,11 +395,11 @@
       // Сохраняем баллы через API
       await apiService.setPlayersPoints(route.params.id, updates)
       
-      ElMessage.success('Все изменения сохранены!')
+      ElMessage.success(UI_MESSAGES.SUCCESS.SAVED)
       hasChanges.value = false
     } catch (error) {
       console.error('Ошибка сохранения:', error)
-      ElMessage.error('Ошибка сохранения изменений')
+      ElMessage.error(UI_MESSAGES.ERRORS.SAVE_FAILED)
     } finally {
       saving.value = false
     }

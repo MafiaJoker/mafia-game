@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { GAME_STATUSES, GAME_SUBSTATUS, PLAYER_ROLES, API_PLAYER_ROLES, API_TO_LOCAL_ROLES } from '@/utils/constants.js'
+import { GAME_RULES } from '@/utils/gameConstants.js'
 import { apiService } from '@/services/api.js'
 import { useGamePhasesStore } from './gamePhases.js'
 
@@ -150,14 +151,12 @@ export const useGameStore = defineStore('game', () => {
     // Actions
     const finishGame = async (result) => {
 	try {
-            console.log('Finishing game with result:', result)
             // Устанавливаем статус завершенной игры
             setGameStatus(GAME_STATUSES.FINISHED_NO_SCORES)
             gameState.value.isGameStarted = false
             
             // Сохраняем результат игры
             gameState.value.gameResult = result
-            console.log('Game status set to:', gameState.value.gameStatus, 'result:', gameState.value.gameResult)
             
             // Устанавливаем базовые баллы в зависимости от результата
             setBaseScores(result)
@@ -238,34 +237,19 @@ export const useGameStore = defineStore('game', () => {
 	const aliveMafia = alivePlayers.filter(p => p.originalRole === PLAYER_ROLES.MAFIA || p.originalRole === PLAYER_ROLES.DON)
 	const aliveCivilians = alivePlayers.filter(p => p.originalRole === PLAYER_ROLES.CIVILIAN || p.originalRole === PLAYER_ROLES.SHERIFF)
 	
-	console.log('All players status:')
-	gameState.value.players.forEach(p => {
-	    console.log(`Player ${p.id}: isInGame=${p.isInGame}, originalRole=${p.originalRole}, inGame=${p.isInGame === true}`)
-	})
-	
-	console.log('Victory check:', {
-	    alivePlayers: alivePlayers.length,
-	    aliveMafia: aliveMafia.length,
-	    aliveCivilians: aliveCivilians.length,
-	    mafiaPlayers: aliveMafia.map(p => ({ id: p.id, role: p.originalRole })),
-	    civilianPlayers: aliveCivilians.map(p => ({ id: p.id, role: p.originalRole }))
-	})
 	
 	// Победа мирных - все мафия убиты
 	if (aliveMafia.length === 0) {
-	    console.log('Civilians win - all mafia eliminated')
 	    finishGame('civilians_win')
 	    return 'civilians_win'
 	}
 	
 	// Победа мафии - мафии столько же или больше чем мирных
 	if (aliveMafia.length >= aliveCivilians.length) {
-	    console.log('Mafia win - mafia >= civilians')
 	    finishGame('mafia_win')
 	    return 'mafia_win'
 	}
 	
-	console.log('Game continues')
 	return null
     }
     
@@ -305,20 +289,16 @@ export const useGameStore = defineStore('game', () => {
 
     const loadGameDetailed = async (gameId) => {
 	try {
-	    console.log('Loading game with ID:', gameId)
 	    
 	    // Всегда сначала загружаем базовую информацию об игре (включая eventId)
 	    const gameData = await apiService.getGame(gameId)
-	    console.log('Базовая информация об игре:', gameData)
 	    
 	    // Затем загружаем полное состояние игры если игра активна
 	    let gameStateData = null
 	    if (gameData && (gameData.status === 'in_progress' || gameData.result)) {
 		try {
 		    gameStateData = await apiService.getGameState(gameId)
-		    console.log('Полное состояние игры загружено:', gameStateData)
 		} catch (error) {
-		    console.log('Не удалось загрузить состояние игры:', error)
 		}
 	    }
 	    
@@ -334,15 +314,10 @@ export const useGameStore = defineStore('game', () => {
 		// Извлекаем eventId из данных игры (всегда обновляем из свежих данных)
 		gameInfo.value.eventId = gameData.event?.id || gameData.event_id
 		
-		console.log('Loaded game data:', gameData)
-		console.log('gameInfo after assignment:', gameInfo.value)
-		
 		// Инициализируем игроков из детальной информации
 		// Используем gameStateData.players если доступно (актуальные фолы), иначе gameData.players
 		const playersSource = (gameStateData && gameStateData.players) ? gameStateData.players : gameData.players
 		if (playersSource && playersSource.length > 0) {
-		    console.log('Loading players from API:', playersSource)
-		    console.log('Using gameStateData players:', !!(gameStateData && gameStateData.players))
 		    
 		    // Создаем массив из 10 пустых слотов
 		    const playersArray = Array(10).fill(null).map((_, index) => ({
@@ -366,9 +341,6 @@ export const useGameStore = defineStore('game', () => {
 			if (slotIndex >= 0 && slotIndex < 10) {
 			    // Проверяем is_in_game - если false, игрок не участвует в игре
 			    const isInGame = gameStateData ? (apiPlayer.is_in_game !== false) : true
-			    if (!isInGame) {
-				console.log(`Player slot ${slotIndex + 1} is not in game (is_in_game: false)`)
-			    }
 			    
 			    // Если роль null или не определена:
 			    // - Для игр в процессе или завершенных - это мирный житель
@@ -397,7 +369,6 @@ export const useGameStore = defineStore('game', () => {
 				boxId: apiPlayer.box_id,
 				isInGame: isInGame
 			    }
-			    console.log(`Player loaded: slot ${slotIndex + 1}, name: ${playerName}, role: ${localRole}, fouls: ${apiPlayer.fouls}, isAlive: ${isAlive}, userId: ${userId}`)
 			}
 		    })
 		    
@@ -405,12 +376,6 @@ export const useGameStore = defineStore('game', () => {
 		} else {
 		    initPlayers()
 		}
-		
-		// Сначала устанавливаем статус игры на основе данных
-		console.log('Проверяем статус игры:', { 
-		    'gameData.result': gameData.result, 
-		    'gameData.status': gameData.status 
-		})
 		
 		// Получаем статус из result или status
 		const gameStatus = gameData.result || gameData.status
@@ -420,14 +385,11 @@ export const useGameStore = defineStore('game', () => {
 		    gameState.value.isGameStarted = true
 		    // Подстатусы существуют только на фронте - всегда ставим DISCUSSION для активных игр
 		    gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
-		    console.log('Установлен подстатус для активной игры:', GAME_SUBSTATUS.DISCUSSION)
 		} else if (gameStatus && gameStatus !== 'in_progress') {
 		    // Завершённые игры (finished_with_scores, cancelled и т.д.)
 		    gameState.value.gameStatus = gameStatus
 		    gameState.value.isGameStarted = true
-		    console.log('Игра завершена, статус:', gameStatus)
 		} else {
-		    console.log('Игра не активна, статус:', gameStatus)
 		    setGameStatus(GAME_STATUSES.SEATING_READY)
 		    gameState.value.isGameStarted = false
 		}
@@ -443,12 +405,6 @@ export const useGameStore = defineStore('game', () => {
 			gameState.value.bestMoveTargets = new Set(gameStateData.bestMoveTargets)
 		    }
 		}
-		
-		console.log('Финальные статусы игры:', {
-		    gameStatus: gameState.value.gameStatus,
-		    gameSubstatus: gameState.value.gameSubstatus,
-		    isGameStarted: gameState.value.isGameStarted
-		})
 		
 		return gameStateData
 	    }
@@ -532,7 +488,7 @@ export const useGameStore = defineStore('game', () => {
 
     const initPlayers = () => {
 	gameState.value.players = []
-	for (let i = 1; i <= 10; i++) {
+	for (let i = 1; i <= GAME_RULES.PLAYERS.MAX; i++) {
 	    gameState.value.players.push({
 		id: i,
 		name: '',
@@ -886,10 +842,10 @@ export const useGameStore = defineStore('game', () => {
 	    
 	    // Обновляем локальное состояние для совместимости
 	    player.fouls++
-	    if (player.fouls >= 3) {
+	    if (player.fouls >= GAME_RULES.FOULS.SILENCE_THRESHOLD) {
 		player.canSpeak = false
 	    }
-	    if (player.fouls >= 4) {
+	    if (player.fouls >= GAME_RULES.FOULS.ELIMINATION_THRESHOLD) {
 		player.isEliminated = true
 		player.isAlive = false
 		player.status = 'KICKED'

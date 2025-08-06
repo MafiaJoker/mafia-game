@@ -137,7 +137,9 @@
   import { useGameStore } from '@/stores/game'
   import { useGamePhasesStore } from '@/stores/gamePhases'
   import { GAME_STATUSES, GAME_SUBSTATUS } from '@/utils/constants'
+  import { UI_MESSAGES } from '@/utils/uiConstants'
   import { ArrowLeft, MoreFilled, Warning, Close, Delete, Trophy } from '@element-plus/icons-vue'
+  import { ElMessage } from 'element-plus'
   import GameTimer from '@/components/game/GameTimer.vue'
   import GameControls from '@/components/game/GameControls.vue'
   import GameStatusCard from '@/components/game/GameStatusCard.vue'
@@ -149,7 +151,6 @@
   import GameCancellationDialog from '@/components/game/dialogs/GameCancellationDialog.vue'
   import ScoreManagerDialog from '@/components/game/dialogs/ScoreManagerDialog.vue'
   import PpkControls from '@/components/game/PpkControls.vue'
-  import { ElMessage } from 'element-plus'
 
   const props = defineProps({
       id: String
@@ -296,7 +297,7 @@
 	  const gameId = props.id
 	  
 	  if (!gameId) {
-	    ElMessage.error('Не указан ID игры')
+	    ElMessage.error(UI_MESSAGES.ERRORS.GAME_NOT_FOUND || 'Не указан ID игры')
 	    router.push('/')
 	    return
 	  }
@@ -305,7 +306,7 @@
 	  
       } catch (error) {
 	  console.error('Ошибка инициализации игры:', error)
-	  ElMessage.error('Не удалось загрузить игру')
+	  ElMessage.error(UI_MESSAGES.ERRORS.LOAD_FAILED)
 	  // Перенаправляем на главную страницу, так как eventId теперь неизвестен
 	  router.push('/')
       }
