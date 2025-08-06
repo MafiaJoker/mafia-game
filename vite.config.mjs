@@ -108,10 +108,6 @@ export default defineConfig(({ command, mode }) => {
       'import.meta.env.VITE_APP_BUILD_TIME': JSON.stringify(buildTime),
       'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.npm_package_version || '1.0.0'),
       '__ELECTRON_API_BASE_URL__': JSON.stringify(process.env.VITE_API_BASE_URL || null)
-    },
-    test: {
-      environment: 'happy-dom',
-      globals: true
     }
   }
 })
