@@ -2,7 +2,7 @@
   <div class="tariffs-view">
     <el-container>
       <el-header>
-        <div class="page-header">
+        <div class="header-content">
           <h1>Управление тарифами</h1>
           <el-button 
             type="primary" 
@@ -15,36 +15,81 @@
       </el-header>
 
       <el-main>
+        <!-- Фильтры и пагинация -->
+        <PaginationFilter
+          :total-items="totalTariffs"
+          items-label="тарифов"
+          search-placeholder="Поиск по названию тарифа..."
+          :type-options="currencyOptions"
+          @filter-change="handleFilterChange"
+        />
+
         <el-card>
           <el-table 
-            :data="tariffs" 
+            :data="paginatedTariffs" 
             style="width: 100%"
-            v-loading="loading"
+            :loading="loading"
             empty-text="Нет тарифов"
           >
-            <el-table-column prop="label" label="Название" min-width="200" />
-            <el-table-column prop="price" label="Цена" width="150">
+            <el-table-column 
+              prop="label" 
+              label="Название" 
+              min-width="200"
+              sortable
+            />
+            <el-table-column 
+              prop="price" 
+              label="Цена" 
+              width="150"
+              sortable
+            >
               <template #default="{ row }">
                 {{ formatPrice(row.price) }} {{ getCurrencySymbol(row.iso_4217_code) }}
               </template>
             </el-table-column>
-            <el-table-column prop="iso_4217_code" label="Валюта" width="100" align="center" />
-            <el-table-column label="Действия" width="180" align="center" fixed="right">
+            <el-table-column 
+              prop="iso_4217_code" 
+              label="Валюта" 
+              width="120" 
+              align="center"
+            >
+              <template #default="scope">
+                <el-tag :type="getCurrencyType(scope.row.iso_4217_code)">
+                  {{ getCurrencySymbol(scope.row.iso_4217_code) }} {{ scope.row.iso_4217_code }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column 
+              prop="created_at" 
+              label="Создан" 
+              width="150"
+              sortable
+            >
+              <template #default="scope">
+                {{ formatDate(scope.row.created_at) }}
+              </template>
+            </el-table-column>
+            <el-table-column 
+              label="Действия" 
+              width="150" 
+              align="center" 
+              fixed="right"
+            >
               <template #default="{ row }">
-                <el-button 
-                  type="primary" 
-                  size="small" 
-                  @click="editTariff(row)"
-                  :icon="Edit"
-                  circle
-                />
-                <el-button 
-                  type="danger" 
-                  size="small" 
-                  @click="deleteTariff(row)"
-                  :icon="Delete"
-                  circle
-                />
+                <el-button-group>
+                  <el-button 
+                    type="primary" 
+                    size="small" 
+                    @click="editTariff(row)"
+                    :icon="Edit"
+                  />
+                  <el-button 
+                    type="danger" 
+                    size="small" 
+                    @click="deleteTariff(row)"
+                    :icon="Delete"
+                  />
+                </el-button-group>
               </template>
             </el-table-column>
           </el-table>
@@ -52,7 +97,7 @@
       </el-main>
     </el-container>
 
-    <!-- Create/Edit Dialog -->
+    <!-- Диалог создания/редактирования тарифа -->
     <el-dialog 
       v-model="showCreateDialog" 
       :title="editingTariff ? 'Редактировать тариф' : 'Создать тариф'"
@@ -103,17 +148,38 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import { apiService } from '@/services/api'
+import PaginationFilter from '@/components/common/PaginationFilter.vue'
+import { UI_MESSAGES } from '@/utils/uiConstants'
 
 const loading = ref(false)
 const saving = ref(false)
-const tariffs = ref([])
+const allTariffs = ref([])
+const filteredTariffs = ref([])
+const paginatedTariffs = ref([])
+const totalTariffs = ref(0)
 const showCreateDialog = ref(false)
 const editingTariff = ref(null)
 const tariffFormRef = ref()
+
+// Фильтры
+const filters = ref({
+  search: '',
+  type: '', // будет использоваться для валюты
+  page: 1,
+  pageSize: 20
+})
+
+// Опции для фильтра валют
+const currencyOptions = [
+  { value: 'RUB', label: '₽ Российский рубль' },
+  { value: 'USD', label: '$ Доллар США' },
+  { value: 'EUR', label: '€ Евро' },
+  { value: 'AMD', label: '֏ Армянский драм' }
+]
 
 const tariffForm = ref({
   label: '',
@@ -140,19 +206,50 @@ const loadTariffs = async () => {
     const response = await apiService.getTariffs()
     // Проверяем, является ли ответ объектом с полем items или массивом
     if (Array.isArray(response)) {
-      tariffs.value = response
+      allTariffs.value = response
     } else if (response && response.items) {
-      tariffs.value = response.items
+      allTariffs.value = response.items
     } else {
-      tariffs.value = []
+      allTariffs.value = []
     }
+    applyFilters()
   } catch (error) {
     console.error('Error loading tariffs:', error)
-    ElMessage.error('Ошибка загрузки тарифов')
-    tariffs.value = []
+    ElMessage.error(UI_MESSAGES.ERRORS.LOAD_FAILED)
+    allTariffs.value = []
   } finally {
     loading.value = false
   }
+}
+
+const applyFilters = () => {
+  let result = [...allTariffs.value]
+  
+  // Поиск
+  if (filters.value.search) {
+    const searchLower = filters.value.search.toLowerCase()
+    result = result.filter(tariff => 
+      tariff.label.toLowerCase().includes(searchLower)
+    )
+  }
+  
+  // Фильтр по валюте
+  if (filters.value.type) {
+    result = result.filter(tariff => tariff.iso_4217_code === filters.value.type)
+  }
+  
+  filteredTariffs.value = result
+  totalTariffs.value = result.length
+  
+  // Пагинация
+  const start = (filters.value.page - 1) * filters.value.pageSize
+  const end = start + filters.value.pageSize
+  paginatedTariffs.value = result.slice(start, end)
+}
+
+const handleFilterChange = (newFilters) => {
+  filters.value = newFilters
+  applyFilters()
 }
 
 const editTariff = (tariff) => {
@@ -188,7 +285,7 @@ const saveTariff = async () => {
 const deleteTariff = async (tariff) => {
   try {
     await ElMessageBox.confirm(
-      `Вы уверены, что хотите удалить тариф "${tariff.name}"?`,
+      `Вы уверены, что хотите удалить тариф "${tariff.label}"?`,
       'Подтверждение удаления',
       {
         confirmButtonText: 'Удалить',
@@ -203,9 +300,25 @@ const deleteTariff = async (tariff) => {
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Error deleting tariff:', error)
-      ElMessage.error('Ошибка удаления тарифа')
+      ElMessage.error(UI_MESSAGES.ERRORS.DELETE_FAILED)
     }
   }
+}
+
+// Утилиты
+const formatDate = (date) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('ru-RU')
+}
+
+const getCurrencyType = (currency) => {
+  const types = {
+    'RUB': 'success',
+    'USD': 'warning',
+    'EUR': 'primary',
+    'AMD': 'info'
+  }
+  return types[currency] || 'info'
 }
 
 const formatPrice = (price) => {
@@ -247,20 +360,23 @@ onMounted(() => {
   background-color: #f5f7fa;
 }
 
-.page-header {
+.header-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
   height: 100%;
+  width: 100%;
 }
 
-.page-header h1 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-}
-
-.ml-2 {
-  margin-left: 8px;
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px 0;
+  }
+  
+  .header-content h1 {
+    margin: 0;
+  }
 }
 </style>

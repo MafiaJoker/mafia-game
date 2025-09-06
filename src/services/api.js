@@ -113,9 +113,9 @@ export const apiService = {
         return response.data
     },
     // Events
-    async getEvents() {
-	const response = await api.get('/events')
-        return response.data.items || response.data
+    async getEvents(params = {}) {
+	const response = await api.get('/events', { params })
+        return response.data
     },
 
     async testUserLogin() {
@@ -268,8 +268,12 @@ export const apiService = {
     },
 
     // Users
-    async getUsers() {
-	const response = await api.get('/users')
+    async getUsers(params = {}) {
+	console.log('API getUsers params:', params)
+	const url = '/users' + (Object.keys(params).length > 0 ? '?' + new URLSearchParams(params).toString() : '')
+	console.log('Final URL:', url)
+	const response = await api.get('/users', { params })
+	console.log('API response:', response.data)
 	return response.data
     },
 

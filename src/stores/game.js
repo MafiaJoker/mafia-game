@@ -430,8 +430,8 @@ export const useGameStore = defineStore('game', () => {
 		.map(player => ({
 		    box_id: player.id,
 		    user_id: player.userId,
-		    role: player.role ? API_PLAYER_ROLES[player.role] : null, // Отправляем null если роль не назначена
-		    fouls_count: player.fouls || 0
+		    // При создании рассадки роли не отправляем, они будут назначены позже
+		    role: null
 		}))
 
 	    if (playersData.length === 0) {
@@ -467,8 +467,8 @@ export const useGameStore = defineStore('game', () => {
 		.map(player => ({
 		    box_id: player.id,
 		    user_id: player.userId,
-		    role: null, // При обновлении рассадки роли не отправляем
-		    fouls_count: player.fouls || 0
+		    // При обновлении рассадки роли не отправляем
+		    role: null
 		}))
 
 	    if (playersData.length === 0) {
@@ -483,6 +483,37 @@ export const useGameStore = defineStore('game', () => {
 	} catch (error) {
 	    console.error('Ошибка обновления рассадки:', error)
 	    return { success: false, message: 'Ошибка обновления рассадки на сервере' }
+	}
+    }
+
+    const confirmRoles = async () => {
+	if (!gameInfo.value?.gameId) {
+	    return { success: false, message: 'ID игры не найден' }
+	}
+
+	try {
+	    // Подготавливаем данные игроков с ролями для отправки на сервер
+	    const playersData = gameState.value.players
+		.filter(p => p.name && p.name.trim() !== '')
+		.map(player => ({
+		    box_id: player.id,
+		    user_id: player.userId,
+		    // Правильно переводим роли: null или не назначенная роль = civilian
+		    role: player.role ? API_PLAYER_ROLES[player.role] : 'civilian'
+		}))
+
+	    if (playersData.length === 0) {
+		return { success: false, message: 'Нет игроков для сохранения' }
+	    }
+
+	    // Отправляем роли на сервер
+	    await apiService.addPlayersToGame(gameInfo.value.gameId, playersData)
+	    
+	    return { success: true, message: `Роли сохранены для ${playersData.length} игроков` }
+	    
+	} catch (error) {
+	    console.error('Ошибка сохранения ролей:', error)
+	    return { success: false, message: 'Ошибка сохранения ролей на сервере' }
 	}
     }
 
@@ -757,14 +788,14 @@ export const useGameStore = defineStore('game', () => {
 
     const startGame = async () => {
 	try {
-	    // 1. Пытаемся коммитить рассадку, но не останавливаемся если не получается
+	    // 1. Отправляем роли на сервер (вместо рассадки)
 	    try {
-		const seatingResult = await confirmSeating()
-		if (!seatingResult.success) {
-		    console.warn(`Не удалось обновить рассадку: ${seatingResult.message}`)
+		const rolesResult = await confirmRoles()
+		if (!rolesResult.success) {
+		    console.warn(`Не удалось обновить роли: ${rolesResult.message}`)
 		}
 	    } catch (error) {
-		console.warn('Ошибка при коммите рассадки, но продолжаем:', error)
+		console.warn('Ошибка при коммите ролей, но продолжаем:', error)
 	    }
 	    
 	    setGameStatus(GAME_STATUSES.IN_PROGRESS, GAME_SUBSTATUS.DISCUSSION)
@@ -1097,6 +1128,7 @@ export const useGameStore = defineStore('game', () => {
 	loadGameDetailed,
 	confirmSeating,
 	updateSeating,
+	confirmRoles,
 	initPlayers,
 	setGameStatus,
 	updatePlayer,
