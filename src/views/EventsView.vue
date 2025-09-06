@@ -221,12 +221,12 @@ const eventTypeOptions = computed(() => {
 })
 
 // Методы
-const loadEvents = async (page = 1, size = 20) => {
+const loadEvents = async (page = 1, size = 20, searchString = '', statusFilter = '', typeFilter = '', dateRange = null) => {
   loading.value = true
   try {
-    // Загружаем события с пагинацией и типы
+    // Загружаем события с пагинацией, поиском и фильтрами, а также типы
     const [eventsResult, typesResult] = await Promise.allSettled([
-      eventsStore.loadEvents(page, size),
+      eventsStore.loadEvents(page, size, searchString, statusFilter, typeFilter, dateRange),
       eventsStore.loadEventTypes()
     ])
     
@@ -241,7 +241,7 @@ const loadEvents = async (page = 1, size = 20) => {
     
     allEvents.value = eventsStore.events || []
     serverTotalEvents.value = eventsStore.serverTotalEvents || 0
-    applyFilters()
+    applyLocalFilters()
     
     // Показываем ошибку только если обе загрузки провалились
     if (eventsResult.status === 'rejected' && typesResult.status === 'rejected') {
@@ -255,40 +255,15 @@ const loadEvents = async (page = 1, size = 20) => {
   }
 }
 
-const applyFilters = () => {
+const applyLocalFilters = () => {
   let result = [...allEvents.value]
   
-  // Поиск
-  if (filters.value.search) {
-    const searchLower = filters.value.search.toLowerCase()
-    result = result.filter(event => 
-      event.label.toLowerCase().includes(searchLower) ||
-      (event.description && event.description.toLowerCase().includes(searchLower))
-    )
-  }
-  
-  // Фильтр по статусу
-  if (filters.value.status) {
-    result = result.filter(event => event.status === filters.value.status)
-  }
-  
-  // Фильтр по типу
-  if (filters.value.type) {
-    result = result.filter(event => event.event_type_id === filters.value.type)
-  }
-  
-  // Фильтр по дате
-  if (filters.value.dateRange && filters.value.dateRange.length === 2) {
-    const [startDate, endDate] = filters.value.dateRange
-    result = result.filter(event => {
-      const eventDate = new Date(event.start_date)
-      return eventDate >= new Date(startDate) && eventDate <= new Date(endDate)
-    })
-  }
+  // Поиск и основные фильтры теперь происходят на сервере
+  // Убираем локальную фильтрацию поиска, статуса, типа и даты
   
   filteredEvents.value = result
   // Для пагинации используем общее количество с сервера
-  totalEvents.value = serverTotalEvents.value || result.length
+  totalEvents.value = serverTotalEvents.value
   
   // Пагинация теперь серверная, показываем все загруженные данные
   paginatedEvents.value = result
@@ -298,12 +273,28 @@ const handleFilterChange = (newFilters) => {
   const oldFilters = { ...filters.value }
   filters.value = newFilters
   
-  // Если изменилась страница, перезагружаем данные с сервера
-  if (oldFilters.page !== newFilters.page || oldFilters.pageSize !== newFilters.pageSize) {
-    loadEvents(newFilters.page, newFilters.pageSize)
+  // Если изменился любой фильтр или пагинация - перезагружаем данные с сервера
+  const needsServerReload = (
+    oldFilters.page !== newFilters.page || 
+    oldFilters.pageSize !== newFilters.pageSize ||
+    oldFilters.search !== newFilters.search ||
+    oldFilters.status !== newFilters.status ||
+    oldFilters.type !== newFilters.type ||
+    JSON.stringify(oldFilters.dateRange) !== JSON.stringify(newFilters.dateRange)
+  )
+  
+  if (needsServerReload) {
+    loadEvents(
+      newFilters.page, 
+      newFilters.pageSize, 
+      newFilters.search, 
+      newFilters.status, 
+      newFilters.type, 
+      newFilters.dateRange
+    )
   } else {
-    // Иначе просто применяем фильтры локально
-    applyFilters()
+    // Иначе просто применяем локальные фильтры
+    applyLocalFilters()
   }
 }
 

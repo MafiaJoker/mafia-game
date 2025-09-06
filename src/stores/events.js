@@ -17,15 +17,38 @@ export const useEventsStore = defineStore('events', () => {
 	return []
     })
 
-    const loadEvents = async (page = 1, size = 20) => {
+    const loadEvents = async (page = 1, size = 20, searchString = '', statusFilter = '', typeFilter = '', dateRange = null) => {
 	loading.value = true
 	try {
-	    const response = await apiService.getEvents({ 
+	    // Подготавливаем параметры для API
+	    const params = { 
 		pageSize: size,
 		currentPage: page
-	    })
+	    }
 	    
-	    console.log(`Loading events page ${page} with pageSize ${size}:`, response)
+	    // Добавляем параметр поиска если есть
+	    if (searchString && searchString.trim()) {
+		params.searchString = searchString.trim()
+	    }
+	    
+	    // Добавляем фильтр статуса если есть
+	    if (statusFilter) {
+		params.status = statusFilter
+	    }
+	    
+	    // Добавляем фильтр типа если есть
+	    if (typeFilter) {
+		params.event_type_id = typeFilter
+	    }
+	    
+	    // Добавляем фильтр даты если есть
+	    if (dateRange && dateRange.length === 2) {
+		params.start_date_from = dateRange[0]
+		params.start_date_to = dateRange[1]
+	    }
+	    
+	    console.log(`Loading events page ${page} with params:`, params)
+	    const response = await apiService.getEvents(params)
 	    
 	    // Проверяем, что response не является HTML
 	    if (typeof response === 'string' && response.includes('<!DOCTYPE html>')) {

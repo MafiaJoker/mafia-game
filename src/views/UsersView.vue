@@ -276,33 +276,48 @@ const roleOptions = [
 // Показываем кнопку тестовых пользователей только в режиме разработки
 const isDevelopment = import.meta.env.DEV
 
-const loadUsers = async (page = 1, size = 100) => {
+const loadUsers = async (page = 1, size = 100, searchString = '', roleFilter = '') => {
   loading.value = true
   try {
-    // API ожидает pageSize и currentPage
-    const response = await apiService.getUsers({ 
+    // Подготавливаем параметры для API
+    const params = { 
       pageSize: size,
       currentPage: page
-    })
-    console.log(`Loading page ${page} with pageSize ${size}:`, response)
+    }
+    
+    // Добавляем параметр поиска если есть
+    if (searchString && searchString.trim()) {
+      params.searchString = searchString.trim()
+    }
+    
+    // Добавляем фильтр роли если есть  
+    if (roleFilter) {
+      params.role = roleFilter
+    }
+    
+    console.log(`Loading page ${page} with params:`, params)
+    const response = await apiService.getUsers(params)
     console.log('Users response:', response)
     
     // Обрабатываем разные структуры ответа
     if (Array.isArray(response)) {
       allUsers.value = response
+      serverTotalUsers.value = response.length
     } else if (response && response.items && Array.isArray(response.items)) {
       // API возвращает объект с пагинацией
       allUsers.value = response.items
       serverTotalUsers.value = response.total || response.items.length
-      
     } else if (response && response.data && Array.isArray(response.data)) {
       allUsers.value = response.data
+      serverTotalUsers.value = response.data.length
     } else {
       console.warn('Unexpected users response structure:', response)
       allUsers.value = []
+      serverTotalUsers.value = 0
     }
     
-    applyFilters()
+    // Убираем локальную фильтрацию поиска, т.к. теперь сервер фильтрует
+    applyLocalFilters()
   } catch (error) {
     console.error('Error loading users:', error)
     ElMessage.error(UI_MESSAGES.ERRORS.LOAD_FAILED)
@@ -312,32 +327,14 @@ const loadUsers = async (page = 1, size = 100) => {
 }
 
 
-const applyFilters = () => {
+const applyLocalFilters = () => {
   let result = [...allUsers.value]
   
-  // Поиск
-  if (filters.value.search) {
-    const searchLower = filters.value.search.toLowerCase()
-    result = result.filter(user => {
-      const nickname = (user.nickname || '').toLowerCase()
-      const email = (user.email || '').toLowerCase()
-      const firstName = (user.first_name || '').toLowerCase()
-      const lastName = (user.last_name || '').toLowerCase()
-      const fullName = `${firstName} ${lastName}`.toLowerCase()
-      
-      return nickname.includes(searchLower) ||
-             email.includes(searchLower) ||
-             fullName.includes(searchLower)
-    })
-  }
-  
-  // Фильтр по роли
-  if (filters.value.status) {
-    result = result.filter(user => user.role === filters.value.status)
-  }
+  // Поиск теперь происходит на сервере, убираем локальную фильтрацию поиска
+  // Остальные фильтры можно оставить локальными если нужно
   
   filteredUsers.value = result
-  totalUsers.value = serverTotalUsers.value || result.length
+  totalUsers.value = serverTotalUsers.value
   
   // Пагинация теперь серверная, показываем все загруженные данные
   paginatedUsers.value = result
@@ -347,12 +344,19 @@ const handleFilterChange = (newFilters) => {
   const oldFilters = { ...filters.value }
   filters.value = newFilters
   
-  // Если изменилась страница, перезагружаем данные с сервера
-  if (oldFilters.page !== newFilters.page || oldFilters.pageSize !== newFilters.pageSize) {
-    loadUsers(newFilters.page, newFilters.pageSize)
+  // Если изменилась страница, размер страницы, поиск или фильтр роли - перезагружаем данные с сервера
+  const needsServerReload = (
+    oldFilters.page !== newFilters.page || 
+    oldFilters.pageSize !== newFilters.pageSize ||
+    oldFilters.search !== newFilters.search ||
+    oldFilters.status !== newFilters.status
+  )
+  
+  if (needsServerReload) {
+    loadUsers(newFilters.page, newFilters.pageSize, newFilters.search, newFilters.status)
   } else {
-    // Иначе просто применяем фильтры локально
-    applyFilters()
+    // Иначе просто применяем локальные фильтры
+    applyLocalFilters()
   }
 }
 
