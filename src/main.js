@@ -43,12 +43,16 @@ app.use(i18n)
 
 // Инициализация загрузки текущего пользователя при старте приложения
 const authStore = useAuthStore()
-// Запускаем проверку пользователя, но не блокируем запуск приложения
-authStore.loadCurrentUser().catch((error) => {
+
+// Создаем Promise для ожидания инициализации авторизации
+const authInitPromise = authStore.loadCurrentUser().catch((error) => {
     console.log('No user session found on startup:', error)
 }).finally(() => {
     console.log('Initial auth check completed')
 })
+
+// Сохраняем Promise для использования в router guard
+window.__authInitPromise = authInitPromise
 
 // Инициализация Electron менеджера
 const electronManager = new ElectronManager()

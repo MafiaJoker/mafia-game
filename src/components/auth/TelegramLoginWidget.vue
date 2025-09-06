@@ -149,6 +149,13 @@
   const setupTelegramCallback = () => {
     window.onTelegramAuth = async (user) => {
       console.log('Telegram auth data received:', user)
+      
+      // Предотвращаем множественные вызовы callback
+      if (isAuthenticating.value) {
+        console.log('Authentication already in progress, ignoring duplicate callback')
+        return
+      }
+      
       isAuthenticating.value = true
       
       try {
@@ -173,12 +180,18 @@
         console.log('Sending to API:', telegramData)
 
         // Отправляем данные на авторизацию
-        await authStore.telegramLogin(telegramData)
+        const result = await authStore.telegramLogin(telegramData)
         
-        ElMessage.success('Успешная авторизация через Telegram!')
-        
-        // Перенаправляем на главную страницу
-        router.push('/')
+        if (result && result.success) {
+          ElMessage.success('Успешная авторизация через Telegram!')
+          // Перенаправляем на главную страницу
+          setTimeout(() => {
+            router.push('/')
+          }, 500)
+        } else {
+          console.error('Telegram login failed:', result?.error)
+          ElMessage.error(result?.error || 'Ошибка авторизации через Telegram')
+        }
         
       } catch (error) {
         console.error('Ошибка авторизации через Telegram:', error)

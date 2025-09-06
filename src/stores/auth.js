@@ -95,12 +95,25 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Авторизация через Telegram
     const telegramLogin = async (telegramData) => {
+        // Предотвращаем множественные одновременные попытки авторизации через Telegram
+        if (isLoggingIn.value) {
+            console.log('Telegram login already in progress, skipping...')
+            return { success: false, error: 'Login already in progress' }
+        }
+
+        isLoggingIn.value = true
         loading.value = true
         error.value = null
         
         try {
+            console.log('Starting Telegram login...')
+            
             // Отправляем данные Telegram на сервер для авторизации
             const response = await apiService.telegramLogin(telegramData)
+            console.log('Telegram login API response:', response)
+            
+            // Небольшая задержка для установки cookies
+            await new Promise(resolve => setTimeout(resolve, 500))
             
             // После успешной авторизации загружаем данные пользователя
             const result = await loadCurrentUser()
@@ -109,7 +122,8 @@ export const useAuthStore = defineStore('auth', () => {
                 console.log('Telegram user logged in successfully')
                 return { success: true }
             } else {
-                return { success: false, error: 'Failed to load user data after login' }
+                console.error('Failed to load user after Telegram login:', result.error)
+                return { success: false, error: result.error || 'Failed to load user data after login' }
             }
         } catch (err) {
             error.value = err.response?.data?.detail || 'Ошибка авторизации через Telegram'
@@ -117,6 +131,7 @@ export const useAuthStore = defineStore('auth', () => {
             return { success: false, error: error.value }
         } finally {
             loading.value = false
+            isLoggingIn.value = false
         }
     }
 

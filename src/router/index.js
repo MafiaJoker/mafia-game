@@ -93,6 +93,19 @@ router.beforeEach(async (to, from, next) => {
         return
     }
     
+    // Дождемся завершения инициализации авторизации при первом запуске
+    if (window.__authInitPromise) {
+        console.log('Router: waiting for initial auth check to complete...')
+        try {
+            await window.__authInitPromise
+            console.log('Router: initial auth check completed')
+        } catch (error) {
+            console.log('Router: initial auth check failed:', error)
+        }
+        // Очищаем Promise после первого использования
+        delete window.__authInitPromise
+    }
+    
     // Если проверка уже идет, ждем завершения
     if (authCheckInProgress) {
         console.log('Router: auth check in progress, waiting...')
