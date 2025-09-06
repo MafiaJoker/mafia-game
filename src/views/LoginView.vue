@@ -102,17 +102,23 @@
 
   // Функция для тестовой авторизации
   const loginAsTestUser = async () => {
+    // Предотвращаем множественные клики
+    if (isTestLogin.value) {
+      console.log('Test login already in progress, ignoring click')
+      return
+    }
+
     isTestLogin.value = true
 
     try {
       // Используем новый метод авторизации тестового пользователя
       const result = await authStore.testUserLogin()
 
-      if (result.success) {
+      if (result && result.success) {
         ElMessage.success('Вход выполнен как тестовый пользователь')
         router.push('/')
       } else {
-        ElMessage.error(result.error || 'Ошибка тестовой авторизации')
+        ElMessage.error(result?.error || 'Ошибка тестовой авторизации')
       }
     } catch (error) {
       console.error('Test login error:', error)

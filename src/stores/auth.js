@@ -8,6 +8,10 @@ export const useAuthStore = defineStore('auth', () => {
     const user = ref(null)
     const loading = ref(false)
     const error = ref(null)
+    
+    // Флаги для предотвращения множественных запросов
+    const isLoadingUser = ref(false)
+    const isLoggingIn = ref(false)
 
     // Getters
     const isAuthenticated = computed(() => !!user.value)
@@ -18,9 +22,6 @@ export const useAuthStore = defineStore('auth', () => {
     const isPlayer = computed(() => userRole.value === 'player')
 
     // Actions
-    
-    // Флаг для предотвращения множественных запросов
-    const isLoadingUser = ref(false)
     
     // Кеш последней проверки пользователя
     let lastUserCheckTime = 0
@@ -121,6 +122,20 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Авторизация через сайт в Electron
     const telegramLoginElectron = async (loginUrl = 'https://dev.jokermafia.am/login') => {
+        // Предотвращаем множественные одновременные попытки авторизации
+        if (isLoggingIn.value) {
+            console.log('Electron login already in progress, skipping...')
+            return { success: false, error: 'Login already in progress' }
+        }
+
+        // Дождемся инициализации API URL для Electron
+        try {
+            await initApiUrl()
+        } catch (err) {
+            console.error('Failed to initialize API URL:', err)
+        }
+
+        isLoggingIn.value = true
         loading.value = true
         error.value = null
         
@@ -129,7 +144,6 @@ export const useAuthStore = defineStore('auth', () => {
             
             // Проверяем, что мы в Electron
             if (!window.electronAPI) {
-                loading.value = false
                 throw new Error('Electron API not available')
             }
             
@@ -137,7 +151,6 @@ export const useAuthStore = defineStore('auth', () => {
             const authResult = await window.electronAPI.openTelegramOAuth(loginUrl)
             
             if (!authResult.success) {
-                loading.value = false
                 throw new Error(authResult.error || 'Failed to open login page')
             }
             
@@ -221,18 +234,46 @@ export const useAuthStore = defineStore('auth', () => {
             error.value = err.message || 'Ошибка авторизации через сайт'
             console.error('Site auth error:', err)
             loading.value = false
+            isLoggingIn.value = false
             return { success: false, error: error.value }
+        } finally {
+            // Убеждаемся, что флаги сброшены в любом случае
+            loading.value = false
+            isLoggingIn.value = false
         }
     }
 
+
     // Авторизация тестового пользователя
     const testUserLogin = async () => {
+        // Предотвращаем множественные одновременные попытки авторизации
+        if (isLoggingIn.value) {
+            console.log('Login already in progress, skipping...')
+            return { success: false, error: 'Login already in progress' }
+        }
+
+        // Дождемся инициализации API URL для Electron
+        if (window.electronAPI) {
+            try {
+                await initApiUrl()
+            } catch (err) {
+                console.error('Failed to initialize API URL:', err)
+            }
+        }
+
+        isLoggingIn.value = true
         loading.value = true
         error.value = null
         
         try {
+            console.log('Starting test user login...')
+            
             // Отправляем запрос на авторизацию тестового пользователя
             const response = await apiService.testUserLogin()
+            console.log('Test login API response:', response)
+            
+            // Небольшая задержка для установки cookies
+            await new Promise(resolve => setTimeout(resolve, 500))
             
             // После успешной авторизации загружаем данные пользователя
             const result = await loadCurrentUser()
@@ -241,7 +282,8 @@ export const useAuthStore = defineStore('auth', () => {
                 console.log('Test user logged in successfully')
                 return { success: true }
             } else {
-                return { success: false, error: 'Failed to load user data after login' }
+                console.error('Failed to load user after test login:', result.error)
+                return { success: false, error: result.error || 'Failed to load user data after login' }
             }
         } catch (err) {
             error.value = err.response?.data?.detail || 'Ошибка авторизации тестового пользователя'
@@ -249,6 +291,7 @@ export const useAuthStore = defineStore('auth', () => {
             return { success: false, error: error.value }
         } finally {
             loading.value = false
+            isLoggingIn.value = false
         }
     }
 

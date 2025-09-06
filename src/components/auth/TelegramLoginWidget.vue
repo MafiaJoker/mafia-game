@@ -108,6 +108,12 @@
       return
     }
 
+    // Предотвращаем множественные клики
+    if (isAuthenticating.value) {
+      console.log('Authentication already in progress, ignoring click')
+      return
+    }
+
     isAuthenticating.value = true
 
     try {
@@ -117,7 +123,7 @@
       const loginUrl = 'https://dev.jokermafia.am/login'
       const result = await authStore.telegramLoginElectron(loginUrl)
       
-      if (result.success) {
+      if (result && result.success) {
         console.log('Electron auth completed successfully')
         ElMessage.success('Успешная авторизация!')
         // Добавляем небольшую задержку для отображения сообщения
@@ -125,8 +131,8 @@
           router.push('/')
         }, 500)
       } else {
-        console.error('Electron auth failed:', result.error)
-        ElMessage.error(result.error || 'Ошибка авторизации')
+        console.error('Electron auth failed:', result?.error)
+        ElMessage.error(result?.error || 'Ошибка авторизации')
       }
     } catch (error) {
       console.error('Electron auth error:', error)

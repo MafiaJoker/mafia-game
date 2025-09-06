@@ -5,6 +5,7 @@ import { vi } from 'vitest'
 import ElementPlus from 'element-plus'
 import { createI18n } from 'vue-i18n'
 import { createPinia } from 'pinia'
+import { createRouter, createWebHistory } from 'vue-router'
 
 // Создаем i18n для тестов
 const i18n = createI18n({
