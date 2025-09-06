@@ -41,9 +41,12 @@ let apiInitPromise = null
 const initApiUrl = async () => {
   if (!apiInitPromise) {
     apiInitPromise = getApiBaseUrl().then(url => {
+      console.log('Updating API_BASE_URL from:', API_BASE_URL)
+      console.log('Updating API_BASE_URL to:', url)
       API_BASE_URL = url
       api.defaults.baseURL = url
-      console.log('API Base URL initialized:', API_BASE_URL)
+      console.log('✅ API Base URL initialized:', API_BASE_URL)
+      console.log('✅ Axios baseURL updated:', api.defaults.baseURL)
       console.log('Is Electron:', !!window.electronAPI)
       return url
     })
@@ -51,11 +54,7 @@ const initApiUrl = async () => {
   return apiInitPromise
 }
 
-// Инициализируем сразу если возможно
-if (typeof window !== 'undefined') {
-  initApiUrl()
-}
-
+// Создаем axios instance с дефолтным URL
 const api = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true,
@@ -64,6 +63,11 @@ const api = axios.create({
     },
     timeout: 10000 // 10 секунд таймаут
 })
+
+// Инициализируем сразу если возможно
+if (typeof window !== 'undefined') {
+  initApiUrl()
+}
 
 // Логируем настройки API для отладки
 console.log('API Configuration:', {

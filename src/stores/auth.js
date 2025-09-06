@@ -32,10 +32,8 @@ export const useAuthStore = defineStore('auth', () => {
     
     // Загрузка текущего пользователя
     const loadCurrentUser = async () => {
-        // Дождемся инициализации API URL для Electron
-        if (window.electronAPI) {
-            await initApiUrl()
-        }
+        // Дождемся инициализации API URL для всех окружений
+        await initApiUrl()
         const now = Date.now()
         
         console.log('=== LoadCurrentUser Debug Info ===')
@@ -125,6 +123,9 @@ export const useAuthStore = defineStore('auth', () => {
         
         try {
             console.log('Starting Telegram login...')
+            
+            // Дождемся инициализации API URL для всех окружений
+            await initApiUrl()
             
             // Отправляем данные Telegram на сервер для авторизации
             console.log('Cookies before Telegram API call:', document.cookie)
@@ -287,13 +288,11 @@ export const useAuthStore = defineStore('auth', () => {
             return { success: false, error: 'Login already in progress' }
         }
 
-        // Дождемся инициализации API URL для Electron
-        if (window.electronAPI) {
-            try {
-                await initApiUrl()
-            } catch (err) {
-                console.error('Failed to initialize API URL:', err)
-            }
+        // Дождемся инициализации API URL для всех окружений
+        try {
+            await initApiUrl()
+        } catch (err) {
+            console.error('Failed to initialize API URL:', err)
         }
 
         isLoggingIn.value = true
