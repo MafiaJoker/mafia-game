@@ -62,11 +62,51 @@ const api = axios.create({
     headers: {
 	'Content-Type': 'application/json'
     },
+    timeout: 10000 // 10 секунд таймаут
 })
+
+// Логируем настройки API для отладки
+console.log('API Configuration:', {
+    baseURL: API_BASE_URL,
+    withCredentials: true,
+    environment: import.meta.env.MODE,
+    isDevelopment: import.meta.env.DEV,
+    isProduction: import.meta.env.PROD,
+    currentOrigin: typeof window !== 'undefined' ? window.location.origin : 'server'
+})
+
+// Интерцептор для запросов
+api.interceptors.request.use(
+    (config) => {
+        console.log('🔄 API Request:', {
+            method: config.method?.toUpperCase(),
+            url: config.url,
+            baseURL: config.baseURL,
+            withCredentials: config.withCredentials,
+            cookies: typeof document !== 'undefined' ? document.cookie : 'N/A',
+            headers: config.headers
+        })
+        return config
+    },
+    (error) => {
+        console.error('❌ Request interceptor error:', error)
+        return Promise.reject(error)
+    }
+)
 
 // Интерцепторы для обработки ответов
 api.interceptors.response.use(
     (response) => {
+        console.log('✅ API Response:', {
+            method: response.config.method?.toUpperCase(),
+            url: response.config.url,
+            status: response.status,
+            statusText: response.statusText,
+            cookies: typeof document !== 'undefined' ? document.cookie : 'N/A',
+            headers: response.headers,
+            dataType: typeof response.data
+        })
+        
         // Проверяем, что ответ содержит JSON, а не HTML
         if (response.headers['content-type']?.includes('text/html')) {
             console.error('API returned HTML instead of JSON:', {
@@ -79,18 +119,20 @@ api.interceptors.response.use(
         return response
     },
     (error) => {
-        console.error('API Request Error:', {
+        console.error('❌ API Request Error:', {
+            method: error.config?.method?.toUpperCase(),
             url: error.config?.url,
-            method: error.config?.method,
             status: error.response?.status,
             statusText: error.response?.statusText,
-            data: error.response?.data
+            cookies: typeof document !== 'undefined' ? document.cookie : 'N/A',
+            headers: error.response?.headers,
+            data: error.response?.data,
+            message: error.message
         })
 
         if (error.response?.status === 401) {
-            console.log('Unauthorized (401) - user not authenticated')
+            console.log('🔒 Unauthorized (401) - session expired or invalid')
             // Не делаем автоматический редирект здесь - пусть роутер это обрабатывает
-            // Автоматический редирект может создавать проблемы с навигацией
         }
         return Promise.reject(error)
     }

@@ -38,6 +38,13 @@ export const useAuthStore = defineStore('auth', () => {
         }
         const now = Date.now()
         
+        console.log('=== LoadCurrentUser Debug Info ===')
+        console.log('Current domain:', window.location.hostname)
+        console.log('Current protocol:', window.location.protocol)
+        console.log('API Base URL:', window.electronAPI ? 'Electron mode' : import.meta.env.VITE_API_BASE_URL || 'default')
+        console.log('Cookies available:', document.cookie)
+        console.log('User agent:', navigator.userAgent)
+        
         // Предотвращаем множественные одновременные запросы
         if (isLoadingUser.value) {
             console.log('User loading already in progress, skipping...')
@@ -60,19 +67,30 @@ export const useAuthStore = defineStore('auth', () => {
         error.value = null
         
         try {
+            console.log('Making API call to getCurrentUser...')
             const userData = await apiService.getCurrentUser()
             user.value = userData
             lastUserCheckTime = now // Обновляем время последней проверки
             isInitialized.value = true // Помечаем как инициализированный
-            console.log('Current user loaded:', userData)
+            console.log('✅ Current user loaded successfully:', userData)
+            console.log('Session cookies after load:', document.cookie)
             return { success: true, user: userData }
         } catch (err) {
             lastUserCheckTime = now // Обновляем время даже при ошибке, чтобы не спамить
             
+            console.error('❌ Load current user error details:', {
+                status: err.response?.status,
+                statusText: err.response?.statusText,
+                headers: err.response?.headers,
+                data: err.response?.data,
+                message: err.message,
+                cookies: document.cookie
+            })
+            
             // Если ошибка 401, значит пользователь не авторизован
             if (err.response?.status === 401) {
                 user.value = null
-                console.log('User not authenticated (401)')
+                console.log('User not authenticated (401) - session expired or invalid')
                 return { success: false, error: 'Not authenticated', status: 401 }
             }
             
@@ -84,7 +102,7 @@ export const useAuthStore = defineStore('auth', () => {
             }
             
             error.value = err.response?.data?.detail || 'Ошибка загрузки пользователя'
-            console.error('Load current user error:', err)
+            console.error('General load current user error:', err)
             return { success: false, error: error.value }
         } finally {
             loading.value = false
@@ -109,11 +127,13 @@ export const useAuthStore = defineStore('auth', () => {
             console.log('Starting Telegram login...')
             
             // Отправляем данные Telegram на сервер для авторизации
+            console.log('Cookies before Telegram API call:', document.cookie)
             const response = await apiService.telegramLogin(telegramData)
             console.log('Telegram login API response:', response)
+            console.log('Cookies after Telegram API call:', document.cookie)
             
             // Небольшая задержка для установки cookies
-            await new Promise(resolve => setTimeout(resolve, 500))
+            await new Promise(resolve => setTimeout(resolve, 1000)) // Увеличиваем задержку до 1 секунды
             
             // После успешной авторизации загружаем данные пользователя
             const result = await loadCurrentUser()
