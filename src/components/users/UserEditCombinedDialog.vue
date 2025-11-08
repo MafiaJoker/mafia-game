@@ -122,9 +122,9 @@ const hasChanges = computed(() => {
          JSON.stringify(form.value.roles.sort()) !== JSON.stringify(originalData.value.roles.sort())
 })
 
-watch(() => props.user, async (newUser) => {
+watch(() => props.user, (newUser) => {
   if (newUser) {
-    // Получаем актуальные данные пользователя, если это текущий пользователь
+    // Используем роли из объекта пользователя
     let userRoles = []
     
     // Проверяем наличие ролей в разных форматах
@@ -132,16 +132,6 @@ watch(() => props.user, async (newUser) => {
       userRoles = newUser.roles
     } else if (newUser.role) {
       userRoles = [newUser.role]
-    } else {
-      // Если нет ролей, пробуем загрузить актуальные данные для текущего пользователя
-      try {
-        const currentUser = await apiService.getCurrentUser()
-        if (currentUser.id === newUser.id && currentUser.roles) {
-          userRoles = currentUser.roles
-        }
-      } catch (err) {
-        console.log('Could not load current user roles')
-      }
     }
     
     form.value = {
