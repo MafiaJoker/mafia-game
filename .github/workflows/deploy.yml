@@ -165,7 +165,7 @@ jobs:
           # Создаем временную директорию если не существует
           mkdir -p /tmp/frontend-deploy
           mkdir -p ${{ env.DEPLOY_PATH }}
-
+          chown -R nginx:${{ env.DEPLOY_USER }} ${{ env.DEPLOY_PATH }}
           # Перемещаем файлы в финальную директорию с sudo
           cp -r /tmp/frontend-deploy/* ${{ env.DEPLOY_PATH }}/
 
