@@ -140,7 +140,7 @@ jobs:
         port: ${{ env.DEPLOY_PORT }}
         script: |
           # Очищаем старые файлы
-          rm -rf ${{ env.DEPLOY_PATH }}/*
+          rm -rf ${{ env.DEPLOY_PATH }}
 
     - name: Copy files to production server
       uses: appleboy/scp-action@v0.1.4
