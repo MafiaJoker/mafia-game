@@ -25,7 +25,7 @@ const getApiBaseUrl = async () => {
 
     // По умолчанию используем production API
     console.log('Using default Electron API URL')
-    return 'https://dev.jokermafia.am/api/v1'
+    return 'https://app.jokermafia.am/api/v1'
   }
 
   // Для веб-разработки используем локальный API
