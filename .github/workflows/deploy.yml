@@ -8,30 +8,30 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     env:
       DEPLOY_HOST: dev.jokermafia.am
       DEPLOY_USER: aladdin
       DEPLOY_PORT: 22
       DEPLOY_PATH: /usr/share/nginx/html
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
         node-version: '18'
-    
+
     - name: Install dependencies
       run: npm install
-    
+
     - name: Build application
       run: npm run build
       env:
         NODE_ENV: production
-    
+
     - name: Debug SSH key format
       run: |
         echo "SSH key length: $(echo '${{ secrets.SSH_KEY }}' | wc -c)"
@@ -39,7 +39,7 @@ jobs:
         echo "${{ secrets.SSH_KEY }}" | head -n 1
         echo "SSH key last line:"
         echo "${{ secrets.SSH_KEY }}" | tail -n 1
-    
+
     - name: Deploy to server
       uses: appleboy/ssh-action@v0.1.5
       with:
@@ -50,13 +50,13 @@ jobs:
         script: |
           # Создаем директорию для бэкапа
           sudo mkdir -p /var/backups/dev.jokermafia.am
-          
+
           # Бэкапим текущую версию
           sudo cp -r ${{ env.DEPLOY_PATH }} /var/backups/dev.jokermafia.am/backup-$(date +%Y%m%d_%H%M%S) || true
-          
+
           # Очищаем старые файлы
           sudo rm -rf ${{ env.DEPLOY_PATH }}/*
-    
+
     - name: Copy files to server
       uses: appleboy/scp-action@v0.1.4
       with:
@@ -67,7 +67,7 @@ jobs:
         source: "dist/*"
         target: "/tmp/frontend-deploy/"
         strip_components: 1
-    
+
     - name: Move files and set permissions
       uses: appleboy/ssh-action@v0.1.5
       with:
@@ -78,20 +78,20 @@ jobs:
         script: |
           # Создаем временную директорию если не существует
           mkdir -p /tmp/frontend-deploy
-          
+
           # Перемещаем файлы в финальную директорию с sudo
           sudo cp -r /tmp/frontend-deploy/* ${{ env.DEPLOY_PATH }}/
-          
+
           # Устанавливаем права доступа
           sudo chmod -R 755 ${{ env.DEPLOY_PATH }}
           sudo chown -R www-data:www-data ${{ env.DEPLOY_PATH }}
-          
+
           # Очищаем временную директорию
           rm -rf /tmp/frontend-deploy
-          
+
           # Перезапускаем nginx (если нужно)
           sudo systemctl reload nginx || true
-    
+
     - name: Notify deployment success
       run: |
         echo "✅ Deployment completed successfully!"
@@ -99,30 +99,30 @@ jobs:
 
   deploy-prod:
     runs-on: ubuntu-latest
-    
+
     env:
       DEPLOY_HOST: ${{ secrets.PROD_HOST }}
       DEPLOY_USER: ${{ secrets.PROD_USER }}
       DEPLOY_PORT: 22
-      DEPLOY_PATH: /usr/share/nginx/html
-    
+      DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
         node-version: '18'
-    
+
     - name: Install dependencies
       run: npm install
-    
+
     - name: Build application
       run: npm run build
       env:
         NODE_ENV: production
-    
+
     - name: Debug SSH key format
       run: |
         echo "SSH key length: $(echo '${{ secrets.PROD_KEY }}' | wc -c)"
@@ -130,7 +130,7 @@ jobs:
         echo "${{ secrets.PROD_KEY }}" | head -n 1
         echo "SSH key last line:"
         echo "${{ secrets.PROD_KEY }}" | tail -n 1
-    
+
     - name: Deploy to production server
       uses: appleboy/ssh-action@v0.1.5
       with:
@@ -141,13 +141,13 @@ jobs:
         script: |
           # Создаем директорию для бэкапа
           sudo mkdir -p /var/backups/production
-          
+
           # Бэкапим текущую версию
           sudo cp -r ${{ env.DEPLOY_PATH }} /var/backups/production/backup-$(date +%Y%m%d_%H%M%S) || true
-          
+
           # Очищаем старые файлы
           sudo rm -rf ${{ env.DEPLOY_PATH }}/*
-    
+
     - name: Copy files to production server
       uses: appleboy/scp-action@v0.1.4
       with:
@@ -158,7 +158,7 @@ jobs:
         source: "dist/*"
         target: "/tmp/frontend-deploy/"
         strip_components: 1
-    
+
     - name: Move files and set permissions on production
       uses: appleboy/ssh-action@v0.1.5
       with:
@@ -169,20 +169,20 @@ jobs:
         script: |
           # Создаем временную директорию если не существует
           mkdir -p /tmp/frontend-deploy
-          
+
           # Перемещаем файлы в финальную директорию с sudo
           sudo cp -r /tmp/frontend-deploy/* ${{ env.DEPLOY_PATH }}/
-          
+
           # Устанавливаем права доступа
           sudo chmod -R 755 ${{ env.DEPLOY_PATH }}
           sudo chown -R www-data:www-data ${{ env.DEPLOY_PATH }}
-          
+
           # Очищаем временную директорию
           rm -rf /tmp/frontend-deploy
-          
+
           # Перезапускаем nginx (если нужно)
           sudo systemctl reload nginx || true
-    
+
     - name: Notify production deployment success
       run: |
         echo "✅ Production deployment completed successfully!"
