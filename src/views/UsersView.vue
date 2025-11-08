@@ -46,67 +46,11 @@
             <el-table-column 
               prop="nickname" 
               label="Никнейм" 
-              min-width="150"
+              min-width="300"
               sortable
             >
               <template #default="scope">
                 {{ scope.row.nickname || '-' }}
-              </template>
-            </el-table-column>
-            
-            <el-table-column 
-              label="Имя" 
-              min-width="200"
-            >
-              <template #default="scope">
-                {{ getUserFullName(scope.row) }}
-              </template>
-            </el-table-column>
-            
-            <el-table-column 
-              prop="email" 
-              label="Email" 
-              min-width="200"
-            >
-              <template #default="scope">
-                {{ scope.row.email || '-' }}
-              </template>
-            </el-table-column>
-            
-            <el-table-column 
-              prop="role" 
-              label="Роль" 
-              width="120"
-              align="center"
-            >
-              <template #default="scope">
-                <el-tag :type="getRoleType(scope.row.role)">
-                  {{ getRoleLabel(scope.row.role) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            
-            <el-table-column 
-              prop="tariff" 
-              label="Тариф" 
-              width="150"
-            >
-              <template #default="scope">
-                <el-tag v-if="scope.row.tariff" type="info">
-                  {{ scope.row.tariff.label }}
-                </el-tag>
-                <span v-else>-</span>
-              </template>
-            </el-table-column>
-            
-            <el-table-column 
-              prop="created_at" 
-              label="Дата регистрации" 
-              width="150"
-              sortable
-            >
-              <template #default="scope">
-                {{ formatDate(scope.row.created_at) }}
               </template>
             </el-table-column>
             
@@ -123,12 +67,6 @@
                     type="primary"
                     @click="handleEditUser(scope.row)"
                     :icon="Edit"
-                  />
-                  <el-button 
-                    size="small"
-                    type="warning"
-                    @click="handleUpdateRole(scope.row)"
-                    :icon="Key"
                   />
                   <el-button 
                     size="small"
@@ -199,16 +137,10 @@
       </template>
     </el-dialog>
 
-    <UserEditDialog
+    <UserEditCombinedDialog
       v-model="editDialogVisible"
       :user="selectedUser"
-      @confirm="updateUser"
-    />
-
-    <RoleEditDialog
-      v-model="roleDialogVisible"
-      :user="selectedUser"
-      @confirm="updateUserRole"
+      @confirm="updateUserData"
     />
   </div>
 </template>
@@ -216,12 +148,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, Key, Tools } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Tools } from '@element-plus/icons-vue'
 import { apiService } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import PaginationFilter from '@/components/common/PaginationFilter.vue'
-import UserEditDialog from '@/components/users/UserEditDialog.vue'
-import RoleEditDialog from '@/components/users/RoleEditDialog.vue'
+import UserEditCombinedDialog from '@/components/users/UserEditCombinedDialog.vue'
 import { UI_MESSAGES } from '@/utils/uiConstants'
 
 const authStore = useAuthStore()
@@ -229,7 +160,6 @@ const loading = ref(false)
 const creating = ref(false)
 const creatingTestUsers = ref(false)
 const editDialogVisible = ref(false)
-const roleDialogVisible = ref(false)
 const showCreateDialog = ref(false)
 const selectedUser = ref(null)
 const allUsers = ref([])
@@ -387,10 +317,6 @@ const handleDeleteUser = async (user) => {
   }
 }
 
-const handleUpdateRole = (user) => {
-  selectedUser.value = { ...user }
-  roleDialogVisible.value = true
-}
 
 const getUserFullName = (user) => {
   const first = user.first_name || ''
@@ -398,26 +324,14 @@ const getUserFullName = (user) => {
   return `${first} ${last}`.trim() || 'Без имени'
 }
 
-const updateUserRole = async ({ userId, role, tariffId }) => {
+const updateUserData = async ({ userId, nickname, roles }) => {
   try {
-    const promises = []
+    // Обновляем никнейм и роли через один запрос
+    await apiService.updateUser(userId, { 
+      nickname: nickname,
+      roles: roles 
+    })
     
-    // Обновляем роль
-    if (role !== selectedUser.value.role) {
-      promises.push(apiService.updateUser(userId, { role }))
-    }
-    
-    // Обновляем тариф, если изменился
-    if (tariffId !== selectedUser.value.tariff_id) {
-      if (tariffId) {
-        promises.push(apiService.addTariffForUser(userId, { tariff_id: tariffId }))
-      } else {
-        // Если тариф убрали, отправляем null
-        promises.push(apiService.addTariffForUser(userId, { tariff_id: null }))
-      }
-    }
-    
-    await Promise.all(promises)
     ElMessage.success('Данные пользователя обновлены')
     await loadUsers()
   } catch (error) {
@@ -445,16 +359,6 @@ const handleCreateUser = async () => {
   }
 }
 
-const updateUser = async ({ userId, nickname }) => {
-  try {
-    await apiService.updateUser(userId, { nickname })
-    ElMessage.success('Пользователь обновлен')
-    await loadUsers()
-  } catch (error) {
-    console.error('Error updating user:', error)
-    ElMessage.error(UI_MESSAGES.ERRORS.UPDATE_FAILED)
-  }
-}
 
 const resetCreateForm = () => {
   Object.assign(createForm, {
@@ -513,17 +417,25 @@ const formatDate = (date) => {
 const getRoleType = (role) => {
   const types = {
     admin: 'danger',
-    judge: 'warning',
-    guest: 'info'
+    judge: 'warning', 
+    guest: 'info',
+    player: 'primary',
+    game_master: 'warning',
+    unregistered_player: '',
+    cashier: 'success'
   }
   return types[role] || 'info'
 }
 
 const getRoleLabel = (role) => {
   const labels = {
-    admin: 'Администратор',
+    admin: 'Администратор', 
     judge: 'Судья',
-    guest: 'Гость'
+    guest: 'Гость',
+    player: 'Игрок',
+    game_master: 'Ведущий',
+    unregistered_player: 'Незарег. игрок',
+    cashier: 'Кассир'
   }
   return labels[role] || role
 }

@@ -333,6 +333,11 @@ export const apiService = {
 	return response.data
     },
 
+    async getRoles() {
+	const response = await api.get('/roles')
+	return response.data
+    },
+
     async addTariffForUser(userId, tariffData) {
 	const response = await api.put(`/users/${userId}/tariff`, tariffData)
 	return response.data
