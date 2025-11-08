@@ -39,17 +39,19 @@
 
         <!-- Роли -->
         <el-form-item label="Роли пользователя">
-          <el-checkbox-group v-model="form.roles">
-            <el-checkbox 
-              v-for="role in availableRoles" 
-              :key="role.code"
-              :value="role.code"
-            >
-              <span>{{ role.name }}</span>
-            </el-checkbox>
-          </el-checkbox-group>
-          <div v-if="form.roles.length === 0" class="role-hint">
-            Выберите хотя бы одну роль
+          <div>
+            <el-checkbox-group v-model="form.roles">
+              <el-checkbox 
+                v-for="role in availableRoles" 
+                :key="role.code"
+                :value="role.code"
+              >
+                <span>{{ role.name }}</span>
+              </el-checkbox>
+            </el-checkbox-group>
+            <div v-if="form.roles.length === 0" class="role-hint">
+              Выберите хотя бы одну роль
+            </div>
           </div>
         </el-form-item>
 
@@ -173,12 +175,20 @@ onMounted(() => {
 })
 
 const getUserFullName = (user) => {
+  if (user.nickname) {
+    return user.nickname
+  }
   const first = user.first_name || ''
   const last = user.last_name || ''
-  return `${first} ${last}`.trim() || 'Без имени'
+  const fullName = `${first} ${last}`.trim()
+  return fullName || 'Без имени'
 }
 
 const getUserInitials = (user) => {
+  if (user.nickname) {
+    // Берем первые две буквы никнейма
+    return user.nickname.substring(0, 2).toUpperCase()
+  }
   const first = user.first_name?.[0] || ''
   const last = user.last_name?.[0] || ''
   return (first + last).toUpperCase() || '?'
@@ -249,6 +259,7 @@ const handleConfirm = async () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-bottom: 8px;
 }
 
 .el-checkbox {
@@ -256,9 +267,13 @@ const handleConfirm = async () => {
 }
 
 .role-hint {
-  margin-top: 8px;
-  font-size: 12px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  font-size: 13px;
   color: #f56c6c;
+  background-color: #fef0f0;
+  border-radius: 4px;
+  border-left: 3px solid #f56c6c;
 }
 
 

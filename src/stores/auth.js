@@ -17,9 +17,18 @@ export const useAuthStore = defineStore('auth', () => {
     const isAuthenticated = computed(() => !!user.value)
     const userRole = computed(() => user.value?.roles?.[0] || 'guest')
     const userName = computed(() => user.value?.nickname || 'Unknown User')
-    const isAdmin = computed(() => userRole.value === 'admin')
-    const isJudge = computed(() => userRole.value === 'judge') 
-    const isPlayer = computed(() => userRole.value === 'player')
+    const isAdmin = computed(() => {
+        if (!user.value?.roles) return false
+        return user.value.roles.includes('admin')
+    })
+    const isJudge = computed(() => {
+        if (!user.value?.roles) return false
+        return user.value.roles.includes('judge') || user.value.roles.includes('game_master')
+    })
+    const isPlayer = computed(() => {
+        if (!user.value?.roles) return false
+        return user.value.roles.includes('player')
+    })
 
     // Actions
     

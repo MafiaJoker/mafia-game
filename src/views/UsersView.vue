@@ -55,6 +55,7 @@
             </el-table-column>
             
             <el-table-column 
+              v-if="authStore.isAdmin"
               label="Действия" 
               width="150"
               align="center"
