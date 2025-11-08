@@ -96,3 +96,94 @@ jobs:
       run: |
         echo "✅ Deployment completed successfully!"
         echo "🌐 Application is available at: https://dev.jokermafia.am"
+
+  deploy-prod:
+    runs-on: ubuntu-latest
+    
+    env:
+      DEPLOY_HOST: ${{ secrets.PROD_HOST }}
+      DEPLOY_USER: ${{ secrets.PROD_USER }}
+      DEPLOY_PORT: 22
+      DEPLOY_PATH: /usr/share/nginx/html
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: npm install
+    
+    - name: Build application
+      run: npm run build
+      env:
+        NODE_ENV: production
+    
+    - name: Debug SSH key format
+      run: |
+        echo "SSH key length: $(echo '${{ secrets.PROD_KEY }}' | wc -c)"
+        echo "SSH key first line:"
+        echo "${{ secrets.PROD_KEY }}" | head -n 1
+        echo "SSH key last line:"
+        echo "${{ secrets.PROD_KEY }}" | tail -n 1
+    
+    - name: Deploy to production server
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ env.DEPLOY_HOST }}
+        username: ${{ env.DEPLOY_USER }}
+        key: ${{ secrets.PROD_KEY }}
+        port: ${{ env.DEPLOY_PORT }}
+        script: |
+          # Создаем директорию для бэкапа
+          sudo mkdir -p /var/backups/production
+          
+          # Бэкапим текущую версию
+          sudo cp -r ${{ env.DEPLOY_PATH }} /var/backups/production/backup-$(date +%Y%m%d_%H%M%S) || true
+          
+          # Очищаем старые файлы
+          sudo rm -rf ${{ env.DEPLOY_PATH }}/*
+    
+    - name: Copy files to production server
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ env.DEPLOY_HOST }}
+        username: ${{ env.DEPLOY_USER }}
+        key: ${{ secrets.PROD_KEY }}
+        port: ${{ env.DEPLOY_PORT }}
+        source: "dist/*"
+        target: "/tmp/frontend-deploy/"
+        strip_components: 1
+    
+    - name: Move files and set permissions on production
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ env.DEPLOY_HOST }}
+        username: ${{ env.DEPLOY_USER }}
+        key: ${{ secrets.PROD_KEY }}
+        port: ${{ env.DEPLOY_PORT }}
+        script: |
+          # Создаем временную директорию если не существует
+          mkdir -p /tmp/frontend-deploy
+          
+          # Перемещаем файлы в финальную директорию с sudo
+          sudo cp -r /tmp/frontend-deploy/* ${{ env.DEPLOY_PATH }}/
+          
+          # Устанавливаем права доступа
+          sudo chmod -R 755 ${{ env.DEPLOY_PATH }}
+          sudo chown -R www-data:www-data ${{ env.DEPLOY_PATH }}
+          
+          # Очищаем временную директорию
+          rm -rf /tmp/frontend-deploy
+          
+          # Перезапускаем nginx (если нужно)
+          sudo systemctl reload nginx || true
+    
+    - name: Notify production deployment success
+      run: |
+        echo "✅ Production deployment completed successfully!"
+        echo "🚀 Tag ${{ github.ref_name }} deployed to production"
