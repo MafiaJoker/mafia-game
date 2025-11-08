@@ -139,14 +139,8 @@ jobs:
         key: ${{ secrets.PROD_KEY }}
         port: ${{ env.DEPLOY_PORT }}
         script: |
-          # Создаем директорию для бэкапа
-          sudo mkdir -p /var/backups/production
-
-          # Бэкапим текущую версию
-          sudo cp -r ${{ env.DEPLOY_PATH }} /var/backups/production/backup-$(date +%Y%m%d_%H%M%S) || true
-
           # Очищаем старые файлы
-          sudo rm -rf ${{ env.DEPLOY_PATH }}/*
+          rm -rf ${{ env.DEPLOY_PATH }}/*
 
     - name: Copy files to production server
       uses: appleboy/scp-action@v0.1.4
@@ -171,17 +165,14 @@ jobs:
           mkdir -p /tmp/frontend-deploy
 
           # Перемещаем файлы в финальную директорию с sudo
-          sudo cp -r /tmp/frontend-deploy/* ${{ env.DEPLOY_PATH }}/
+          cp -r /tmp/frontend-deploy/* ${{ env.DEPLOY_PATH }}/
 
           # Устанавливаем права доступа
-          sudo chmod -R 755 ${{ env.DEPLOY_PATH }}
-          sudo chown -R www-data:www-data ${{ env.DEPLOY_PATH }}
+          chmod -R 755 ${{ env.DEPLOY_PATH }}
+          chown -R www-data:www-data ${{ env.DEPLOY_PATH }}
 
           # Очищаем временную директорию
           rm -rf /tmp/frontend-deploy
-
-          # Перезапускаем nginx (если нужно)
-          sudo systemctl reload nginx || true
 
     - name: Notify production deployment success
       run: |
