@@ -123,6 +123,7 @@ jobs:
       env:
         NODE_ENV: production
         VITE_API_BASE_URL: https://api.jokermafia.am/api/v1
+        VITE_TELEGRAM_BOT_USERNAME: mafia_joker_widget_bot
 
     - name: Debug SSH key format
       run: |
