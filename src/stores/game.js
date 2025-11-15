@@ -1067,24 +1067,13 @@ export const useGameStore = defineStore('game', () => {
 	gameState.value.players.forEach(player => {
 	    const isKilled = killedPlayers.includes(player.id)
 	    const isRemoved = removedPlayers.includes(player.id)
-	    const oldFouls = player.fouls
 	    
 	    player.isAlive = !isKilled && !isRemoved
 	    player.isEliminated = isRemoved
 	    
-	    // Обновляем фолы из фаз только если у нас есть полные данные фаз
-	    // Если загружена только текущая фаза, оставляем фолы из API
-	    const foulsFromPhases = gamePhasesStore.getPlayerFouls(player.id)
-	    
-	    // Если фолы из фаз больше 0 или равны фолам из API, используем их
-	    // Иначе оставляем фолы из API (случай неполных данных фаз)
-	    if (foulsFromPhases > 0 || foulsFromPhases === oldFouls) {
-		player.fouls = foulsFromPhases
-	    }
-	    
-	    if (oldFouls !== player.fouls) {
-		console.log(`Player ${player.id}: fouls ${oldFouls} -> ${player.fouls} (phases: ${foulsFromPhases})`)
-	    }
+	    // НЕ обновляем фолы здесь, так как у нас есть только текущая фаза
+	    // Фолы должны приходить из API и обновляться только при явных действиях
+	    // player.fouls уже содержит правильное значение из API
 	})
     }
     
