@@ -34,7 +34,8 @@ export const useGameStore = defineStore('game', () => {
 	isCriticalRound: false,
 	showBestMove: false,
 	votingHappenedThisRound: false,
-	gameResult: null
+	gameResult: null,
+	last_phase_fouls: []
     })
 
     // Helper methods for box_id conversion
@@ -235,7 +236,7 @@ export const useGameStore = defineStore('game', () => {
 		await gamePhasesStore.loadGamePhases(gameId, gameStatus, gameStateData)
 		
 		// Синхронизируем фолы из gameState в фазы
-		gamePhasesStore.syncFoulsFromGameState(gameState.value.players)
+		gamePhasesStore.syncFoulsFromGameState(gameState.value.players, gameState.value.last_phase_fouls)
 		
 		// Синхронизируем раунд с фазами
 		gameState.value.round = gamePhasesStore.currentPhaseId
@@ -707,7 +708,8 @@ export const useGameStore = defineStore('game', () => {
 	    isCriticalRound: false,
 	    showBestMove: false,
 	    firstEliminatedPlayer: null,
-	    votingHappenedThisRound: false
+	    votingHappenedThisRound: false,
+	    last_phase_fouls: []
 	}
     }
 

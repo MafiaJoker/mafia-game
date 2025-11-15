@@ -56,7 +56,7 @@ export const useNightActionsStore = defineStore('nightActions', () => {
         }
         
         // Синхронизируем фолы в текущую фазу
-        gamePhasesStore.syncFoulsFromGameState(gameStore.gameState.players)
+        gamePhasesStore.syncFoulsFromGameState(gameStore.gameState.players, gameStore.gameState.last_phase_fouls)
         
         // 2. Применяем стрельбу мафии к игрокам
         if (gameStore.gameState.mafiaTarget && gameStore.gameState.mafiaTarget !== 0) {

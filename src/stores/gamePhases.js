@@ -231,45 +231,27 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
         bestMove.value = boxIds ? [...boxIds] : null
     }
 
-    // Синхронизация фолов из gameState в текущую фазу
-    const syncFoulsFromGameState = (gameStatePlayers) => {
+    // Синхронизация фолов из gameState в текущую фазу с использованием last_phase_fouls
+    const syncFoulsFromGameState = (gameStatePlayers, lastPhaseFouls = null) => {
         const phase = currentPhase.value
-        if (phase && gameStatePlayers) {
+        if (phase) {
             // Инициализируем fouls_summary если он не существует
-            if (!phase.fouls_summary) {
-                phase.fouls_summary = []
-            }
+            initializeFoulsSummary(phase)
 
-            // Синхронизируем фолы из gameState
-            gameStatePlayers.forEach(player => {
-                if (player.id && typeof player.fouls === 'number') {
-                    let playerFoul = phase.fouls_summary.find(f => f.box_id === player.id)
-                    if (!playerFoul) {
-                        playerFoul = {
-                            box_id: player.id,
-                            count_fouls: player.fouls
+            // Если есть last_phase_fouls, используем их для установки фолов текущей фазы
+            if (lastPhaseFouls && Array.isArray(lastPhaseFouls)) {
+                lastPhaseFouls.forEach(foul => {
+                    if (foul.box_id && typeof foul.count_fouls === 'number') {
+                        let playerFoul = phase.fouls_summary.find(f => f.box_id === foul.box_id)
+                        if (playerFoul) {
+                            playerFoul.count_fouls = foul.count_fouls
                         }
-                        phase.fouls_summary.push(playerFoul)
-                    } else {
-                        playerFoul.count_fouls = player.fouls
                     }
-                }
-            })
-
-            // Добавляем недостающих игроков с 0 фолами
-            for (let boxId = 1; boxId <= GAME_RULES.PLAYERS.MAX; boxId++) {
-                if (!phase.fouls_summary.find(f => f.box_id === boxId)) {
-                    phase.fouls_summary.push({
-                        box_id: boxId,
-                        count_fouls: 0
-                    })
-                }
+                })
+                console.log('Synchronized fouls from last_phase_fouls:', phase.fouls_summary)
+            } else {
+                console.log('No last_phase_fouls data, keeping initialized zeros')
             }
-
-            // Сортируем по box_id
-            phase.fouls_summary.sort((a, b) => a.box_id - b.box_id)
-            
-            console.log('Synchronized fouls from gameState:', phase.fouls_summary)
         }
     }
 
