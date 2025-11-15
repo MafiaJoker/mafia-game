@@ -7,7 +7,6 @@
         size="small"
         round
         @click="handleFoulClick"
-        :class="{ 'fouls-maxed': player.fouls >= MAX_FOULS.BEFORE_ELIMINATION }"
 	>
         {{ player.fouls }}
       </el-button>
@@ -62,16 +61,6 @@
 
   .fouls-display {
       margin-bottom: 4px;
-  }
-
-  .fouls-maxed {
-      animation: pulse 1s infinite;
-  }
-
-  @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-      100% { transform: scale(1); }
   }
 
   .foul-actions {
