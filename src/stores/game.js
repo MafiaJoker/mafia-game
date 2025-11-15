@@ -912,13 +912,29 @@ export const useGameStore = defineStore('game', () => {
 	    // 3. Сбрасываем фолы локально
 	    player.fouls = 0
 	    
-	    // 4. Сбрасываем фолы в текущей фазе
+	    // 4. Модифицируем last_phase_fouls для этого игрока, чтобы отправить 0
+	    const modifiedLastPhaseFouls = gameState.value.last_phase_fouls.map(foul => {
+		if (foul.box_id === player.id) {
+		    return { ...foul, count_fouls: 0 }
+		}
+		return foul
+	    })
+	    
+	    // Если игрока не было в last_phase_fouls, добавляем его с 0 фолами
+	    if (!modifiedLastPhaseFouls.find(f => f.box_id === player.id)) {
+		modifiedLastPhaseFouls.push({ box_id: player.id, count_fouls: 0 })
+	    }
+	    
+	    // 5. Сбрасываем фолы в текущей фазе
 	    gamePhasesStore.resetFouls(player.id)
 	    
-	    // 5. Отправляем обновление на сервер
+	    // 6. Отправляем обновление на сервер с модифицированными last_phase_fouls
 	    try {
-		await gamePhasesStore.updateFoulsOnServer(player.id, gameState.value.last_phase_fouls)
+		await gamePhasesStore.updateFoulsOnServer(player.id, modifiedLastPhaseFouls)
 		console.log('Fouls reset on server successfully')
+		
+		// 7. Обновляем локальный last_phase_fouls
+		gameState.value.last_phase_fouls = modifiedLastPhaseFouls
 	    } catch (error) {
 		console.error('Error resetting fouls on server:', error)
 	    }
