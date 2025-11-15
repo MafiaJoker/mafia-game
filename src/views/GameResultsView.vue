@@ -16,8 +16,8 @@
           <div class="game-info">
             <h2>{{ gameTitle }}</h2>
             <div class="game-meta">
-              <el-tag v-if="gameResult" :type="gameResult === 'civilians_win' ? 'success' : 'danger'">
-                {{ gameResult === 'civilians_win' ? 'Победа города' : 'Победа мафии' }}
+              <el-tag v-if="gameResult" :type="getResultTagType(gameResult)">
+                {{ getResultLabel(gameResult) }}
               </el-tag>
               <span class="game-date">{{ formatDate(gameInfo?.created_at) }}</span>
             </div>
@@ -274,6 +274,9 @@
   const isWinner = (player) => {
     if (!gameResult.value) return false
     
+    // В случае ничьей никого нельзя считать победителем
+    if (gameResult.value === 'draw') return false
+    
     const isRedTeam = player.originalRole === 'civilian' || player.originalRole === 'sheriff'
     const isBlackTeam = player.originalRole === 'mafia' || player.originalRole === 'don'
     
@@ -408,6 +411,24 @@
   const goBack = () => {
     const gameId = route.params.id
     router.push(`/game/${gameId}`)
+  }
+
+  const getResultLabel = (result) => {
+    const labels = {
+      'civilians_win': 'Победа города',
+      'mafia_win': 'Победа мафии',
+      'draw': 'Ничья'
+    }
+    return labels[result] || result
+  }
+
+  const getResultTagType = (result) => {
+    const types = {
+      'civilians_win': 'success',
+      'mafia_win': 'danger',
+      'draw': 'warning'
+    }
+    return types[result] || 'info'
   }
 
   // Следим за изменениями в игроках и инициализируем баллы

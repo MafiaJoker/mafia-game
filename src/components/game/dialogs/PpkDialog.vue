@@ -42,6 +42,16 @@
           </el-button>
           
           <el-button 
+            type="info"
+            size="large" 
+            style="width: 100%"
+            @click="declareDraw"
+            >
+            <el-icon><Minus /></el-icon>
+            Ничья
+          </el-button>
+          
+          <el-button 
             type="warning"
             size="large" 
             style="width: 100%"
@@ -73,7 +83,8 @@
   import { 
       Trophy, 
       Aim, 
-      Close 
+      Close,
+      Minus
   } from '@element-plus/icons-vue'
 
   const gameStore = useGameStore()
@@ -141,6 +152,29 @@
 	  
       } catch {
 	  // Пользователь отменил действие
+      }
+  }
+
+  const declareDraw = async () => {
+      try {
+          await ElMessageBox.confirm(
+              'Подтвердите ничью в результате ППК',
+              'Подтверждение',
+              {
+                  confirmButtonText: 'Да, ничья',
+                  cancelButtonText: 'Отмена',
+                  type: 'info'
+              }
+          )
+
+          // Завершаем игру с результатом ничья
+          await gameStore.finishGame('draw')
+          
+          // ElMessage.success('Игра завершена! Ничья!')
+          handleClose()
+          
+      } catch {
+          // Пользователь отменил действие
       }
   }
 

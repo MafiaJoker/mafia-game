@@ -207,7 +207,8 @@
     const finished = gameStore.gameState.gameStatus === 'finished_no_scores' || 
                      gameStore.gameState.gameStatus === 'finished_with_scores' ||
                      gameStore.gameState.gameStatus === 'civilians_win' ||
-                     gameStore.gameState.gameStatus === 'mafia_win'
+                     gameStore.gameState.gameStatus === 'mafia_win' ||
+                     gameStore.gameState.gameStatus === 'draw'
     console.log('isGameFinished computed:', finished, 'status:', gameStore.gameState.gameStatus)
     return finished
   })
@@ -219,7 +220,9 @@
       return gameStore.gameState.gameResult
     }
     // Иначе проверяем gameStatus на результаты игры
-    if (gameStore.gameState.gameStatus === 'civilians_win' || gameStore.gameState.gameStatus === 'mafia_win') {
+    if (gameStore.gameState.gameStatus === 'civilians_win' || 
+        gameStore.gameState.gameStatus === 'mafia_win' || 
+        gameStore.gameState.gameStatus === 'draw') {
       return gameStore.gameState.gameStatus
     }
     return null
@@ -239,7 +242,8 @@
   const getResultLabel = (result) => {
     const labels = {
       'civilians_win': 'Победа города',
-      'mafia_win': 'Победа мафии'
+      'mafia_win': 'Победа мафии',
+      'draw': 'Ничья'
     }
     return labels[result] || result
   }
@@ -247,7 +251,8 @@
   const getResultType = (result) => {
     const types = {
       'civilians_win': 'danger',
-      'mafia_win': ''
+      'mafia_win': '',
+      'draw': 'warning'
     }
     return types[result] || 'info'
   }

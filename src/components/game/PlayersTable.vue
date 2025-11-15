@@ -191,7 +191,7 @@
   const isEditingPlayers = ref(false)
   
   const isGameFinished = computed(() => {
-      return gameStore.gameState.gameStatus === 'civilians_win' || gameStore.gameState.gameStatus === 'mafia_win'
+      return gameStore.gameState.gameStatus === 'civilians_win' || gameStore.gameState.gameStatus === 'mafia_win' || gameStore.gameState.gameStatus === 'draw'
   })
   
   const getPlayerPoints = (playerId, pointType) => {
@@ -249,7 +249,9 @@
   })
 
   const canEditPlayers = computed(() => {
-      const isGameFinished = gameStore.gameState.gameStatus === 'civilians_win' || gameStore.gameState.gameStatus === 'mafia_win'
+      const isGameFinished = gameStore.gameState.gameStatus === 'civilians_win' || 
+                             gameStore.gameState.gameStatus === 'mafia_win' || 
+                             gameStore.gameState.gameStatus === 'draw'
       return !gameStore.isGameInProgress && !isGameFinished
   })
 
@@ -272,7 +274,9 @@
 
   const showCardHeader = computed(() => {
       // Показываем шапку только если есть действия для показа (не только кнопка роли)
-      const isGameFinished = gameStore.gameState.gameStatus === 'civilians_win' || gameStore.gameState.gameStatus === 'mafia_win'
+      const isGameFinished = gameStore.gameState.gameStatus === 'civilians_win' || 
+                             gameStore.gameState.gameStatus === 'mafia_win' || 
+                             gameStore.gameState.gameStatus === 'draw'
       return !gameStore.isGameInProgress && 
              gameStore.gameState.gameStatus !== GAME_STATUSES.NEGOTIATION && 
              gameStore.gameState.gameStatus !== GAME_STATUSES.FREE_SEATING &&

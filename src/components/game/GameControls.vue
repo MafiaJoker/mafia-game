@@ -90,6 +90,7 @@
           type="success" 
           @click="confirmNight"
           :icon="Check"
+          :disabled="!allNightActionsComplete"
         />
       </div>
 
@@ -109,7 +110,7 @@
     </template>
 
     <!-- Кнопки для завершенной игры без баллов -->
-    <template v-if="gameState.gameStatus === GAME_STATUSES.FINISHED_NO_SCORES">
+    <template v-if="gameState.gameStatus === GAME_STATUSES.FINISHED_NO_SCORES || gameState.gameStatus === 'draw'">
       <el-button type="success" @click="showScoreDialog">
         Выставить баллы
       </el-button>
@@ -183,6 +184,40 @@
 
   const bestMoveSelected = computed(() => {
       return gameState.value.bestMoveTargets.size
+  })
+
+  // Проверка, что все ночные действия выполнены
+  const allNightActionsComplete = computed(() => {
+    const players = gameState.value.players
+    const alivePlayers = players.filter(p => p.isAlive && !p.isEliminated && p.isInGame !== false)
+    
+    // Проверяем есть ли живые мафии/дон
+    const hasMafiaAlive = alivePlayers.some(p => 
+      p.originalRole === 'Мафия' || p.originalRole === 'Дон'
+    )
+    
+    // Проверяем есть ли живой дон
+    const hasDonAlive = alivePlayers.some(p => p.originalRole === 'Дон')
+    
+    // Проверяем есть ли живой шериф
+    const hasSheriffAlive = alivePlayers.some(p => p.originalRole === 'Шериф')
+    
+    // Мафия должна выбрать цель (или промах). undefined означает "не выбрано"
+    if (hasMafiaAlive && gameState.value.mafiaTarget === undefined) {
+      return false
+    }
+    
+    // Дон должен сделать выбор: либо цель, либо null ("не проснулся"). undefined означает "не выбрано"
+    if (hasDonAlive && gameState.value.donTarget === undefined) {
+      return false
+    }
+    
+    // Шериф должен сделать выбор: либо цель, либо null ("не проснулся"). undefined означает "не выбрано"
+    if (hasSheriffAlive && gameState.value.sheriffTarget === undefined) {
+      return false
+    }
+    
+    return true
   })
 
   const startRoleDistribution = () => {
@@ -276,10 +311,10 @@
   const goToNight = () => {
       gameStore.setGameStatus(gameStore.gameState.gameStatus, GAME_SUBSTATUS.NIGHT)
       
-      // Сброс ночных целей
-      gameState.value.mafiaTarget = null
-      gameState.value.donTarget = null
-      gameState.value.sheriffTarget = null
+      // Сброс ночных целей - undefined означает "не выбрано"
+      gameState.value.mafiaTarget = undefined
+      gameState.value.donTarget = undefined
+      gameState.value.sheriffTarget = undefined
       gameState.value.nominatedPlayers = []
 
       // Очистка всех номинаций
@@ -289,6 +324,10 @@
   }
 
   const confirmNight = async () => {
+      if (!allNightActionsComplete.value) {
+          ElMessage.warning('Все живые роли должны выполнить свои ночные действия')
+          return
+      }
       await nightActionsStore.confirmNight()
   }
 
