@@ -902,23 +902,32 @@ export const useGameStore = defineStore('game', () => {
     const resetPlayerFouls = async (playerId) => {
 	const player = currentPlayer.value(playerId)
 	if (player) {
-	    // Обновляем в фазах
+	    // 1. Сначала получаем актуальное состояние игры с сервера
+	    await loadGameDetailed(gameInfo.value?.gameId)
+	    
+	    // 2. Синхронизируем фазы с last_phase_fouls
+	    gamePhasesStore.syncFoulsFromGameState(gameState.value.players, gameState.value.last_phase_fouls)
+	    
+	    // 3. Сбрасываем фолы в текущей фазе до 0
 	    gamePhasesStore.resetFouls(player.id)
 	    
-	    // Синхронизируем локальное состояние с фазами
-	    player.fouls = gamePhasesStore.getPlayerFouls(player.id)
+	    // 4. Сбрасываем общее количество фолов игрока
+	    player.fouls = 0
 	    player.canSpeak = true
 	    player.isEliminated = false
 	    player.isAlive = true
 	    
-	    // Убираем из списка исключённых если был там
+	    // 5. Убираем из списка исключённых если был там
 	    const index = gameState.value.eliminatedPlayers.indexOf(playerId)
 	    if (index !== -1) {
 		gameState.value.eliminatedPlayers.splice(index, 1)
 	    }
 	    
-	    // Используем специальную функцию для обновления фолов конкретного игрока
+	    // 6. Обновляем на сервере с учетом last_phase_fouls
 	    await gamePhasesStore.updateFoulsOnServer(player.id, gameState.value.last_phase_fouls)
+	    
+	    // 7. Синхронизируем UI
+	    syncPlayersWithPhases()
 	}
     }
 

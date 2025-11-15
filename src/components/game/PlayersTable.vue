@@ -276,8 +276,11 @@
       const player = gameStore.currentPlayer(playerId)
       if (!player) return
 
-      // Разрешаем добавлять фолы до максимума (4 фола)
-      if (player.fouls < MAX_FOULS.BEFORE_ELIMINATION) {
+      // Если у игрока 4 фола, сбрасываем до 0
+      if (player.fouls >= MAX_FOULS.BEFORE_ELIMINATION) {
+	  await gameStore.resetPlayerFouls(playerId)
+      } else {
+	  // Иначе добавляем фол
 	  await gameStore.addFoul(playerId)
       }
   }
