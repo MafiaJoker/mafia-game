@@ -276,9 +276,8 @@
       const player = gameStore.currentPlayer(playerId)
       if (!player) return
 
-      if (player.fouls < MAX_FOULS.BEFORE_SILENCE || 
-	  (player.fouls === MAX_FOULS.BEFORE_SILENCE && (player.isSilent || player.silentNextRound)) ||
-	  player.fouls >= MAX_FOULS.BEFORE_ELIMINATION) {
+      // Разрешаем добавлять фолы до максимума (4 фола)
+      if (player.fouls < MAX_FOULS.BEFORE_ELIMINATION) {
 	  await gameStore.addFoul(playerId)
       }
   }
