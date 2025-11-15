@@ -1,7 +1,82 @@
 <template>
   <div class="event-results">
+    <!-- Таблица статистики игроков -->
+    <el-card>
+      <template #header>
+        <div class="card-header">
+          <div class="header-left">
+            <el-icon><User /></el-icon>
+            <span>Статистика игроков</span>
+          </div>
+        </div>
+      </template>
+
+      <el-table 
+        :data="playerStatistics" 
+        :loading="loading"
+        style="width: 100%"
+        stripe
+      >
+        <el-table-column 
+          prop="name" 
+          label="Игрок" 
+          min-width="150"
+          sortable
+        />
+        <el-table-column 
+          prop="totalScore" 
+          label="Суммарный балл" 
+          width="140"
+          sortable
+          align="center"
+        >
+          <template #default="{ row }">
+            <span :class="{ 'positive-score': row.totalScore > 0, 'negative-score': row.totalScore < 0 }">
+              {{ formatScore(row.totalScore) }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column 
+          prop="totalExtraPoints" 
+          label="Суммарные доп. баллы" 
+          width="160"
+          sortable
+          align="center"
+        >
+          <template #default="{ row }">
+            <span :class="{ 'positive-score': row.totalExtraPoints > 0 }">
+              {{ formatScore(row.totalExtraPoints) }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column 
+          prop="totalPenalties" 
+          label="Суммарные пенальти" 
+          width="150"
+          sortable
+          align="center"
+        >
+          <template #default="{ row }">
+            <span :class="{ 'negative-score': row.totalPenalties < 0 }">
+              {{ formatScore(row.totalPenalties) }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column 
+          prop="winLossRatio" 
+          label="Победы/Поражения" 
+          width="140"
+          align="center"
+        >
+          <template #default="{ row }">
+            {{ row.winLossRatio }}
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
     <!-- Общая статистика -->
-    <el-row :gutter="16" class="mb-4">
+    <el-row :gutter="16" class="mb-4 mt-4">
       <el-col :span="6">
         <el-card class="stat-card">
           <div class="stat-content">
@@ -212,9 +287,11 @@
 <script setup>
   import { ref, computed, onMounted, watch } from 'vue'
   import { useRouter } from 'vue-router'
+  import { apiService } from '@/services/api'
   import { 
       Trophy,
-      View
+      View,
+      User
   } from '@element-plus/icons-vue'
 
   const props = defineProps({
@@ -227,6 +304,7 @@
 
   const router = useRouter()
   const games = ref([])
+  const ratingsData = ref(null)
   const loading = ref(false)
   const selectedTable = ref('')
   const selectedResult = ref('')
@@ -238,20 +316,40 @@
 
       loading.value = true
       try {
+          // Загружаем рейтинги параллельно
+          if (props.event?.id) {
+              await loadEventRatings()
+          }
+
           const allGames = []
           let gameCounter = 1
 
-          // Собираем все игры из всех столов
+          // Собираем все игры из всех столов и загружаем детальную информацию
           for (const table of props.event.tables) {
               const tableGames = table.games || []
               
               for (const game of tableGames) {
-                  allGames.push({
-                      ...game,
-                      tableName: table.table_name,
-                      gameNumber: gameCounter++,
-                      duration: calculateGameDuration(game)
-                  })
+                  try {
+                      // Загружаем детальную информацию об игре включая игроков
+                      const gameDetails = await apiService.getGame(game.id)
+                      
+                      allGames.push({
+                          ...game,
+                          ...gameDetails, // Добавляем детальную информацию
+                          tableName: table.table_name,
+                          gameNumber: gameCounter++,
+                          duration: calculateGameDuration(game)
+                      })
+                  } catch (error) {
+                      console.warn(`Ошибка загрузки игры ${game.id}:`, error)
+                      // Добавляем игру без детальной информации
+                      allGames.push({
+                          ...game,
+                          tableName: table.table_name,
+                          gameNumber: gameCounter++,
+                          duration: calculateGameDuration(game)
+                      })
+                  }
               }
           }
 
@@ -303,6 +401,58 @@
       return finishedGames > 0 ? Math.round((cityWins.value / finishedGames) * 100) : 0
   })
 
+  const loadEventRatings = async () => {
+      if (!props.event?.id) return
+
+      console.log('Loading ratings for event:', props.event.id)
+      try {
+          // Используем прямой вызов через axios, так как этого метода нет в apiService
+          const response = await fetch(`http://localhost:8000/api/v1/events/${props.event.id}/ratings`, {
+              method: 'GET',
+              credentials: 'include',
+              headers: {
+                  'Content-Type': 'application/json'
+              }
+          })
+          
+          if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`)
+          }
+          
+          const data = await response.json()
+          console.log('Ratings loaded:', data)
+          ratingsData.value = data
+      } catch (error) {
+          console.error('Ошибка загрузки рейтингов:', error)
+          ratingsData.value = null
+      }
+  }
+
+  // Статистика игроков на основе данных рейтингов
+  const playerStatistics = computed(() => {
+      if (!ratingsData.value || !ratingsData.value.stages) return []
+
+      const allPlayers = []
+
+      // Собираем данные по всем этапам
+      ratingsData.value.stages.forEach(stage => {
+          stage.stage_scoreboard.forEach(playerData => {
+              allPlayers.push({
+                  name: playerData.user.nickname,
+                  totalScore: playerData.all_points_summary || 0,
+                  totalExtraPoints: playerData.extra_points_summary || 0,
+                  totalPenalties: playerData.penalty_points_summary || 0,
+                  totalBestMove: playerData.best_move_points_summary || 0,
+                  position: playerData.position || 0,
+                  winLossRatio: '0/0' // Пока без подсчета побед/поражений, нужны дополнительные данные
+              })
+          })
+      })
+
+      // Сортируем по позиции (по возрастанию - 1, 2, 3...)
+      return allPlayers.sort((a, b) => a.position - b.position)
+  })
+
   // Уникальные столы для фильтра
   const uniqueTables = computed(() => {
       const tables = [...new Set(games.value.map(game => game.tableName))]
@@ -349,6 +499,13 @@
           'Дон': 'warning'
       }
       return roleTypes[player.role] || 'info'
+  }
+
+  const formatScore = (score) => {
+      if (!score && score !== 0) return '0'
+      // Округляем до 2 знаков после запятой и убираем лишние нули
+      const rounded = Math.round(score * 100) / 100
+      return rounded >= 0 ? `+${rounded}` : `${rounded}`
   }
 
   const getResultType = (result) => {
@@ -428,6 +585,7 @@
   onMounted(() => {
       if (props.event?.id) {
           loadEventGames()
+          loadEventRatings()
       }
   })
 
@@ -435,6 +593,7 @@
   watch(() => props.event, (newEvent) => {
       if (newEvent?.id) {
           loadEventGames()
+          loadEventRatings()
       }
   })
 </script>
@@ -555,6 +714,21 @@
       background-color: #606266 !important;
       border-color: #606266 !important;
       color: white !important;
+  }
+
+  /* Стили для статистики игроков */
+  .positive-score {
+      color: #67c23a;
+      font-weight: 600;
+  }
+
+  .negative-score {
+      color: #f56c6c;
+      font-weight: 600;
+  }
+
+  .mt-4 {
+      margin-top: 16px;
   }
   
 </style>
