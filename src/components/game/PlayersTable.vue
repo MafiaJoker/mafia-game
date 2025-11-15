@@ -37,7 +37,7 @@
     <el-table :data="visiblePlayers" stripe style="width: 100%" :row-class-name="getRowClassName">
       <el-table-column label="№" width="60" align="center">
         <template #default="{ row }">
-          <div class="player-number-cell" :class="{ 'current-speaker': gameStore.currentSpeaker === row.id && gameStore.isGameInProgress }">
+          <div class="player-number-cell">
             {{ row.id }}
           </div>
         </template>
@@ -482,17 +482,4 @@
       padding: 8px;
   }
 
-  /* Стили для текущего говорящего */
-  .player-number-cell.current-speaker::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: #f56c6c;
-      border-radius: 2px;
-      z-index: 10;
-      transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-  }
 </style>

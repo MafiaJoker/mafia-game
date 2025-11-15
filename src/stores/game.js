@@ -118,35 +118,6 @@ export const useGameStore = defineStore('game', () => {
     })
 
     // Определение кто начинает речь на текущем кругу
-    const currentSpeaker = computed(() => {
-        if (!isGameInProgress.value || gameState.value.round === 0) {
-            return null
-        }
-        
-        const alivePlayersInOrder = gameState.value.players
-            .filter(p => p.isAlive && !p.isEliminated)
-            .sort((a, b) => a.id - b.id)
-        
-        if (alivePlayersInOrder.length === 0) {
-            return null
-        }
-        
-        // Находим игрока, который должен начинать на этом кругу
-        // Логика: на N кругу начинает игрок с позицией N, но если он мертв, то следующий живой
-        const targetSlot = gameState.value.round
-        
-        // Ищем первого живого игрока начиная с нужного слота
-        for (let i = 0; i < gameState.value.players.length; i++) {
-            const slotToCheck = ((targetSlot - 1 + i) % gameState.value.players.length) + 1
-            const player = gameState.value.players.find(p => p.id === slotToCheck)
-            
-            if (player && player.isAlive && !player.isEliminated) {
-                return player.id
-            }
-        }
-        
-        return alivePlayersInOrder[0]?.id || null
-    })
 
     // Actions
     const finishGame = async (result) => {
@@ -868,13 +839,18 @@ export const useGameStore = defineStore('game', () => {
     const addFoul = async (playerId) => {
 	const player = currentPlayer.value(playerId)
 	if (player) {
-	    // Обновляем в фазах
+	    // 1. Сначала получаем актуальное состояние игры с сервера
+	    await loadGameDetailed(gameInfo.value?.gameId)
+	    
+	    // 2. НЕ синхронизируем фолы из gameState - это перезапишет текущую фазу
+	    
+	    // 3. Теперь добавляем фол локально
 	    gamePhasesStore.addFoul(player.id) // используем box_id
 	    
-	    // Получаем актуальное количество фолов из фаз после увеличения
+	    // 4. Получаем актуальное количество фолов из фаз после увеличения
 	    const updatedFouls = gamePhasesStore.getPlayerFouls(player.id)
 	    
-	    // Синхронизируем локальное состояние с фазами
+	    // 5. Синхронизируем локальное состояние с фазами
 	    player.fouls = updatedFouls
 	    
 	    if (player.fouls >= GAME_RULES.FOULS.SILENCE_THRESHOLD) {
@@ -891,8 +867,11 @@ export const useGameStore = defineStore('game', () => {
 		gamePhasesStore.addRemovedPlayer(player.id)
 	    }
 	    
-	    // Используем специальную функцию для обновления фолов
-	    await gamePhasesStore.updateFoulsOnServer()
+	    // 6. Отправляем обновленное состояние фолов на сервер
+	    await gamePhasesStore.updateFoulsOnServer(player.id)
+	    
+	    // 7. Принудительно синхронизируем UI с актуальным состоянием фолов
+	    syncPlayersWithPhases()
 	}
     }
 
@@ -914,8 +893,8 @@ export const useGameStore = defineStore('game', () => {
 		gameState.value.eliminatedPlayers.splice(index, 1)
 	    }
 	    
-	    // Используем специальную функцию для обновления фолов
-	    await gamePhasesStore.updateFoulsOnServer()
+	    // Используем специальную функцию для обновления фолов конкретного игрока
+	    await gamePhasesStore.updateFoulsOnServer(player.id)
 	}
     }
 
@@ -1063,8 +1042,8 @@ export const useGameStore = defineStore('game', () => {
 	    player.isAlive = !isKilled && !isRemoved
 	    player.isEliminated = isRemoved
 	    
-	    // НЕ обновляем фолы из фаз - они уже правильно загружены из API
-	    // и синхронизированы в фазы
+	    // Обновляем фолы из фаз для синхронизации UI
+	    player.fouls = gamePhasesStore.getPlayerFouls(player.id)
 	})
     }
     
@@ -1116,7 +1095,6 @@ export const useGameStore = defineStore('game', () => {
 	canStartGame,
 	hasVotingInCurrentPhase,
 	nominatedPlayers,
-	currentSpeaker,
 	
 	// Actions
 	checkBestMove,
