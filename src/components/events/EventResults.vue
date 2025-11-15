@@ -22,7 +22,14 @@
           label="Игрок" 
           min-width="150"
           sortable
-        />
+        >
+          <template #default="{ row }">
+            <span :class="{ 'mvp-player': isMvpPlayer(row) }">
+              <el-icon v-if="isMvpPlayer(row)" class="mvp-crown"><Trophy /></el-icon>
+              {{ row.name }}
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column 
           prop="totalScore" 
           label="Суммарный балл" 
@@ -432,22 +439,67 @@
   const playerStatistics = computed(() => {
       if (!ratingsData.value || !ratingsData.value.stages) return []
 
-      const allPlayers = []
+      const playersMap = new Map()
 
-      // Собираем данные по всем этапам
+      // Сначала собираем данные из рейтингов
       ratingsData.value.stages.forEach(stage => {
           stage.stage_scoreboard.forEach(playerData => {
-              allPlayers.push({
-                  name: playerData.user.nickname,
-                  totalScore: playerData.all_points_summary || 0,
-                  totalExtraPoints: playerData.extra_points_summary || 0,
-                  totalPenalties: playerData.penalty_points_summary || 0,
-                  totalBestMove: playerData.best_move_points_summary || 0,
-                  position: playerData.position || 0,
-                  winLossRatio: '0/0' // Пока без подсчета побед/поражений, нужны дополнительные данные
-              })
+              if (!playersMap.has(playerData.user.id)) {
+                  playersMap.set(playerData.user.id, {
+                      id: playerData.user.id,
+                      name: playerData.user.nickname,
+                      totalScore: playerData.all_points_summary || 0,
+                      totalExtraPoints: playerData.extra_points_summary || 0,
+                      totalPenalties: playerData.penalty_points_summary || 0,
+                      totalBestMove: playerData.best_move_points_summary || 0,
+                      position: playerData.position || 0,
+                      wins: 0,
+                      losses: 0
+                  })
+              }
           })
       })
+
+      // Теперь подсчитываем победы/поражения из игр
+      games.value.forEach(game => {
+          if (game.players && Array.isArray(game.players) && game.result) {
+              game.players.forEach(player => {
+                  const playerId = player.user_id || player.id
+                  
+                  // Ищем игрока в нашей карте по ID или по имени
+                  let playerStats = playersMap.get(playerId)
+                  if (!playerStats && player.name) {
+                      // Попробуем найти по имени если не нашли по ID
+                      for (const [id, stats] of playersMap.entries()) {
+                          if (stats.name === player.name || stats.name === player.nickname) {
+                              playerStats = stats
+                              break
+                          }
+                      }
+                  }
+                  
+                  if (playerStats && game.result && (game.result === 'civilians_win' || game.result === 'mafia_win')) {
+                      // Определяем роль игрока
+                      const playerRole = player.original_role || player.role
+                      const isCivilian = ['Мирный', 'Шериф', 'civilian', 'sheriff'].includes(playerRole)
+                      const isMafia = ['Мафия', 'Дон', 'mafia', 'don'].includes(playerRole)
+
+                      // Считаем победы/поражения
+                      if ((game.result === 'civilians_win' && isCivilian) || (game.result === 'mafia_win' && isMafia)) {
+                          playerStats.wins++
+                      } else {
+                          playerStats.losses++
+                      }
+                  }
+              })
+          }
+      })
+
+      // Преобразуем в массив и добавляем дробь победы/поражения
+      const allPlayers = Array.from(playersMap.values()).map(player => ({
+          ...player,
+          winLossRatio: `${player.wins}/${player.losses}`
+      }))
 
       // Сортируем по позиции (по возрастанию - 1, 2, 3...)
       return allPlayers.sort((a, b) => a.position - b.position)
@@ -506,6 +558,10 @@
       // Округляем до 2 знаков после запятой и убираем лишние нули
       const rounded = Math.round(score * 100) / 100
       return rounded >= 0 ? `+${rounded}` : `${rounded}`
+  }
+
+  const isMvpPlayer = (player) => {
+      return ratingsData.value?.mvp?.nickname === player.name
   }
 
   const getResultType = (result) => {
@@ -729,6 +785,20 @@
 
   .mt-4 {
       margin-top: 16px;
+  }
+
+  /* Стили для MVP игрока */
+  .mvp-player {
+      color: #f39c12;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+  }
+
+  .mvp-crown {
+      color: #f39c12;
+      font-size: 16px;
   }
   
 </style>
