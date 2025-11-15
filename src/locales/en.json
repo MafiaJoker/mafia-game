@@ -43,5 +43,11 @@
 	"noEvents": "No events",
 	"activeEvents": "Active Events",
 	"archivedEvents": "Archived Events"
+    },
+    "notFound": {
+	"title": "Page Not Found",
+	"description": "Unfortunately, the requested page does not exist or has been moved. You may have followed an outdated link or entered an incorrect address.",
+	"toEvents": "To Events",
+	"goBack": "Go Back"
     }
 }
