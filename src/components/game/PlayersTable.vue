@@ -113,13 +113,13 @@
         </template>
       </el-table-column>
       
-      <el-table-column v-if="!isGameFinished" label="Номинация" min-width="150">
+      <el-table-column v-if="!isGameFinished" label="Выставление" min-width="120">
         <template #default="{ row }">
-          <PlayerNomination 
+          <PlayerNominateButton 
             :player="row"
-            :players="gameStore.alivePlayers"
             :game-state="gameStore.gameState"
-            @nominate="handleNomination"
+            @nominate="handlePlayerNominate"
+            @remove-nomination="handleRemoveNomination"
             />
         </template>
       </el-table-column>
@@ -180,7 +180,7 @@
   import { MAX_FOULS, GAME_STATUSES } from '@/utils/constants'
   import PlayerFouls from './PlayerFouls.vue'
   import PlayerRole from './PlayerRole.vue'
-  import PlayerNomination from './PlayerNomination.vue'
+  import PlayerNominateButton from './PlayerNominateButton.vue'
   import PlayerActions from './PlayerActions.vue'
   import PlayerSelector from './PlayerSelector.vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
@@ -315,6 +315,21 @@
 
   const handleNomination = (nominatorId, nominatedId) => {
       gameStore.nominatePlayer(nominatorId, nominatedId)
+  }
+
+  const handlePlayerNominate = (playerId) => {
+      // Добавляем игрока в список номинированных в порядке выставления
+      if (!gameStore.gameState.nominatedPlayers.includes(playerId)) {
+          gameStore.gameState.nominatedPlayers.push(playerId)
+      }
+  }
+
+  const handleRemoveNomination = (playerId) => {
+      // Удаляем игрока из списка номинированных
+      const index = gameStore.gameState.nominatedPlayers.indexOf(playerId)
+      if (index !== -1) {
+          gameStore.gameState.nominatedPlayers.splice(index, 1)
+      }
   }
 
   const handleSilentNow = (playerId) => {

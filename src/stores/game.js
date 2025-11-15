@@ -110,11 +110,9 @@ export const useGameStore = defineStore('game', () => {
 	return currentPhase && Array.isArray(currentPhase.voted_box_id)
     })
 
-    // Computed property для номинированных игроков (вычисляется в рантайме)
+    // Computed property для номинированных игроков (используем прямой массив)
     const nominatedPlayers = computed(() => {
-	return gameState.value.players
-	    .filter(p => p.nominated !== null && p.nominated !== undefined)
-	    .map(p => p.nominated)
+	return gameState.value.nominatedPlayers
     })
 
     // Определение кто начинает речь на текущем кругу

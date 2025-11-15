@@ -151,7 +151,7 @@
   const gameState = computed(() => gameStore.gameState)
 
   const nominatedPlayersCount = computed(() => {
-      return gameStore.nominatedPlayers.length
+      return gameStore.gameState.nominatedPlayers.length
   })
 
   // Показывать кнопку голосования
