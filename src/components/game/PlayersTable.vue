@@ -276,13 +276,8 @@
       const player = gameStore.currentPlayer(playerId)
       if (!player) return
 
-      // Если у игрока 4 фола, сбрасываем до 0
-      if (player.fouls >= MAX_FOULS.BEFORE_ELIMINATION) {
-	  await gameStore.resetPlayerFouls(playerId)
-      } else {
-	  // Иначе добавляем фол
-	  await gameStore.addFoul(playerId)
-      }
+      // Всегда вызываем addFoul, логика сброса теперь внутри функции
+      await gameStore.addFoul(playerId)
   }
 
   const handleResetFouls = async (playerId) => {

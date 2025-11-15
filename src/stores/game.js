@@ -858,6 +858,12 @@ export const useGameStore = defineStore('game', () => {
     const addFoul = async (playerId) => {
 	const player = currentPlayer.value(playerId)
 	if (player) {
+	    // Если у игрока уже 4 фола, сбрасываем их вместо добавления
+	    if (player.fouls >= GAME_RULES.FOULS.ELIMINATION_THRESHOLD) {
+		await resetPlayerFouls(playerId)
+		return
+	    }
+	    
 	    console.log(`Adding foul to player ${playerId}, current fouls: ${player.fouls}`)
 	    
 	    // 1. Получаем актуальные last_phase_fouls

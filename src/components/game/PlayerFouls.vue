@@ -45,13 +45,8 @@
       // Проверяем условия для увеличения фолов
       if (!props.canAddFouls) return
       
-      // Если у игрока 4 фола, сбрасываем до 0
-      if (props.player.fouls >= MAX_FOULS.BEFORE_ELIMINATION) {
-	  emit('reset', props.player.id)
-      } else {
-	  // Иначе добавляем фол
-	  emit('increment', props.player.id)
-      }
+      // Всегда вызываем increment, логика сброса теперь внутри addFoul
+      emit('increment', props.player.id)
   }
 </script>
 
