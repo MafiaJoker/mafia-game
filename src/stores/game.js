@@ -324,12 +324,15 @@ export const useGameStore = defineStore('game', () => {
 			    const isAlive = gameStateData ? apiPlayer.is_in_game : (!apiPlayer.is_killed && !apiPlayer.is_removed)
 			    const isEliminated = gameStateData ? !apiPlayer.is_in_game : (apiPlayer.is_removed || false)
 			    
+			    const fouls = apiPlayer.fouls || 0
+			    console.log(`Loading player ${apiPlayer.box_id}: fouls from API = ${fouls}`)
+			    
 			    playersArray[slotIndex] = {
 				id: apiPlayer.box_id || (slotIndex + 1),
 				name: playerName,
 				role: localRole,
 				originalRole: localRole,
-				fouls: apiPlayer.fouls || 0,
+				fouls: fouls,
 				nominated: null,
 				isAlive: isAlive,
 				isEliminated: isEliminated,
@@ -373,6 +376,22 @@ export const useGameStore = defineStore('game', () => {
 		    // Обрабатываем bestMoveTargets если это массив
 		    if (gameStateData.bestMoveTargets && Array.isArray(gameStateData.bestMoveTargets)) {
 			gameState.value.bestMoveTargets = new Set(gameStateData.bestMoveTargets)
+		    }
+		    
+		    // Собираем last_phase_fouls из игроков, если оно там
+		    if (gameStateData.players) {
+			// Всегда пересобираем last_phase_fouls из игроков
+			gameState.value.last_phase_fouls = []
+			gameStateData.players.forEach(player => {
+			    console.log(`Player ${player.box_id} has last_phase_fouls:`, player.last_phase_fouls)
+			    if (typeof player.last_phase_fouls === 'number' && player.box_id) {
+				gameState.value.last_phase_fouls.push({
+				    box_id: player.box_id,
+				    count_fouls: player.last_phase_fouls
+				})
+			    }
+			})
+			console.log('Collected last_phase_fouls from players:', gameState.value.last_phase_fouls)
 		    }
 		}
 		
@@ -842,7 +861,10 @@ export const useGameStore = defineStore('game', () => {
 	    // 1. Сначала получаем актуальное состояние игры с сервера
 	    await loadGameDetailed(gameInfo.value?.gameId)
 	    
-	    // 2. НЕ синхронизируем фолы из gameState - это перезапишет текущую фазу
+	    // 2. Важно! После загрузки состояния синхронизируем фазы с last_phase_fouls
+	    // чтобы локальная фаза имела актуальные данные о фолах
+	    console.log('Before sync, gameState.last_phase_fouls:', gameState.value.last_phase_fouls)
+	    gamePhasesStore.syncFoulsFromGameState(gameState.value.players, gameState.value.last_phase_fouls)
 	    
 	    // 3. Теперь добавляем фол локально
 	    gamePhasesStore.addFoul(player.id) // используем box_id
@@ -868,7 +890,7 @@ export const useGameStore = defineStore('game', () => {
 	    }
 	    
 	    // 6. Отправляем обновленное состояние фолов на сервер
-	    await gamePhasesStore.updateFoulsOnServer(player.id)
+	    await gamePhasesStore.updateFoulsOnServer(player.id, gameState.value.last_phase_fouls)
 	    
 	    // 7. Принудительно синхронизируем UI с актуальным состоянием фолов
 	    syncPlayersWithPhases()
@@ -894,7 +916,7 @@ export const useGameStore = defineStore('game', () => {
 	    }
 	    
 	    // Используем специальную функцию для обновления фолов конкретного игрока
-	    await gamePhasesStore.updateFoulsOnServer(player.id)
+	    await gamePhasesStore.updateFoulsOnServer(player.id, gameState.value.last_phase_fouls)
 	}
     }
 
@@ -1028,22 +1050,39 @@ export const useGameStore = defineStore('game', () => {
     
     // Синхронизация состояний игроков с фазами
     const syncPlayersWithPhases = () => {
-	if (!gamePhasesStore.phases.length) return
+	if (!gamePhasesStore.phases.length) {
+	    console.log('syncPlayersWithPhases: No phases available')
+	    return
+	}
 	
 	const currentPhaseId = gamePhasesStore.currentPhaseId
 	const killedPlayers = gamePhasesStore.getKilledPlayersUpToPhase(currentPhaseId)
 	const removedPlayers = gamePhasesStore.getRemovedPlayersUpToPhase(currentPhaseId)
 	
+	console.log('syncPlayersWithPhases: Syncing players with phases, currentPhaseId:', currentPhaseId)
+	
 	// Обновляем состойния игроков на основе фаз
 	gameState.value.players.forEach(player => {
 	    const isKilled = killedPlayers.includes(player.id)
 	    const isRemoved = removedPlayers.includes(player.id)
+	    const oldFouls = player.fouls
 	    
 	    player.isAlive = !isKilled && !isRemoved
 	    player.isEliminated = isRemoved
 	    
-	    // Обновляем фолы из фаз для синхронизации UI
-	    player.fouls = gamePhasesStore.getPlayerFouls(player.id)
+	    // Обновляем фолы из фаз только если у нас есть полные данные фаз
+	    // Если загружена только текущая фаза, оставляем фолы из API
+	    const foulsFromPhases = gamePhasesStore.getPlayerFouls(player.id)
+	    
+	    // Если фолы из фаз больше 0 или равны фолам из API, используем их
+	    // Иначе оставляем фолы из API (случай неполных данных фаз)
+	    if (foulsFromPhases > 0 || foulsFromPhases === oldFouls) {
+		player.fouls = foulsFromPhases
+	    }
+	    
+	    if (oldFouls !== player.fouls) {
+		console.log(`Player ${player.id}: fouls ${oldFouls} -> ${player.fouls} (phases: ${foulsFromPhases})`)
+	    }
 	})
     }
     

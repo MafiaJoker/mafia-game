@@ -198,15 +198,21 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
         // Возвращаем ОБЩЕЕ количество фолов игрока (все фазы)
         let totalFouls = 0
         
-        phases.value.forEach(phase => {
+        console.log(`getPlayerFouls(${boxId}): checking ${phases.value.length} phases`)
+        
+        phases.value.forEach((phase, index) => {
             if (phase.fouls_summary) {
                 const playerFoul = phase.fouls_summary.find(f => f.box_id === boxId)
                 if (playerFoul) {
+                    console.log(`  Phase ${index + 1}: player ${boxId} has ${playerFoul.count_fouls} fouls`)
                     totalFouls += playerFoul.count_fouls
                 }
+            } else {
+                console.log(`  Phase ${index + 1}: no fouls_summary`)
             }
         })
         
+        console.log(`getPlayerFouls(${boxId}): total = ${totalFouls}`)
         return totalFouls
     }
 
@@ -320,27 +326,71 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
         }
     }
 
-    const updateFoulsOnServer = async (changedPlayerId = null) => {
+    const updateFoulsOnServer = async (changedPlayerId = null, lastPhaseFouls = null) => {
         if (!gameId.value || !currentPhase.value) return false
 
         try {
             const phase = currentPhase.value
             
-            // Отправляем ВСЕ фолы, которые были поставлены в текущей фазе
+            console.log('updateFoulsOnServer called with lastPhaseFouls:', lastPhaseFouls)
+            console.log('current phase fouls_summary:', phase.fouls_summary)
+            
+            // Используем last_phase_fouls как базу для PUT запроса
             let foulsSummary = []
             
-            // Создаем полный список всех игроков с фолами из текущей фазы
-            for (let boxId = 1; boxId <= GAME_RULES.PLAYERS.MAX; boxId++) {
-                const existingFoul = phase.fouls_summary?.find(f => f.box_id === boxId)
-                
-                // Отправляем количество фолов, поставленных в ТЕКУЩЕЙ фазе
-                foulsSummary.push({
-                    box_id: boxId,
-                    count_fouls: existingFoul ? existingFoul.count_fouls : 0
+            // Если есть last_phase_fouls, используем их как основу
+            if (lastPhaseFouls && Array.isArray(lastPhaseFouls)) {
+                // Копируем last_phase_fouls - это то, что было в фазе при загрузке
+                lastPhaseFouls.forEach(foul => {
+                    foulsSummary.push({
+                        box_id: foul.box_id,
+                        count_fouls: foul.count_fouls
+                    })
                 })
+                
+                // Обновляем значения из локальной фазы (для новых фолов)
+                if (phase.fouls_summary) {
+                    phase.fouls_summary.forEach(localFoul => {
+                        const existingFoul = foulsSummary.find(f => f.box_id === localFoul.box_id)
+                        if (existingFoul) {
+                            // Если в локальной фазе больше фолов, используем это значение
+                            if (localFoul.count_fouls > existingFoul.count_fouls) {
+                                existingFoul.count_fouls = localFoul.count_fouls
+                            }
+                        } else {
+                            // Добавляем игрока если его не было в last_phase_fouls
+                            foulsSummary.push({
+                                box_id: localFoul.box_id,
+                                count_fouls: localFoul.count_fouls
+                            })
+                        }
+                    })
+                }
+                
+                // Добавляем недостающих игроков с 0 фолами
+                for (let boxId = 1; boxId <= GAME_RULES.PLAYERS.MAX; boxId++) {
+                    if (!foulsSummary.find(f => f.box_id === boxId)) {
+                        foulsSummary.push({
+                            box_id: boxId,
+                            count_fouls: 0
+                        })
+                    }
+                }
+            } else {
+                // Если нет last_phase_fouls, используем локальные данные
+                for (let boxId = 1; boxId <= GAME_RULES.PLAYERS.MAX; boxId++) {
+                    const existingFoul = phase.fouls_summary?.find(f => f.box_id === boxId)
+                    foulsSummary.push({
+                        box_id: boxId,
+                        count_fouls: existingFoul ? existingFoul.count_fouls : 0
+                    })
+                }
             }
             
-            console.log('Отправляем все фолы текущей фазы:', foulsSummary)
+            // Сортируем по box_id для консистентности
+            foulsSummary.sort((a, b) => a.box_id - b.box_id)
+            
+            console.log('Отправляем фолы на сервер (с учетом last_phase_fouls):', foulsSummary)
             
             const phaseData = {
                 don_checked_box_id: phase.don_checked_box_id || null,
