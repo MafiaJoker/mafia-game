@@ -877,19 +877,8 @@ export const useGameStore = defineStore('game', () => {
 	    player.fouls = totalFoulsBeforeAdd + 1
 	    console.log(`Player ${playerId} now has ${player.fouls} total fouls after adding`)
 	    
-	    if (player.fouls >= GAME_RULES.FOULS.SILENCE_THRESHOLD) {
-		player.canSpeak = false
-	    }
-	    if (player.fouls >= GAME_RULES.FOULS.ELIMINATION_THRESHOLD) {
-		player.isEliminated = true
-		player.isAlive = false
-		player.status = 'KICKED'
-		if (!gameState.value.eliminatedPlayers.includes(playerId)) {
-		    gameState.value.eliminatedPlayers.push(playerId)
-		}
-		// Также записываем в removed_box_ids
-		gamePhasesStore.addRemovedPlayer(player.id)
-	    }
+	    // Не удаляем игрока автоматически при 4 фолах
+	    // Пользователь сам решит, что делать дальше
 	    
 	    // 6. Отправляем обновленное состояние фолов на сервер
 	    await gamePhasesStore.updateFoulsOnServer(player.id, gameState.value.last_phase_fouls)
@@ -911,22 +900,13 @@ export const useGameStore = defineStore('game', () => {
 	    // 3. Сбрасываем фолы в текущей фазе до 0
 	    gamePhasesStore.resetFouls(player.id)
 	    
-	    // 4. Сбрасываем общее количество фолов игрока
+	    // 4. Сбрасываем только количество фолов, не меняя статус игрока
 	    player.fouls = 0
-	    player.canSpeak = true
-	    player.isEliminated = false
-	    player.isAlive = true
 	    
-	    // 5. Убираем из списка исключённых если был там
-	    const index = gameState.value.eliminatedPlayers.indexOf(playerId)
-	    if (index !== -1) {
-		gameState.value.eliminatedPlayers.splice(index, 1)
-	    }
-	    
-	    // 6. Обновляем на сервере с учетом last_phase_fouls
+	    // 5. Обновляем на сервере с учетом last_phase_fouls
 	    await gamePhasesStore.updateFoulsOnServer(player.id, gameState.value.last_phase_fouls)
 	    
-	    // 7. Синхронизируем UI
+	    // 6. Синхронизируем UI
 	    syncPlayersWithPhases()
 	}
     }
