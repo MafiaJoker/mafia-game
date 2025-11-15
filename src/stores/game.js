@@ -858,56 +858,55 @@ export const useGameStore = defineStore('game', () => {
     const addFoul = async (playerId) => {
 	const player = currentPlayer.value(playerId)
 	if (player) {
-	    // 1. Сначала получаем актуальное состояние игры с сервера
-	    await loadGameDetailed(gameInfo.value?.gameId)
+	    console.log(`Adding foul to player ${playerId}, current fouls: ${player.fouls}`)
 	    
-	    // 2. Важно! После загрузки состояния синхронизируем фазы с last_phase_fouls
-	    // чтобы локальная фаза имела актуальные данные о фолах
-	    console.log('Before sync, gameState.last_phase_fouls:', gameState.value.last_phase_fouls)
+	    // 1. Получаем актуальные last_phase_fouls
+	    await loadGameDetailed(gameInfo.value?.gameId)
 	    gamePhasesStore.syncFoulsFromGameState(gameState.value.players, gameState.value.last_phase_fouls)
 	    
-	    // 3. Запоминаем общее количество фолов игрока до добавления
-	    const totalFoulsBeforeAdd = player.fouls
-	    console.log(`Player ${playerId} has ${totalFoulsBeforeAdd} total fouls before adding`)
+	    // 2. Добавляем фол локально
+	    player.fouls = player.fouls + 1
 	    
-	    // 4. Теперь добавляем фол локально в текущую фазу
+	    // 3. Добавляем фол в текущую фазу
 	    gamePhasesStore.addFoul(player.id) // используем box_id
 	    
-	    // 5. Обновляем общее количество фолов игрока
-	    player.fouls = totalFoulsBeforeAdd + 1
-	    console.log(`Player ${playerId} now has ${player.fouls} total fouls after adding`)
+	    console.log(`Player ${playerId} now has ${player.fouls} fouls`)
 	    
-	    // Не удаляем игрока автоматически при 4 фолах
-	    // Пользователь сам решит, что делать дальше
-	    
-	    // 6. Отправляем обновленное состояние фолов на сервер
-	    await gamePhasesStore.updateFoulsOnServer(player.id, gameState.value.last_phase_fouls)
-	    
-	    // 7. Принудительно синхронизируем UI с актуальным состоянием фолов
-	    syncPlayersWithPhases()
+	    // 4. Отправляем обновление на сервер
+	    try {
+		await gamePhasesStore.updateFoulsOnServer(player.id, gameState.value.last_phase_fouls)
+		console.log('Fouls updated on server successfully')
+	    } catch (error) {
+		console.error('Error updating fouls on server:', error)
+		// Откатываем изменения при ошибке
+		player.fouls = player.fouls - 1
+		gamePhasesStore.removeFoul(player.id)
+	    }
 	}
     }
 
     const resetPlayerFouls = async (playerId) => {
 	const player = currentPlayer.value(playerId)
 	if (player) {
-	    // 1. Сначала получаем актуальное состояние игры с сервера
-	    await loadGameDetailed(gameInfo.value?.gameId)
+	    console.log(`Resetting fouls for player ${playerId}, current fouls: ${player.fouls}`)
 	    
-	    // 2. Синхронизируем фазы с last_phase_fouls
+	    // 1. Получаем актуальные last_phase_fouls
+	    await loadGameDetailed(gameInfo.value?.gameId)
 	    gamePhasesStore.syncFoulsFromGameState(gameState.value.players, gameState.value.last_phase_fouls)
 	    
-	    // 3. Сбрасываем фолы в текущей фазе до 0
-	    gamePhasesStore.resetFouls(player.id)
-	    
-	    // 4. Сбрасываем только количество фолов, не меняя статус игрока
+	    // 2. Сбрасываем фолы локально
 	    player.fouls = 0
 	    
-	    // 5. Обновляем на сервере с учетом last_phase_fouls
-	    await gamePhasesStore.updateFoulsOnServer(player.id, gameState.value.last_phase_fouls)
+	    // 3. Сбрасываем фолы в текущей фазе
+	    gamePhasesStore.resetFouls(player.id)
 	    
-	    // 6. Синхронизируем UI
-	    syncPlayersWithPhases()
+	    // 4. Отправляем обновление на сервер
+	    try {
+		await gamePhasesStore.updateFoulsOnServer(player.id, gameState.value.last_phase_fouls)
+		console.log('Fouls reset on server successfully')
+	    } catch (error) {
+		console.error('Error resetting fouls on server:', error)
+	    }
 	}
     }
 
