@@ -17,6 +17,12 @@
     <div class="voting-buttons">
       <el-button-group>
         <el-button
+          :type="selectedVotes === 0 ? 'primary' : 'default'"
+          @click="selectVotes(0)"
+        >
+          0
+        </el-button>
+        <el-button
           v-for="count in totalPlayers"
           :key="count"
           :type="selectedVotes === count ? 'primary' : 'default'"

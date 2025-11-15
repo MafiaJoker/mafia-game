@@ -83,6 +83,18 @@
 		    >
                     {{ player.id }}
                   </el-button>
+                  <el-button 
+                    :type="getDonTargetType(-1)"
+                    :class="{ 'don-no-action': pressingDonTargetId === -1 }"
+                    @click="selectDonTarget(-1)"
+                    @mousedown="startPressingDonTarget(-1)"
+                    @mouseup="stopPressingDonTarget"
+                    @mouseleave="stopPressingDonTarget"
+                    @touchstart="startPressingDonTarget(-1)"
+                    @touchend="stopPressingDonTarget"
+                    >
+                    Не проснулся
+                  </el-button>
                 </el-button-group>
               </div>
               
@@ -123,6 +135,18 @@
                     @touchend="stopPressingSheriffTarget"
 		    >
                     {{ player.id }}
+                  </el-button>
+                  <el-button 
+                    :type="getSheriffTargetType(-1)"
+                    :class="{ 'sheriff-no-action': pressingSheriffTargetId === -1 }"
+                    @click="selectSheriffTarget(-1)"
+                    @mousedown="startPressingSheriffTarget(-1)"
+                    @mouseup="stopPressingSheriffTarget"
+                    @mouseleave="stopPressingSheriffTarget"
+                    @touchstart="startPressingSheriffTarget(-1)"
+                    @touchend="stopPressingSheriffTarget"
+                    >
+                    Не проснулся
                   </el-button>
                 </el-button-group>
               </div>
@@ -201,11 +225,11 @@
   }
 
   const selectDonTarget = (playerId) => {
-      gameStore.gameState.donTarget = playerId
+      gameStore.gameState.donTarget = playerId === -1 ? null : playerId
   }
 
   const selectSheriffTarget = (playerId) => {
-      gameStore.gameState.sheriffTarget = playerId
+      gameStore.gameState.sheriffTarget = playerId === -1 ? null : playerId
   }
 
   // Методы для обработки нажатий мафии
@@ -241,6 +265,11 @@
           return ''
       }
       
+      // Специальный случай для "не проснулся"
+      if (playerId === -1) {
+          return 'don-no-action'
+      }
+      
       const result = nightActionsStore.checkDon(playerId)
       if (!result) return ''
       
@@ -251,6 +280,11 @@
   const getSheriffTargetClass = (playerId) => {
       if (pressingSheriffTargetId.value !== playerId) {
           return ''
+      }
+      
+      // Специальный случай для "не проснулся"
+      if (playerId === -1) {
+          return 'sheriff-no-action'
       }
       
       const result = nightActionsStore.checkSheriff(playerId)
@@ -346,6 +380,18 @@
   :deep(.sheriff-check-mafia) {
       background-color: #000000 !important;
       border-color: #000000 !important;
+      color: white !important;
+  }
+
+  :deep(.don-no-action) {
+      background-color: #909399 !important;
+      border-color: #909399 !important;
+      color: white !important;
+  }
+
+  :deep(.sheriff-no-action) {
+      background-color: #909399 !important;
+      border-color: #909399 !important;
       color: white !important;
   }
 </style>
