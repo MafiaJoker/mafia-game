@@ -413,20 +413,7 @@
 
       console.log('Loading ratings for event:', props.event.id)
       try {
-          // Используем прямой вызов через axios, так как этого метода нет в apiService
-          const response = await fetch(`http://localhost:8000/api/v1/events/${props.event.id}/ratings`, {
-              method: 'GET',
-              credentials: 'include',
-              headers: {
-                  'Content-Type': 'application/json'
-              }
-          })
-          
-          if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`)
-          }
-          
-          const data = await response.json()
+          const data = await apiService.getEventRatings(props.event.id)
           console.log('Ratings loaded:', data)
           ratingsData.value = data
       } catch (error) {

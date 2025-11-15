@@ -436,6 +436,12 @@ export const apiService = {
         return response.data
     },
 
+    // Event Ratings
+    async getEventRatings(eventId) {
+        const response = await api.get(`/events/${eventId}/ratings`)
+        return response.data
+    },
+
     // Logout
     async logout() {
 	try {
