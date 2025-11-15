@@ -6,6 +6,12 @@
           <h1>Мероприятия Мафии</h1>
           <el-space>
             <el-button 
+              :icon="Calendar"
+              @click="$router.push('/calendar')"
+            >
+              Календарь
+            </el-button>
+            <el-button 
               type="primary"
               :icon="Plus"
               @click="showCreateDialog = true"
