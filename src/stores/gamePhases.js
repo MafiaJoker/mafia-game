@@ -94,26 +94,9 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             voting_summary: []
         }
 
-        // Инициализируем фолы для всех игроков
-        for (let boxId = 1; boxId <= GAME_RULES.PLAYERS.MAX; boxId++) {
-            newPhase.fouls_summary.push({
-                box_id: boxId,
-                count_fouls: 0
-            })
-        }
-
-        // Копируем фолы из предыдущей фазы если она есть
-        if (phases.value.length > 0) {
-            const prevPhase = phases.value[phases.value.length - 1]
-            if (prevPhase.fouls_summary) {
-                prevPhase.fouls_summary.forEach(prevFoul => {
-                    const currentFoul = newPhase.fouls_summary.find(f => f.box_id === prevFoul.box_id)
-                    if (currentFoul) {
-                        currentFoul.count_fouls = prevFoul.count_fouls
-                    }
-                })
-            }
-        }
+        // НЕ инициализируем и НЕ копируем фолы локально
+        // Они будут загружены с сервера после создания фазы
+        // Сервер сам скопирует фолы из предыдущей фазы
 
         phases.value.push(newPhase)
     }
@@ -237,6 +220,15 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
         }
     }
 
+    const getPlayerFouls = (boxId) => {
+        const phase = currentPhase.value
+        if (phase && phase.fouls_summary) {
+            const playerFoul = phase.fouls_summary.find(f => f.box_id === boxId)
+            return playerFoul ? playerFoul.count_fouls : 0
+        }
+        return 0
+    }
+
     const setBestMove = (boxIds) => {
         bestMove.value = boxIds ? [...boxIds] : null
     }
@@ -323,25 +315,6 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             // Подготавливаем данные согласно GamePhaseWithBestMoveSerializer
             const phase = currentPhase.value
             
-            // Убеждаемся, что fouls_summary содержит данные для всех игроков
-            let foulsSummary = [...(phase.fouls_summary || [])] // Клонируем массив
-            
-            // Проверяем, что все игроки присутствуют в fouls_summary
-            for (let boxId = 1; boxId <= GAME_RULES.PLAYERS.MAX; boxId++) {
-                const existingFoul = foulsSummary.find(f => f.box_id === boxId)
-                if (!existingFoul) {
-                    foulsSummary.push({
-                        box_id: boxId,
-                        count_fouls: 0
-                    })
-                }
-            }
-            
-            // Сортируем по box_id для консистентности
-            foulsSummary.sort((a, b) => a.box_id - b.box_id)
-            
-            console.log('Отправляем fouls_summary:', foulsSummary)
-            
             const phaseData = {
                 don_checked_box_id: phase.don_checked_box_id || null,
                 sheriff_checked_box_id: phase.sheriff_checked_box_id || null,
@@ -349,7 +322,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
                 removed_box_ids: phase.removed_box_ids || null,
                 voted_box_ids: Array.isArray(phase.voted_box_id) ? phase.voted_box_id : null,
                 ppk_box_id: phase.ppk_box_id || null,
-                fouls_summary: foulsSummary,
+                // НЕ передаем fouls_summary - фолы обновляются только при явных действиях
                 voting_summary: [], // Пустой список вместо null
                 best_move: bestMove.value || null
             }
@@ -367,6 +340,52 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
         }
     }
 
+    const updateFoulsOnServer = async () => {
+        if (!gameId.value || !currentPhase.value) return false
+
+        try {
+            const phase = currentPhase.value
+            
+            // Убеждаемся, что fouls_summary содержит данные для всех игроков
+            let foulsSummary = [...(phase.fouls_summary || [])] // Клонируем массив
+            
+            // Проверяем, что все игроки присутствуют в fouls_summary
+            for (let boxId = 1; boxId <= GAME_RULES.PLAYERS.MAX; boxId++) {
+                const existingFoul = foulsSummary.find(f => f.box_id === boxId)
+                if (!existingFoul) {
+                    foulsSummary.push({
+                        box_id: boxId,
+                        count_fouls: 0
+                    })
+                }
+            }
+            
+            // Сортируем по box_id для консистентности
+            foulsSummary.sort((a, b) => a.box_id - b.box_id)
+            
+            console.log('Обновляем fouls_summary:', foulsSummary)
+            
+            const phaseData = {
+                don_checked_box_id: phase.don_checked_box_id || null,
+                sheriff_checked_box_id: phase.sheriff_checked_box_id || null,
+                killed_box_id: phase.killed_box_id || null,
+                removed_box_ids: phase.removed_box_ids || null,
+                voted_box_ids: Array.isArray(phase.voted_box_id) ? phase.voted_box_id : null,
+                ppk_box_id: phase.ppk_box_id || null,
+                fouls_summary: foulsSummary, // Передаем фолы только при их изменении
+                voting_summary: [], 
+                best_move: bestMove.value || null
+            }
+            
+            await apiService.updateGamePhase(gameId.value, phaseData)
+            
+            return true
+        } catch (error) {
+            console.error('Ошибка обновления фолов:', error)
+            return false
+        }
+    }
+
     const createPhaseOnServer = async () => {
         if (!gameId.value || !currentPhase.value) return false
 
@@ -380,7 +399,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
                 removed_box_ids: phase.removed_box_ids || [],
                 ppk_box_id: phase.ppk_box_id || null,
                 voted_box_id: phase.voted_box_id || null,
-                fouls_summary: phase.fouls_summary || [],
+                // НЕ передаем fouls_summary - пусть сервер копирует из предыдущей фазы
                 voting_summary: [], // Пустой список для новых фаз
                 best_move: bestMove.value || []
             }
@@ -482,6 +501,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
         createNewPhase,
         nextPhase,
         updateCurrentPhase,
+        updateFoulsOnServer,
         setDonCheck,
         setSheriffCheck,
         setKilled,
@@ -490,6 +510,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
         addFoul,
         removeFoul,
         resetFouls,
+        getPlayerFouls,
         setBestMove,
         syncFoulsFromGameState,
         toggleBestMoveTarget,

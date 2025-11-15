@@ -871,8 +871,12 @@ export const useGameStore = defineStore('game', () => {
 	    // Обновляем в фазах
 	    gamePhasesStore.addFoul(player.id) // используем box_id
 	    
-	    // Обновляем локальное состояние для совместимости
-	    player.fouls++
+	    // Получаем актуальное количество фолов из фаз после увеличения
+	    const updatedFouls = gamePhasesStore.getPlayerFouls(player.id)
+	    
+	    // Синхронизируем локальное состояние с фазами
+	    player.fouls = updatedFouls
+	    
 	    if (player.fouls >= GAME_RULES.FOULS.SILENCE_THRESHOLD) {
 		player.canSpeak = false
 	    }
@@ -887,8 +891,8 @@ export const useGameStore = defineStore('game', () => {
 		gamePhasesStore.addRemovedPlayer(player.id)
 	    }
 	    
-	    // Используем UpdateGamePhase API для обновления текущей фазы
-	    await gamePhasesStore.updateCurrentPhaseOnServer()
+	    // Используем специальную функцию для обновления фолов
+	    await gamePhasesStore.updateFoulsOnServer()
 	}
     }
 
@@ -898,8 +902,8 @@ export const useGameStore = defineStore('game', () => {
 	    // Обновляем в фазах
 	    gamePhasesStore.resetFouls(player.id)
 	    
-	    // Обновляем локальное состояние
-	    player.fouls = 0
+	    // Синхронизируем локальное состояние с фазами
+	    player.fouls = gamePhasesStore.getPlayerFouls(player.id)
 	    player.canSpeak = true
 	    player.isEliminated = false
 	    player.isAlive = true
@@ -910,8 +914,8 @@ export const useGameStore = defineStore('game', () => {
 		gameState.value.eliminatedPlayers.splice(index, 1)
 	    }
 	    
-	    // Используем UpdateGamePhase API для обновления текущей фазы
-	    await gamePhasesStore.updateCurrentPhaseOnServer()
+	    // Используем специальную функцию для обновления фолов
+	    await gamePhasesStore.updateFoulsOnServer()
 	}
     }
 
