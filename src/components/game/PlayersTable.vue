@@ -157,17 +157,6 @@
         </template>
       </el-table-column>
       
-      <el-table-column label="Действия" width="120" v-if="showPlayerActions">
-        <template #default="{ row }">
-          <PlayerActions 
-            :player="row"
-            @silent-now="handleSilentNow"
-            @silent-next="handleSilentNext"
-            @eliminate="handleEliminate"
-            />
-        </template>
-      </el-table-column>
-      
     </el-table>
 
 

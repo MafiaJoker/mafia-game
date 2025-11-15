@@ -12,47 +12,6 @@
         {{ player.fouls }}
       </el-button>
     </div>
-    
-    <!-- Действия при максимальных фолах -->
-    <div v-if="showFoulActions" class="foul-actions mt-2">
-      <el-space direction="vertical" size="small">
-        <el-button 
-          v-if="player.fouls === MAX_FOULS.BEFORE_SILENCE && !player.isSilent && !player.silentNextRound"
-          type="warning" 
-          size="small"
-          @click="emit('silentNow', player.id)"
-          >
-          Молчит сейчас
-        </el-button>
-        
-        <el-button 
-          v-if="player.fouls === MAX_FOULS.BEFORE_SILENCE && !player.isSilent && !player.silentNextRound"
-          type="info" 
-          size="small"
-          @click="emit('silentNext', player.id)"
-          >
-          Молчит след. круг
-        </el-button>
-        
-        <el-button 
-          v-if="player.fouls >= MAX_FOULS.BEFORE_ELIMINATION"
-          type="danger" 
-          size="small"
-          @click="emit('eliminate', player.id)"
-          >
-          Удалить
-        </el-button>
-        
-        <el-button 
-          v-if="player.fouls >= MAX_FOULS.BEFORE_ELIMINATION"
-          type="info" 
-          size="small"
-          @click="emit('reset', player.id)"
-          >
-          Сбросить
-        </el-button>
-      </el-space>
-    </div>
   </div>
 </template>
 
