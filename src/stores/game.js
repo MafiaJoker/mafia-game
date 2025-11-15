@@ -866,14 +866,16 @@ export const useGameStore = defineStore('game', () => {
 	    console.log('Before sync, gameState.last_phase_fouls:', gameState.value.last_phase_fouls)
 	    gamePhasesStore.syncFoulsFromGameState(gameState.value.players, gameState.value.last_phase_fouls)
 	    
-	    // 3. Теперь добавляем фол локально
+	    // 3. Запоминаем общее количество фолов игрока до добавления
+	    const totalFoulsBeforeAdd = player.fouls
+	    console.log(`Player ${playerId} has ${totalFoulsBeforeAdd} total fouls before adding`)
+	    
+	    // 4. Теперь добавляем фол локально в текущую фазу
 	    gamePhasesStore.addFoul(player.id) // используем box_id
 	    
-	    // 4. Получаем актуальное количество фолов из фаз после увеличения
-	    const updatedFouls = gamePhasesStore.getPlayerFouls(player.id)
-	    
-	    // 5. Синхронизируем локальное состояние с фазами
-	    player.fouls = updatedFouls
+	    // 5. Обновляем общее количество фолов игрока
+	    player.fouls = totalFoulsBeforeAdd + 1
+	    console.log(`Player ${playerId} now has ${player.fouls} total fouls after adding`)
 	    
 	    if (player.fouls >= GAME_RULES.FOULS.SILENCE_THRESHOLD) {
 		player.canSpeak = false
