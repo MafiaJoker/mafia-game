@@ -175,8 +175,8 @@ export const useGameStore = defineStore('game', () => {
             
             await gamePhasesStore.saveGamePhases()
             
-            // Обновляем страницу после завершения игры
-            window.location.reload()
+            // Обновляем состояние игры после завершения
+            await loadGameDetailed(gameInfo.value.gameId)
             
             return true
 	} catch (error) {
@@ -1078,10 +1078,7 @@ export const useGameStore = defineStore('game', () => {
 		gameState.value.gameStatus = gameStatus
 		gameState.value.isGameStarted = false
 		
-		// Если игра завершена - перезагружаем страницу
-		if (gameStatus === 'civilians_win' || gameStatus === 'mafia_win' || gameStatus === 'finished') {
-		    window.location.reload()
-		}
+		// Игра завершена - состояние уже обновлено через loadGameDetailed
 		
 		return true
 	    }

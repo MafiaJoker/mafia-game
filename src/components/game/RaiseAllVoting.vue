@@ -153,6 +153,9 @@ const confirmResult = async () => {
     )
   }
   
+  // Обновляем состояние игры после завершения голосования
+  await gameStore.updateGameState()
+  
   emit('complete')
 }
 </script>

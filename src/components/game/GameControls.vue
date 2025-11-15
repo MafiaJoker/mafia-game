@@ -329,6 +329,8 @@
           return
       }
       await nightActionsStore.confirmNight()
+      // Обновляем состояние игры после перехода к новому дню
+      await gameStore.updateGameState()
   }
 
   const goToDay = () => {
@@ -343,10 +345,13 @@
       gameStore.setGameStatus(gameStore.gameState.gameStatus, GAME_SUBSTATUS.FAREWELL_MINUTE)
   }
 
-  const confirmBestMove = () => {
+  const confirmBestMove = async () => {
       gameState.value.bestMoveUsed = true
       gameState.value.showBestMove = false
       // ElMessage.success('Лучший ход подтвержден')
+      
+      // Обновляем состояние игры после подтверждения лучшего хода
+      await gameStore.updateGameState()
   }
 
   const showScoreDialog = () => {
