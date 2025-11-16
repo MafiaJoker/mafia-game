@@ -66,6 +66,11 @@ const routes = [
 	name: 'EventRegistration',
 	component: () => import('@/views/EventRegistrationView.vue'),
 	props: true
+    },
+    {
+	path: '/:pathMatch(.*)*',
+	name: 'NotFound',
+	component: () => import('@/views/NotFoundView.vue')
     }
 ]
 
