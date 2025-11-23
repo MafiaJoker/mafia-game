@@ -50,7 +50,10 @@ export const useVotingStore = defineStore('voting', () => {
 	    if (!isSameShootout) {
 		gameStore.gameState.shootoutPlayers = playersWithMaxVotes
 		gameStore.gameState.votingResults = {}
-		gameStore.gameState.nominatedPlayers = playersWithMaxVotes
+		// Сохраняем порядок номинаций - фильтруем исходный массив вместо замены
+		gameStore.gameState.nominatedPlayers = gameStore.gameState.nominatedPlayers.filter(
+		    playerId => playersWithMaxVotes.includes(playerId)
+		)
 		
 		return { result: 'shootout', players: playersWithMaxVotes }
 	    }
