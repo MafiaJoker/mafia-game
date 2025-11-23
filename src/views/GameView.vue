@@ -189,7 +189,8 @@
 
   const showNightSection = computed(() => {
       return gameStore.gameState.gameStatus === GAME_STATUSES.IN_PROGRESS &&
-          gameStore.gameState.gameSubstatus === GAME_SUBSTATUS.NIGHT
+          gameStore.gameState.gameSubstatus === GAME_SUBSTATUS.NIGHT &&
+          !gameStore.gameState.showBestMove
   })
 
   const showBestMoveSection = computed(() => {

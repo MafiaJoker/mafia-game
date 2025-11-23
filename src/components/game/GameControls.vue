@@ -79,7 +79,7 @@
         />
       </div>
 
-      <div v-if="gameState.gameSubstatus === GAME_SUBSTATUS.NIGHT"
+      <div v-if="gameState.gameSubstatus === GAME_SUBSTATUS.NIGHT && !gameState.showBestMove"
            class="voting-controls">
         <el-button 
           type="warning" 
