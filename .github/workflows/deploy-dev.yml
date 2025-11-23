@@ -1,0 +1,102 @@
+name: Deploy to dev.jokermafia.am (dev branch)
+
+on:
+  push:
+    branches: [ dev ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      DEPLOY_HOST: dev.jokermafia.am
+      DEPLOY_USER: aladdin
+      DEPLOY_PORT: 22
+      DEPLOY_PATH: /usr/share/nginx/html
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Build application
+      run: npm run build
+      env:
+        NODE_ENV: production
+        VITE_API_BASE_URL: https://dev.api.jokermafia.am/api/v1
+        VITE_TELEGRAM_BOT_USERNAME: dev_mafia_joker_widget_bot
+        VITE_SHOW_TEST_LOGIN: true
+
+    - name: Debug SSH key format
+      run: |
+        echo "SSH key length: $(echo '${{ secrets.SSH_KEY }}' | wc -c)"
+        echo "SSH key first line:"
+        echo "${{ secrets.SSH_KEY }}" | head -n 1
+        echo "SSH key last line:"
+        echo "${{ secrets.SSH_KEY }}" | tail -n 1
+
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ env.DEPLOY_HOST }}
+        username: ${{ env.DEPLOY_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        port: ${{ env.DEPLOY_PORT }}
+        script: |
+          # Создаем директорию для бэкапа
+          sudo mkdir -p /var/backups/dev.jokermafia.am
+
+          # Бэкапим текущую версию
+          sudo cp -r ${{ env.DEPLOY_PATH }} /var/backups/dev.jokermafia.am/backup-$(date +%Y%m%d_%H%M%S) || true
+
+          # Очищаем старые файлы
+          sudo rm -rf ${{ env.DEPLOY_PATH }}/*
+
+    - name: Copy files to server
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ env.DEPLOY_HOST }}
+        username: ${{ env.DEPLOY_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        port: ${{ env.DEPLOY_PORT }}
+        source: "dist/*"
+        target: "/tmp/frontend-deploy/"
+        strip_components: 1
+
+    - name: Move files and set permissions
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ env.DEPLOY_HOST }}
+        username: ${{ env.DEPLOY_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        port: ${{ env.DEPLOY_PORT }}
+        script: |
+          # Создаем временную директорию если не существует
+          mkdir -p /tmp/frontend-deploy
+
+          # Перемещаем файлы в финальную директорию с sudo
+          sudo cp -r /tmp/frontend-deploy/* ${{ env.DEPLOY_PATH }}/
+
+          # Устанавливаем права доступа
+          sudo chmod -R 755 ${{ env.DEPLOY_PATH }}
+          sudo chown -R www-data:www-data ${{ env.DEPLOY_PATH }}
+
+          # Очищаем временную директорию
+          rm -rf /tmp/frontend-deploy
+
+          # Перезапускаем nginx (если нужно)
+          sudo systemctl reload nginx || true
+
+    - name: Notify deployment success
+      run: |
+        echo "✅ Deployment completed successfully!"
+        echo "🌐 Application is available at: https://dev.jokermafia.am"
+        echo "🔗 Using API: https://dev.api.jokermafia.am"

@@ -1,4 +1,4 @@
-name: Deploy to dev.jokermafia.am
+name: Deploy to Production
 
 on:
   push:
@@ -31,6 +31,9 @@ jobs:
       run: npm run build
       env:
         NODE_ENV: production
+        VITE_API_BASE_URL: https://api.jokermafia.am/api/v1
+        VITE_TELEGRAM_BOT_USERNAME: mafia_joker_widget_bot
+        VITE_SHOW_TEST_LOGIN: false
 
     - name: Debug SSH key format
       run: |
@@ -96,6 +99,7 @@ jobs:
       run: |
         echo "✅ Deployment completed successfully!"
         echo "🌐 Application is available at: https://dev.jokermafia.am"
+        echo "🔗 Using API: https://api.jokermafia.am"
 
   deploy-prod:
     runs-on: ubuntu-latest

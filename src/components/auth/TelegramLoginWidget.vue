@@ -30,14 +30,24 @@
       <div v-if="showFallback" class="telegram-fallback">
         <el-alert
           title="Не удалось загрузить виджет Telegram"
-          description="Проверьте подключение к интернету и попробуйте обновить страницу"
+          :description="errorMessage || 'Проверьте подключение к интернету и попробуйте обновить страницу'"
           type="warning"
           show-icon
           :closable="false"
         />
-        <el-button @click="reloadWidget" type="primary" class="mt-3">
-          Попробовать снова
-        </el-button>
+        <div class="fallback-actions">
+          <el-button @click="reloadWidget" type="primary" class="mt-3">
+            Попробовать снова
+          </el-button>
+          <div v-if="loadAttempts >= maxLoadAttempts" class="alternative-login">
+            <p class="mt-3">Альтернативные способы входа:</p>
+            <ul>
+              <li>Попробуйте отключить блокировщики рекламы</li>
+              <li>Используйте VPN, если telegram.org заблокирован</li>
+              <li>Откройте сайт в другом браузере</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -94,6 +104,9 @@
   const showFallback = ref(false)
   const isAuthenticating = ref(false)
   const loadTimeout = ref(null)
+  const loadAttempts = ref(0)
+  const maxLoadAttempts = 3
+  const errorMessage = ref('')
 
   // Проверяем, запущено ли в Electron
   const isElectron = computed(() => {
@@ -203,13 +216,15 @@
   }
 
   const loadTelegramWidget = () => {
-    console.log('Loading Telegram widget...')
+    loadAttempts.value++
+    console.log(`Loading Telegram widget... (attempt ${loadAttempts.value}/${maxLoadAttempts})`)
     console.log('Bot username:', props.botUsername)
     console.log('Auth URL:', props.authUrl)
     console.log('Widget ref:', telegramWidgetRef.value)
     
     if (!telegramWidgetRef.value) {
       console.error('Telegram widget ref not found')
+      errorMessage.value = 'Ошибка инициализации виджета'
       showFallback.value = true
       return
     }
@@ -220,6 +235,7 @@
     // Проверяем имя бота
     if (!props.botUsername || props.botUsername === 'your_bot_username') {
       console.warn('Bot username not configured properly:', props.botUsername)
+      errorMessage.value = 'Бот Telegram не настроен. Обратитесь к администратору.'
       showFallback.value = true
       return
     }
@@ -264,7 +280,24 @@
         console.log('Auth URL:', props.authUrl)
         console.log('Current URL:', window.location.href)
         clearTimeout(loadTimeout.value)
-        showFallback.value = true
+        
+        // Попробуем еще раз, если не превысили лимит попыток
+        if (loadAttempts.value < maxLoadAttempts) {
+          console.log(`Retrying in 2 seconds... (${loadAttempts.value}/${maxLoadAttempts})`)
+          setTimeout(() => {
+            loadTelegramWidget()
+          }, 2000)
+        } else {
+          // Определяем возможную причину ошибки
+          if (window.location.protocol === 'file:') {
+            errorMessage.value = 'Telegram виджет не работает при открытии файла напрямую. Используйте веб-сервер.'
+          } else if (!navigator.onLine) {
+            errorMessage.value = 'Нет подключения к интернету. Проверьте соединение.'
+          } else {
+            errorMessage.value = 'Не удалось загрузить виджет Telegram. Возможно, сайт telegram.org заблокирован в вашей сети.'
+          }
+          showFallback.value = true
+        }
       }
 
       // Таймаут для показа fallback
@@ -285,6 +318,8 @@
 
   const reloadWidget = () => {
     showFallback.value = false
+    errorMessage.value = ''
+    loadAttempts.value = 0
     loadTelegramWidget()
   }
 
@@ -337,8 +372,41 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    max-width: 400px;
+    max-width: 500px;
     text-align: center;
+  }
+
+  .fallback-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .alternative-login {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f5f7fa;
+    border-radius: 8px;
+    text-align: left;
+    width: 100%;
+  }
+
+  .alternative-login p {
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #606266;
+  }
+
+  .alternative-login ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #909399;
+  }
+
+  .alternative-login li {
+    margin-bottom: 8px;
+    font-size: 14px;
   }
 
   .auth-loading {
