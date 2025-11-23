@@ -356,8 +356,11 @@ export const useGameStore = defineStore('game', () => {
 		if (gameStatus === 'in_progress') {
 		    gameState.value.gameStatus = GAME_STATUSES.IN_PROGRESS
 		    gameState.value.isGameStarted = true
-		    // Подстатусы существуют только на фронте - всегда ставим DISCUSSION для активных игр
-		    gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
+		    // Подстатусы существуют только на фронте - сохраняем текущий подстатус если он есть
+		    // Если подстатуса нет, ставим DISCUSSION по умолчанию
+		    if (!gameState.value.gameSubstatus) {
+		        gameState.value.gameSubstatus = GAME_SUBSTATUS.DISCUSSION
+		    }
 		} else if (gameStatus && gameStatus !== 'in_progress') {
 		    // Завершённые игры (finished_with_scores, cancelled и т.д.)
 		    gameState.value.gameStatus = gameStatus
@@ -675,6 +678,12 @@ export const useGameStore = defineStore('game', () => {
 		    p.nominated = null
 		}
 	    })
+	    
+	    // Удаляем выбывшего игрока из списка номинированных
+	    const nominatedIndex = gameState.value.nominatedPlayers.indexOf(playerId)
+	    if (nominatedIndex !== -1) {
+	        gameState.value.nominatedPlayers.splice(nominatedIndex, 1)
+	    }
 	    
 	    // Сохраняем фазы
 	    gamePhasesStore.saveGamePhases()
