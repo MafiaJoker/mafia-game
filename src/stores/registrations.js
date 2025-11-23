@@ -112,12 +112,35 @@ export const useRegistrationsStore = defineStore('registrations', () => {
   const createRegistration = async (eventId, userId) => {
     loading.value = true
     try {
-      await apiService.createRegistration(eventId, { user_id: userId })
+      // Логируем данные для отладки
+      console.log('Creating registration:', { eventId, userId })
+      
+      // Попробуем разные форматы данных
+      const registrationData = {
+        user_id: userId
+        // Не отправляем status, возможно API сам установит pending
+      }
+      
+      await apiService.createRegistration(eventId, registrationData)
       await fetchEventRegistrations(eventId)
       ElMessage.success('Игрок зарегистрирован')
     } catch (error) {
       console.error('Failed to create registration:', error)
-      const message = error.response?.data?.detail || 'Не удалось зарегистрировать игрока'
+      console.error('Error response:', error.response?.data)
+      
+      let message = 'Не удалось зарегистрировать игрока'
+      if (error.response?.data?.detail) {
+        // Переводим сообщения об ошибках с сервера
+        const errorDetail = error.response.data.detail
+        if (errorDetail === 'Cannot register for past events') {
+          message = 'Невозможно регистрировать участников на прошедшие мероприятия'
+        } else if (errorDetail === 'User already registered') {
+          message = 'Пользователь уже зарегистрирован'
+        } else {
+          message = errorDetail
+        }
+      }
+      
       ElMessage.error(message)
       throw error
     } finally {

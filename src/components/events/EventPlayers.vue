@@ -112,18 +112,32 @@
                   type="primary" 
                   @click="savePlayerSelections"
                   :loading="addingPlayer"
+                  :disabled="isPastEvent"
+                  :title="isPastEvent ? 'Невозможно регистрировать участников на прошедшие мероприятия' : ''"
                   >
                   <el-icon><Check /></el-icon>
                   Добавить выбранных игроков
                 </el-button>
               </div>
 
+              <!-- Предупреждение для прошедших мероприятий -->
+              <el-alert
+                v-if="isPastEvent"
+                title="Мероприятие завершено"
+                description="Регистрация новых участников невозможна"
+                type="warning"
+                :closable="false"
+                class="mb-3"
+              />
+              
               <!-- Кнопка для тестирования -->
               <div class="test-section">
                 <el-button 
                   type="warning" 
                   @click="registerRandomPlayers"
                   :loading="addingRandomPlayers"
+                  :disabled="isPastEvent"
+                  :title="isPastEvent ? 'Невозможно регистрировать участников на прошедшие мероприятия' : ''"
                   >
                   <el-icon><UserFilled /></el-icon>
                   Зарегестрировать случайных 10 игроков
@@ -543,6 +557,14 @@
       return false
   }
 
+  // Проверка прошедшего мероприятия
+  const isPastEvent = computed(() => {
+    if (!props.event?.start_date) return false
+    const eventDate = new Date(props.event.start_date)
+    const now = new Date()
+    return eventDate < now
+  })
+
   // Общее количество зарегистрированных игроков
   const totalRegisteredPlayers = computed(() => {
       return registrationsStore.confirmedRegistrations.length + playerSelections.value.filter(p => p.selectedUserId).length
@@ -844,6 +866,16 @@
 
   // Регистрация 10 случайных игроков для тестирования
   const registerRandomPlayers = async () => {
+      // Проверяем, не прошло ли мероприятие
+      if (props.event?.start_date) {
+          const eventDate = new Date(props.event.start_date)
+          const now = new Date()
+          if (eventDate < now) {
+              ElMessage.error('Невозможно регистрировать участников на прошедшие мероприятия')
+              return
+          }
+      }
+      
       addingRandomPlayers.value = true
       try {
           // Получаем список всех пользователей, которые еще не зарегистрированы
@@ -861,12 +893,25 @@
           
           // Регистрируем каждого игрока
           let registered = 0
+          let failed = 0
+          
           for (const user of playersToRegister) {
-              await registrationsStore.createRegistration(props.event.id, user.id)
-              registered++
+              try {
+                  await registrationsStore.createRegistration(props.event.id, user.id)
+                  registered++
+              } catch (error) {
+                  console.error(`Failed to register user ${user.id}:`, error)
+                  failed++
+                  // Продолжаем регистрацию остальных игроков
+              }
           }
           
-          ElMessage.success(`Зарегистрировано ${registered} игроков`)
+          if (registered > 0) {
+              ElMessage.success(`Зарегистрировано ${registered} игроков`)
+          }
+          if (failed > 0) {
+              ElMessage.warning(`Не удалось зарегистрировать ${failed} игроков`)
+          }
           
       } catch (error) {
           console.error('Ошибка при регистрации случайных игроков:', error)

@@ -418,7 +418,15 @@ export const apiService = {
     },
 
     async createRegistration(eventId, registrationData) {
-        const response = await api.post(`/events/${eventId}/registrations`, registrationData)
+        console.log('API createRegistration:', { eventId, registrationData })
+        
+        // Если передан просто userId как строка, оборачиваем в объект
+        let data = registrationData
+        if (typeof registrationData === 'string') {
+            data = { user_id: registrationData }
+        }
+        
+        const response = await api.post(`/events/${eventId}/registrations`, data)
         return response.data
     },
 
