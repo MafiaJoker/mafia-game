@@ -346,12 +346,45 @@
   }
 
   const confirmBestMove = async () => {
-      gameState.value.bestMoveUsed = true
-      gameState.value.showBestMove = false
-      // ElMessage.success('Лучший ход подтвержден')
+      if (bestMoveSelected.value !== 3) {
+          ElMessage.warning('Необходимо выбрать 3 игроков для лучшего хода')
+          return
+      }
       
-      // Обновляем состояние игры после подтверждения лучшего хода
-      await gameStore.updateGameState()
+      // Получаем gamePhasesStore
+      const { useGamePhasesStore } = await import('@/stores/gamePhases')
+      const gamePhasesStore = useGamePhasesStore()
+      
+      // 1. Записываем лучший ход в ТЕКУЩУЮ фазу (не создаем новую)
+      gamePhasesStore.setBestMove([...gameStore.gameState.bestMoveTargets])
+      
+      // 2. Обновляем текущую фазу на сервере с лучшим ходом
+      await gamePhasesStore.updateCurrentPhaseOnServer()
+      
+      // 3. ТЕПЕРЬ создаем новую фазу (увеличиваем currentPhaseId)
+      gamePhasesStore.nextPhase()
+      
+      // 4. Создаем новую пустую фазу на сервере
+      await gamePhasesStore.createPhaseOnServer()
+      
+      // 5. Синхронизируем раунд с фазами
+      gameStore.gameState.round = gamePhasesStore.currentPhaseId
+      
+      // 5.1. Сбрасываем флаг голосования для нового раунда
+      gameStore.gameState.votingHappenedThisRound = false
+      
+      // 5.2. Синхронизируем статусы игроков с фазами
+      gameStore.syncPlayersWithPhases()
+      
+      // 6. Переходим к обсуждению нового дня
+      gameStore.setGameStatus(gameStore.gameState.gameStatus, GAME_SUBSTATUS.DISCUSSION)
+      
+      // 7. Обновляем состояние игры
+      gameStore.gameState.bestMoveUsed = true
+      gameStore.gameState.showBestMove = false
+      gameStore.gameState.bestMoveTargets.clear()
+      
+      // ElMessage.success('Лучший ход подтвержден')
   }
 
   const showScoreDialog = () => {

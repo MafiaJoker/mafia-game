@@ -71,13 +71,6 @@
 	  targets.delete(playerId)
       } else if (targets.size < 3) {
 	  targets.add(playerId)
-	  
-	  // Автоматически подтверждаем при выборе 3 игроков
-	  if (targets.size === 3) {
-	      setTimeout(() => {
-	          confirmBestMove()
-	      }, 500) // Небольшая задержка для UX
-	  }
       }
   }
 

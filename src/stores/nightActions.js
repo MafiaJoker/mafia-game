@@ -136,14 +136,6 @@ export const useNightActionsStore = defineStore('nightActions', () => {
             }
         })
         
-        // Проверяем лучший ход
-        if (gameStore.gameState.deadPlayers.length === 1 && 
-                gameStore.gameState.eliminatedPlayers.length === 0 && 
-                gameStore.gameState.round === 1 &&  // Проверяем в первом раунде (до создания новой фазы)
-                !gameStore.gameState.bestMoveUsed) {
-            gameStore.gameState.showBestMove = true
-        }
-        
         return {
             round: gameStore.gameState.round,
             killed: gameStore.gameState.nightKill
