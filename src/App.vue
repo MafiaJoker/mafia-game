@@ -36,9 +36,9 @@
 
   const route = useRoute()
 
-  // Определяем страницы авторизации
+  // Определяем страницы авторизации и страницу 404
   const isAuthPage = computed(() => {
-      return route.name === 'Login' || route.name === 'Register'
+      return route.name === 'Login' || route.name === 'Register' || route.name === 'NotFound'
   })
 
   // Скрываем заголовок на страницах авторизации и игры
