@@ -553,12 +553,29 @@ export const useGameStore = defineStore('game', () => {
 
     const shufflePlayers = async () => {
 	try {
-	    // Загружаем всех пользователей из базы
-	    const response = await apiService.getUsers()
-	    const allUsers = response.items || response || []
+	    let allUsers = []
+	    
+	    // Если есть eventId, загружаем только подтвержденных участников события
+	    if (gameInfo.value?.eventId) {
+		const response = await apiService.getEventRegistrations(gameInfo.value.eventId, {
+		    status: 'confirmed',
+		    pageSize: 100
+		})
+		allUsers = (response.items || []).map(reg => ({
+		    id: reg.user?.id || reg.user_id,
+		    nickname: reg.user?.nickname || reg.user_nickname || 'Без никнейма'
+		}))
+	    } else {
+		// Иначе загружаем всех пользователей из базы (обратная совместимость)
+		const response = await apiService.getUsers()
+		allUsers = response.items || response || []
+	    }
 	    
 	    if (allUsers.length === 0) {
-		return { success: false, message: 'Нет пользователей в базе данных' }
+		const message = gameInfo.value?.eventId 
+		    ? 'Нет подтвержденных участников события' 
+		    : 'Нет пользователей в базе данных'
+		return { success: false, message }
 	    }
 	    
 	    // Выбираем 10 случайных пользователей (или сколько есть, если меньше 10)

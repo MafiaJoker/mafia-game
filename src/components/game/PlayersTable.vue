@@ -102,6 +102,7 @@
             v-model="row.name"
             :player-id="row.id"
             :used-player-ids="getUsedPlayerIds(row.id)"
+            :event-id="gameStore.gameInfo?.eventId"
             @player-selected="handlePlayerSelected"
           />
           <span v-else-if="isEditingPlayers && row.isInGame === false" class="player-name-display disabled-slot">
@@ -353,8 +354,12 @@
   }
 
   const handleShufflePlayers = () => {
+      const confirmMessage = gameStore.gameInfo?.eventId
+          ? 'Вы уверены, что хотите случайно рассадить участников события по столу?'
+          : 'Вы уверены, что хотите случайно рассадить игроков из базы данных по столу?'
+      
       ElMessageBox.confirm(
-	  'Вы уверены, что хотите случайно рассадить игроков из базы данных по столу?',
+	  confirmMessage,
 	  'Подтверждение перемешивания',
 	  {
 	      confirmButtonText: 'Да, рассадить',

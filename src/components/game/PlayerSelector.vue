@@ -35,6 +35,10 @@ const props = defineProps({
   usedPlayerIds: {
     type: Array,
     default: () => []
+  },
+  eventId: {
+    type: [String, Number],
+    default: null
   }
 })
 
@@ -43,15 +47,29 @@ const emit = defineEmits(['update:modelValue', 'player-selected'])
 const playerName = ref(props.modelValue)
 const allUsers = ref([])
 
-// Загружаем список всех пользователей
+// Загружаем список пользователей - либо участников события, либо всех
 onMounted(async () => {
   try {
-    const response = await apiService.getUsers()
-    allUsers.value = (response.items || response || []).map(user => ({
-      nickname: user.nickname || 'Без никнейма',
-      id: user.id,
-      value: user.nickname || 'Без никнейма'
-    }))
+    if (props.eventId) {
+      // Загружаем только подтвержденных участников события
+      const response = await apiService.getEventRegistrations(props.eventId, {
+        status: 'confirmed',
+        pageSize: 100 // Загружаем больше записей для полноты
+      })
+      allUsers.value = (response.items || []).map(reg => ({
+        nickname: reg.user?.nickname || reg.user_nickname || 'Без никнейма',
+        id: reg.user?.id || reg.user_id,
+        value: reg.user?.nickname || reg.user_nickname || 'Без никнейма'
+      }))
+    } else {
+      // Если eventId не передан, загружаем всех пользователей (обратная совместимость)
+      const response = await apiService.getUsers()
+      allUsers.value = (response.items || response || []).map(user => ({
+        nickname: user.nickname || 'Без никнейма',
+        id: user.id,
+        value: user.nickname || 'Без никнейма'
+      }))
+    }
   } catch (error) {
     console.error('Error loading users:', error)
   }
@@ -143,6 +161,36 @@ watch(() => props.modelValue, (newValue) => {
 
 watch(playerName, (newValue) => {
   emit('update:modelValue', newValue)
+})
+
+// Перезагружаем список пользователей при изменении eventId
+watch(() => props.eventId, async (newEventId, oldEventId) => {
+  if (newEventId !== oldEventId) {
+    try {
+      if (newEventId) {
+        // Загружаем только подтвержденных участников события
+        const response = await apiService.getEventRegistrations(newEventId, {
+          status: 'confirmed',
+          pageSize: 100
+        })
+        allUsers.value = (response.items || []).map(reg => ({
+          nickname: reg.user?.nickname || reg.user_nickname || 'Без никнейма',
+          id: reg.user?.id || reg.user_id,
+          value: reg.user?.nickname || reg.user_nickname || 'Без никнейма'
+        }))
+      } else {
+        // Если eventId не передан, загружаем всех пользователей
+        const response = await apiService.getUsers()
+        allUsers.value = (response.items || response || []).map(user => ({
+          nickname: user.nickname || 'Без никнейма',
+          id: user.id,
+          value: user.nickname || 'Без никнейма'
+        }))
+      }
+    } catch (error) {
+      console.error('Error reloading users:', error)
+    }
+  }
 })
 </script>
 
