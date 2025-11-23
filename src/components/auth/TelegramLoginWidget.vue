@@ -283,7 +283,7 @@
         
         // Попробуем еще раз, если не превысили лимит попыток
         if (loadAttempts.value < maxLoadAttempts) {
-          console.log(`Retrying in 2 seconds... (${loadAttempts.value}/${maxLoadAttempts})`)
+          console.log(`Retrying Telegram widget in 2 seconds... (${loadAttempts.value}/${maxLoadAttempts})`)
           setTimeout(() => {
             loadTelegramWidget()
           }, 2000)
