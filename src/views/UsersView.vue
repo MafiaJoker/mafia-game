@@ -189,8 +189,7 @@ const createForm = reactive({
 // Правила валидации
 const createRules = {
   nickname: [
-    { required: true, message: 'Введите никнейм', trigger: 'blur' },
-    { min: 3, max: 50, message: 'Длина должна быть от 3 до 50 символов', trigger: 'blur' }
+    { required: true, message: 'Введите никнейм', trigger: 'blur' }
   ],
   email: [
     { type: 'email', message: 'Введите корректный email', trigger: 'blur' }

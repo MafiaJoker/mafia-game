@@ -111,8 +111,7 @@ const originalData = ref({})
 
 const rules = {
   nickname: [
-    { required: true, message: 'Никнейм обязателен', trigger: 'blur' },
-    { min: 2, max: 50, message: 'Никнейм должен быть от 2 до 50 символов', trigger: 'blur' }
+    { required: true, message: 'Никнейм обязателен', trigger: 'blur' }
   ]
 }
 

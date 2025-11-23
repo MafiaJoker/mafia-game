@@ -70,7 +70,7 @@
               <div class="targets-buttons mb-2">
                 <el-button-group>
                   <el-button 
-                    v-for="player in aliveTargets"
+                    v-for="player in donTargets"
                     :key="`don-${player.id}`"
                     :type="getDonTargetType(player.id)"
                     :class="getDonTargetClass(player.id)"
@@ -179,6 +179,11 @@
 
   const aliveTargets = computed(() => {
       return gameStore.gameState.players.filter(p => p.isAlive && !p.isEliminated)
+  })
+
+  // Цели для проверки Дона - все игроки (включая мертвых и выбывших)
+  const donTargets = computed(() => {
+      return gameStore.gameState.players
   })
 
   // Цели для стрельбы мафии - исключаем игроков вне игры

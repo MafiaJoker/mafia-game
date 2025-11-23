@@ -672,18 +672,18 @@ export const useGameStore = defineStore('game', () => {
 	        gameState.value.eliminatedPlayers.push(playerId)
 	    }
 	    
+	    // Удаляем выбывшего игрока из списка номинированных
+	    const nominatedIndex = gameState.value.nominatedPlayers.indexOf(playerId)
+	    if (nominatedIndex !== -1) {
+	        gameState.value.nominatedPlayers.splice(nominatedIndex, 1)
+	    }
+	    
 	    // Убираем номинации этого игрока
 	    gameState.value.players.forEach(p => {
 		if (p.nominated === playerId) {
 		    p.nominated = null
 		}
 	    })
-	    
-	    // Удаляем выбывшего игрока из списка номинированных
-	    const nominatedIndex = gameState.value.nominatedPlayers.indexOf(playerId)
-	    if (nominatedIndex !== -1) {
-	        gameState.value.nominatedPlayers.splice(nominatedIndex, 1)
-	    }
 	    
 	    // Сохраняем фазы
 	    gamePhasesStore.saveGamePhases()

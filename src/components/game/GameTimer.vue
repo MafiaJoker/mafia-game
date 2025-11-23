@@ -1,6 +1,6 @@
 <template>
   <div class="game-timer">
-    <div class="timer-container" :class="{ 'timer-expired': isTimerExpired }" @click="resetTimer">
+    <div class="timer-container" :class="{ 'timer-expired': isTimerExpired, 'timer-paused': !isRunning }" @click="handleTimerClick">
       <div class="timer-display">
         {{ formattedTime }}
       </div>
@@ -17,6 +17,7 @@
 
   // Постоянно работающий таймер
   const seconds = ref(0)
+  const isRunning = ref(true)
   let interval = null
 
   // Получение времени для текущей фазы
@@ -56,6 +57,8 @@
       if (interval) return // уже запущен
       
       interval = setInterval(() => {
+          if (!isRunning.value) return // таймер на паузе
+          
           const phaseTime = getPhaseTime()
           if (phaseTime > 0 && seconds.value >= phaseTime) {
               // Таймер достиг лимита для фазы - останавливаем на 0
@@ -65,8 +68,21 @@
       }, 1000)
   }
 
-  // Сброс таймера (по клику или пробелу)
+  // Обработка клика по таймеру
+  const handleTimerClick = () => {
+      if (isRunning.value) {
+          // Если таймер работает - останавливаем и сбрасываем
+          isRunning.value = false
+          seconds.value = 0
+      } else {
+          // Если таймер остановлен - запускаем
+          isRunning.value = true
+      }
+  }
+  
+  // Сброс таймера (по пробелу)
   const resetTimer = () => {
+      isRunning.value = false
       seconds.value = 0
   }
 
@@ -81,7 +97,8 @@
   // Следим за изменением статуса и подстатуса игры
   watch(() => [gameStore.gameState.gameStatus, gameStore.gameState.gameSubstatus], () => {
     // Сбрасываем таймер при любых переходах между фазами
-    resetTimer()
+    seconds.value = 0
+    isRunning.value = true // автоматически запускаем после перехода фаз
   })
 
   onMounted(() => {
@@ -132,6 +149,15 @@
       background: #fdf2f2;
   }
 
+  .timer-container.timer-paused {
+      background: #fff7e6;
+      border: 2px solid #f0a020;
+  }
+
+  .timer-container.timer-paused:hover {
+      background: #fff4db;
+  }
+
   .timer-display {
       font-size: 48px;
       font-weight: bold;
@@ -141,5 +167,9 @@
 
   .timer-expired .timer-display {
       color: #f56c6c;
+  }
+
+  .timer-paused .timer-display {
+      color: #f0a020;
   }
 </style>
