@@ -38,7 +38,7 @@
         </el-form-item>
 
         <!-- Роли -->
-        <el-form-item label="Роли пользователя">
+        <el-form-item v-if="!user.is_unregistered" label="Роли пользователя">
           <div>
             <el-checkbox-group v-model="form.roles">
               <el-checkbox 
