@@ -324,13 +324,11 @@ const getUserFullName = (user) => {
   return `${first} ${last}`.trim() || 'Без имени'
 }
 
-const updateUserData = async ({ userId, nickname, roles }) => {
+const updateUserData = async (userId, apiData) => {
   try {
     // Обновляем никнейм и роли через один запрос
-    await apiService.updateUser(userId, { 
-      nickname: nickname,
-      roles: roles 
-    })
+
+    await apiService.updateUser(userId, apiData)
     
     ElMessage.success('Данные пользователя обновлены')
     await loadUsers()
