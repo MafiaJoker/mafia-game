@@ -33,16 +33,19 @@
               </div>
               
               <div class="player-selection-list">
-                <div 
-                  v-for="(selection, index) in playerSelections" 
+                <div
+                  v-for="(selection, index) in playerSelections"
                   :key="index"
                   class="player-selection-row"
                   >
-                  <el-select 
+                  <el-select
                     v-model="selection.selectedUserId"
-                    placeholder="Выберите игрока" 
-                    filterable 
+                    placeholder="Начните вводить имя игрока"
+                    filterable
+                    remote
                     clearable
+                    :remote-method="(query) => searchUsersForSlot(index, query)"
+                    :loading="searchLoading[index]"
                     class="player-select"
                     @change="handlePlayerSelection(index, $event)"
                     >
@@ -458,11 +461,11 @@
   const registrationsStore = useRegistrationsStore()
   const players = ref([])
   const playerSelections = ref([
-    { selectedUserId: null },
-    { selectedUserId: null },
-    { selectedUserId: null },
-    { selectedUserId: null },
-    { selectedUserId: null }
+    { selectedUserId: null, searchQuery: '' },
+    { selectedUserId: null, searchQuery: '' },
+    { selectedUserId: null, searchQuery: '' },
+    { selectedUserId: null, searchQuery: '' },
+    { selectedUserId: null, searchQuery: '' }
   ]) // Текущие выборы игроков
   const allUsers = ref([])
   const loading = ref(false)
@@ -473,6 +476,8 @@
   const addingRandomPlayers = ref(false)
   const isClosedSeating = ref(false)
   const activeRegistrationTab = ref('add')
+  const userSearchResults = ref({}) // Хранит результаты поиска для каждого слота
+  const searchLoading = ref({}) // Индикаторы загрузки для каждого слота
 
   const loadEventPlayers = async () => {
       if (!props.event?.tables) return
@@ -589,18 +594,57 @@
       return !lastSlot || !lastSlot.selectedUserId
   })
 
+  // Debounce функция для поиска
+  let searchTimeouts = {}
+
+  const searchUsersForSlot = async (slotIndex, query) => {
+      // Очищаем предыдущий таймер для этого слота
+      if (searchTimeouts[slotIndex]) {
+          clearTimeout(searchTimeouts[slotIndex])
+      }
+
+      // Если запрос пустой, очищаем результаты
+      if (!query || query.trim().length === 0) {
+          userSearchResults.value[slotIndex] = []
+          return
+      }
+
+      // Устанавливаем новый таймер с debounce 300ms
+      searchTimeouts[slotIndex] = setTimeout(async () => {
+          searchLoading.value[slotIndex] = true
+          try {
+              const params = {
+                  nickname: query.trim(),
+                  event_id: props.event.id,
+                  is_applied: false,
+                  limit: 20
+              }
+              const response = await apiService.getUsers(params)
+              userSearchResults.value[slotIndex] = response.items || response || []
+          } catch (error) {
+              console.error('Ошибка поиска пользователей:', error)
+              userSearchResults.value[slotIndex] = []
+          } finally {
+              searchLoading.value[slotIndex] = false
+          }
+      }, 300)
+  }
+
   // Получить доступных пользователей для конкретного слота
   const getAvailableUsersForSlot = (slotIndex) => {
       // Исключаем уже подтвержденных игроков
       const confirmedIds = confirmedPlayers.value.map(p => p.id)
-      
+
       // Исключаем игроков, выбранных в других слотах
       const selectedInOtherSlots = playerSelections.value
           .map((selection, index) => index !== slotIndex ? selection.selectedUserId : null)
           .filter(id => id !== null)
-      
-      return allUsers.value.filter(user => 
-          !confirmedIds.includes(user.id) && 
+
+      // Используем результаты поиска для этого слота, если они есть
+      const usersToFilter = userSearchResults.value[slotIndex] || []
+
+      return usersToFilter.filter(user =>
+          !confirmedIds.includes(user.id) &&
           !selectedInOtherSlots.includes(user.id)
       )
   }
@@ -738,15 +782,6 @@
   }
 
   // Методы для работы с регистрацией игроков
-  const loadAllUsers = async () => {
-      try {
-          const response = await apiService.getUsers()
-          allUsers.value = response.items || response || []
-      } catch (error) {
-          console.error('Ошибка загрузки пользователей:', error)
-      }
-  }
-
   const loadRegisteredPlayers = async () => {
       if (!props.event?.id) return
       
@@ -926,7 +961,6 @@
           loadEventPlayers()
           loadRegisteredPlayers()
       }
-      loadAllUsers()
   })
 
   // Следим за изменениями event

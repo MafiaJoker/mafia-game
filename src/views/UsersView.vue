@@ -217,7 +217,7 @@ const loadUsers = async (page = 1, size = 100, searchString = '', roleFilter = '
     
     // Добавляем параметр поиска если есть
     if (searchString && searchString.trim()) {
-      params.searchString = searchString.trim()
+      params.nickname = searchString.trim()
     }
     
     // Добавляем фильтр роли если есть  
