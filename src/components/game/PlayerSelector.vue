@@ -20,7 +20,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { apiService } from '@/services/api'
 import { ElMessage } from 'element-plus'
 
@@ -44,49 +44,24 @@ const props = defineProps({
   closedSeating: {
     type: Boolean,
     default: false
+  },
+  registeredUsers: {
+    type: Array,
+    default: () => []
   }
 })
 
 const emit = defineEmits(['update:modelValue', 'player-selected'])
 
 const playerName = ref(props.modelValue)
-const allUsers = ref([])
 const isSearching = ref(false)
 const selectedUser = ref(null) // Хранит последнего выбранного пользователя
 
-// Загружаем список пользователей только для закрытой рассадки
-onMounted(async () => {
-  // Загружаем пользователей только если режим закрытой рассадки
-  if (props.closedSeating) {
-    await loadRegisteredUsers()
-  }
-})
-
-// Функция загрузки зарегистрированных пользователей (для закрытой рассадки)
-const loadRegisteredUsers = async () => {
-  try {
-    if (props.eventId) {
-      // Загружаем только подтвержденных участников события
-      const response = await apiService.getEventRegistrations(props.eventId, {
-        status: 'confirmed',
-        pageSize: 100
-      })
-      allUsers.value = (response.items || []).map(reg => ({
-        nickname: reg.user?.nickname || reg.user_nickname,
-        id: reg.user?.id || reg.user_id,
-        value: reg.user?.nickname || reg.user_nickname
-      }))
-    }
-  } catch (error) {
-    console.error('Error loading registered users:', error)
-  }
-}
-
 // Функция поиска для автодополнения
 const querySearch = async (queryString, cb) => {
-  // Режим закрытой рассадки - фильтруем локально из загруженных пользователей
+  // Режим закрытой рассадки - фильтруем локально из переданных зарегистрированных пользователей
   if (props.closedSeating) {
-    let availableUsers = allUsers.value.filter(user =>
+    let availableUsers = props.registeredUsers.filter(user =>
       !props.usedPlayerIds.includes(user.id)
     )
 
@@ -159,7 +134,7 @@ const handleBlur = () => {
   if (playerName.value.trim()) {
     // В режиме закрытой рассадки проверяем наличие пользователя в списке
     if (props.closedSeating) {
-      const existingUser = allUsers.value.find(user =>
+      const existingUser = props.registeredUsers.find(user =>
         user.nickname.toLowerCase() === playerName.value.toLowerCase()
       )
 
@@ -230,19 +205,6 @@ watch(() => props.modelValue, (newValue) => {
 
 watch(playerName, (newValue) => {
   emit('update:modelValue', newValue)
-})
-
-// Перезагружаем список пользователей при изменении eventId или closedSeating
-watch([() => props.eventId, () => props.closedSeating], async ([newEventId], [oldEventId]) => {
-  if (newEventId !== oldEventId) {
-    // Загружаем пользователей только для режима закрытой рассадки
-    if (props.closedSeating) {
-      await loadRegisteredUsers()
-    } else {
-      // В открытом режиме очищаем список, так как поиск будет динамическим
-      allUsers.value = []
-    }
-  }
 })
 </script>
 
