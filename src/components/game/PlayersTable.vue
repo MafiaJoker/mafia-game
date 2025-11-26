@@ -103,6 +103,7 @@
             :player-id="row.id"
             :used-player-ids="getUsedPlayerIds(row.id)"
             :event-id="gameStore.gameInfo?.eventId"
+            :closed-seating="gameStore.gameInfo?.closedSeating || false"
             @player-selected="handlePlayerSelected"
           />
           <span v-else-if="isEditingPlayers && row.isInGame === false" class="player-name-display disabled-slot">

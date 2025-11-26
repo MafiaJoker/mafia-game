@@ -883,14 +883,26 @@
       }
   }
 
-  const updateClosedSeating = async () => {
+  // Загрузка настройки закрытой рассадки из localStorage
+  const loadClosedSeatingSettings = () => {
+      if (props.event?.id) {
+          const savedClosedSeating = localStorage.getItem(`event_${props.event.id}_closed_seating`)
+          if (savedClosedSeating !== null) {
+              isClosedSeating.value = savedClosedSeating === 'true'
+          }
+      }
+  }
+
+  const updateClosedSeating = () => {
       try {
-          // TODO: Добавить API вызов для обновления настроек мероприятия
-          // await apiService.updateEvent(props.event.id, { closed_seating: isClosedSeating.value })
-          
+          // Сохраняем настройку в localStorage для текущего события
+          if (props.event?.id) {
+              localStorage.setItem(`event_${props.event.id}_closed_seating`, isClosedSeating.value.toString())
+          }
+
           const status = isClosedSeating.value ? 'включена' : 'отключена'
           ElMessage.success(`Закрытая рассадка ${status}`)
-          
+
       } catch (error) {
           console.error('Ошибка обновления настроек:', error)
           ElMessage.error('Ошибка при обновлении настроек')
@@ -958,6 +970,7 @@
 
   onMounted(() => {
       if (props.event?.id) {
+          loadClosedSeatingSettings()
           loadEventPlayers()
           loadRegisteredPlayers()
       }
@@ -966,6 +979,7 @@
   // Следим за изменениями event
   watch(() => props.event, (newEvent) => {
       if (newEvent?.id) {
+          loadClosedSeatingSettings()
           loadEventPlayers()
           loadRegisteredPlayers()
       }

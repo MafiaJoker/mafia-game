@@ -44,6 +44,13 @@ export const useGameStore = defineStore('game', () => {
     // Get phases store
     const gamePhasesStore = useGamePhasesStore()
 
+    // Утилитарная функция для получения настройки закрытой рассадки
+    const getClosedSeatingForEvent = (eventId) => {
+        if (!eventId) return false
+        const savedClosedSeating = localStorage.getItem(`event_${eventId}_closed_seating`)
+        return savedClosedSeating === 'true'
+    }
+
     // Current game ID tracking
     const currentGameId = ref(null)
 
@@ -281,7 +288,7 @@ export const useGameStore = defineStore('game', () => {
 		gameStatesCache.touch(gameId)
 	    }
 
-	    state.gameInfo = { eventId, tableId, gameId }
+	    gameInfo.value = { eventId, tableId, gameId, closedSeating: getClosedSeatingForEvent(eventId) }
 
 	    if (gameId) {
 		const gameStateData = await loadGameDetailed(gameId)
@@ -299,6 +306,11 @@ export const useGameStore = defineStore('game', () => {
 
 		// Синхронизируем состояния игроков с фазами
 		syncPlayersWithPhases()
+
+		// Обновляем closedSeating после загрузки eventId из gameData
+		if (gameInfo.value.eventId) {
+		    gameInfo.value.closedSeating = getClosedSeatingForEvent(gameInfo.value.eventId)
+		}
 	    } else {
 		initPlayers()
 		setGameStatus(GAME_STATUSES.SEATING_READY)
