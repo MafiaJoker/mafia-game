@@ -385,9 +385,9 @@ export const useGameStore = defineStore('game', () => {
 			    const playerName = apiPlayer.nickname || ''
 			    const userId = apiPlayer.id || null
 			    
-			    // Для gameStateData используем is_in_game, для gameData используем is_killed/is_removed
-			    const isAlive = gameStateData ? apiPlayer.is_in_game : (!apiPlayer.is_killed && !apiPlayer.is_removed)
-			    const isEliminated = gameStateData ? !apiPlayer.is_in_game : (apiPlayer.is_removed || false)
+			    // Определяем статус игрока
+			    const isAlive = isInGame
+			    const isEliminated = apiPlayer.is_removed || false
 			    
 			    const fouls = apiPlayer.fouls || 0
 			    console.log(`Loading player ${apiPlayer.box_id}: fouls from API = ${fouls}`)

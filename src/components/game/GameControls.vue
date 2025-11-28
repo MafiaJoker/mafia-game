@@ -365,6 +365,9 @@
       // 4. Создаем новую пустую фазу на сервере
       await gamePhasesStore.createPhaseOnServer()
       
+      // 4.1. Перезагружаем состояние игры с сервера для получения актуальных данных
+      await gameStore.loadGameDetailed(gameStore.gameInfo.gameId)
+      
       // 5. Синхронизируем раунд с фазами
       gameStore.gameState.round = gamePhasesStore.currentPhaseId
       
