@@ -1,41 +1,85 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { GAME_STATUSES, GAME_SUBSTATUS, PLAYER_ROLES, API_PLAYER_ROLES, API_TO_LOCAL_ROLES } from '@/utils/constants.js'
 import { GAME_RULES } from '@/utils/gameConstants.js'
 import { apiService } from '@/services/api.js'
 import { useGamePhasesStore } from './gamePhases.js'
+import { LRUCache } from '@/utils/lruCache.js'
+
+// LRU cache to store game states (max 100 games)
+const gameStatesCache = new LRUCache(100)
+
+// Create default state for a game
+const createDefaultGameState = () => reactive({
+    gameInfo: null,
+    gameState: {
+        round: 0,
+        gameStatus: GAME_STATUSES.CREATED,
+        gameSubstatus: null,
+        isGameStarted: false,
+        players: [],
+        nominatedPlayers: [],
+        votingResults: {},
+        shootoutPlayers: [],
+        deadPlayers: [],
+        eliminatedPlayers: [],
+        nightKill: null,
+        bestMoveUsed: false,
+        noCandidatesRounds: 0,
+        mafiaTarget: null,
+        donTarget: null,
+        sheriffTarget: null,
+        bestMoveTargets: new Set(),
+        rolesVisible: false,
+        scores: {},
+        isCriticalRound: false,
+        showBestMove: false,
+        votingHappenedThisRound: false,
+        gameResult: null,
+        last_phase_fouls: []
+    }
+})
 
 export const useGameStore = defineStore('game', () => {
     // Get phases store
     const gamePhasesStore = useGamePhasesStore()
-    
-    // State
-    const gameInfo = ref(null)
-    const gameState = ref({
-	round: 0,
-	gameStatus: GAME_STATUSES.CREATED,
-	gameSubstatus: null,
-	isGameStarted: false,
-	players: [],
-	nominatedPlayers: [],
-	votingResults: {},
-	shootoutPlayers: [],
-	deadPlayers: [],
-	eliminatedPlayers: [],
-	nightKill: null,
-	bestMoveUsed: false,
-	noCandidatesRounds: 0,
-	mafiaTarget: null,
-	donTarget: null,
-	sheriffTarget: null,
-	bestMoveTargets: new Set(),
-	rolesVisible: false,
-	scores: {},
-	isCriticalRound: false,
-	showBestMove: false,
-	votingHappenedThisRound: false,
-	gameResult: null,
-	last_phase_fouls: []
+
+    // Current game ID tracking
+    const currentGameId = ref(null)
+
+    // Get current game state from cache
+    const getCurrentState = () => {
+        if (!currentGameId.value) {
+            return createDefaultGameState()
+        }
+
+        let state = gameStatesCache.get(currentGameId.value)
+        if (!state) {
+            state = createDefaultGameState()
+            gameStatesCache.set(currentGameId.value, state)
+        } else {
+            // Update access time
+            gameStatesCache.touch(currentGameId.value)
+        }
+
+        return state
+    }
+
+    // Reactive state accessors
+    const gameInfo = computed({
+        get: () => getCurrentState().gameInfo,
+        set: (value) => {
+            const state = getCurrentState()
+            state.gameInfo = value
+        }
+    })
+
+    const gameState = computed({
+        get: () => getCurrentState().gameState,
+        set: (value) => {
+            const state = getCurrentState()
+            state.gameState = value
+        }
     })
 
     // Helper methods for box_id conversion
@@ -225,8 +269,20 @@ export const useGameStore = defineStore('game', () => {
     
     const initGame = async (eventId, tableId, gameId) => {
 	try {
-	    gameInfo.value = { eventId, tableId, gameId }
-	    
+	    // Set current game ID for cache lookup
+	    currentGameId.value = gameId
+
+	    // Get or create state for this game
+	    let state = gameStatesCache.get(gameId)
+	    if (!state) {
+		state = createDefaultGameState()
+		gameStatesCache.set(gameId, state)
+	    } else {
+		gameStatesCache.touch(gameId)
+	    }
+
+	    state.gameInfo = { eventId, tableId, gameId }
+
 	    if (gameId) {
 		const gameStateData = await loadGameDetailed(gameId)
 		// Инициализируем gamePhasesStore
@@ -234,13 +290,13 @@ export const useGameStore = defineStore('game', () => {
 		// Пытаемся загрузить фазы (может не существовать для старых игр)
 		const gameStatus = gameInfo.value?.gameData?.status || gameInfo.value?.gameData?.result
 		await gamePhasesStore.loadGamePhases(gameId, gameStatus, gameStateData)
-		
+
 		// Синхронизируем фолы из gameState в фазы
 		gamePhasesStore.syncFoulsFromGameState(gameState.value.players, gameState.value.last_phase_fouls)
-		
+
 		// Синхронизируем раунд с фазами
 		gameState.value.round = gamePhasesStore.currentPhaseId
-		
+
 		// Синхронизируем состояния игроков с фазами
 		syncPlayersWithPhases()
 	    } else {
@@ -259,7 +315,16 @@ export const useGameStore = defineStore('game', () => {
 
     const loadGameDetailed = async (gameId) => {
 	try {
-	    
+	    // Set current game ID for cache lookup
+	    if (currentGameId.value !== gameId) {
+		currentGameId.value = gameId
+	    }
+
+	    // Update access time
+	    if (gameStatesCache.has(gameId)) {
+		gameStatesCache.touch(gameId)
+	    }
+
 	    // Всегда сначала загружаем базовую информацию об игре (включая eventId)
 	    const gameData = await apiService.getGame(gameId)
 	    
@@ -723,38 +788,22 @@ export const useGameStore = defineStore('game', () => {
     }
 
     const initializeGame = (config) => {
-	gameInfo.value = {
+	const gameId = config.gameId || null
+
+	// Set current game ID for cache lookup
+	currentGameId.value = gameId
+
+	// Create or reset state for this game
+	const state = createDefaultGameState()
+	state.gameInfo = {
 	    eventId: config.eventId,
 	    tableId: config.tableId,
-	    gameId: config.gameId || null
+	    gameId: gameId
 	}
-	
-	// Reset game state
-	gameState.value = {
-	    round: 0,
-	    gameStatus: GAME_STATUSES.CREATED,
-	    gameSubstatus: null,
-	    isGameStarted: false,
-	    players: [],
-	    nominatedPlayers: [],
-	    votingResults: {},
-	    shootoutPlayers: [],
-	    deadPlayers: [],
-	    eliminatedPlayers: [],
-	    nightKill: null,
-	    bestMoveUsed: false,
-	    noCandidatesRounds: 0,
-	    mafiaTarget: null,
-	    donTarget: null,
-	    sheriffTarget: null,
-	    bestMoveTargets: new Set(),
-	    rolesVisible: false,
-	    scores: {},
-	    isCriticalRound: false,
-	    showBestMove: false,
-	    firstEliminatedPlayer: null,
-	    votingHappenedThisRound: false,
-	    last_phase_fouls: []
+
+	// Store in cache
+	if (gameId) {
+	    gameStatesCache.set(gameId, state)
 	}
     }
 
