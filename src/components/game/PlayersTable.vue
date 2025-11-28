@@ -103,6 +103,8 @@
             :player-id="row.id"
             :used-player-ids="getUsedPlayerIds(row.id)"
             :event-id="gameStore.gameInfo?.eventId"
+            :closed-seating="gameStore.gameInfo?.closedSeating || false"
+            :registered-users="registeredUsers"
             @player-selected="handlePlayerSelected"
           />
           <span v-else-if="isEditingPlayers && row.isInGame === false" class="player-name-display disabled-slot">
@@ -165,7 +167,7 @@
 </template>
 
 <script setup>
-  import { computed, ref } from 'vue'
+  import { computed, ref, onMounted, onBeforeUpdate, watch } from 'vue'
   import { useGameStore } from '@/stores/game'
   import { MAX_FOULS, GAME_STATUSES } from '@/utils/constants'
   import PlayerFouls from './PlayerFouls.vue'
@@ -175,10 +177,12 @@
   import PlayerSelector from './PlayerSelector.vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { Edit, View, Hide, Refresh, Upload } from '@element-plus/icons-vue'
+  import { apiService } from '@/services/api'
 
   const gameStore = useGameStore()
 
   const isEditingPlayers = ref(false)
+  const registeredUsers = ref([]) // Список зарегистрированных пользователей для закрытой рассадки
   
   const isGameFinished = computed(() => {
       return gameStore.gameState.gameStatus === 'civilians_win' || gameStore.gameState.gameStatus === 'mafia_win' || gameStore.gameState.gameStatus === 'draw'
@@ -417,6 +421,40 @@
       }
       return ''
   }
+
+  // Функция загрузки зарегистрированных пользователей для закрытой рассадки
+  const loadRegisteredUsers = async () => {
+      // Загружаем только если включена закрытая рассадка и есть eventId
+      if (!gameStore.gameInfo?.closedSeating || !gameStore.gameInfo?.eventId) {
+          registeredUsers.value = []
+          return
+      }
+
+      try {
+          const response = await apiService.getEventRegistrations(gameStore.gameInfo.eventId, {
+              status: 'confirmed',
+              pageSize: 100
+          })
+          registeredUsers.value = (response.items || []).map(reg => ({
+              nickname: reg.user?.nickname || reg.user_nickname,
+              id: reg.user?.id || reg.user_id,
+              value: reg.user?.nickname || reg.user_nickname
+          }))
+      } catch (error) {
+          console.error('Error loading registered users:', error)
+          registeredUsers.value = []
+      }
+  }
+
+  // Загружаем при монтировании компонента
+  onMounted(() => {
+      loadRegisteredUsers()
+  })
+
+  // Перезагружаем при изменении closedSeating или eventId
+  watch([() => gameStore.gameInfo?.closedSeating, () => gameStore.gameInfo?.eventId], () => {
+      loadRegisteredUsers()
+  })
 </script>
 
 <style scoped>
