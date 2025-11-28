@@ -523,7 +523,8 @@ export const useGameStore = defineStore('game', () => {
 		isEliminated: false,
 		isSilent: false,
 		silentNextRound: false,
-		userId: null
+		userId: null,
+        isInGame: true
 	    })
 	    gameState.value.scores[i] = { baseScore: 0, additionalScore: 0 }
 	}
