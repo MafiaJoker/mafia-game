@@ -487,7 +487,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
                 voted_box_id: phase.voted_box_id || null,
                 // НЕ передаем fouls_summary - пусть сервер копирует из предыдущей фазы
                 voting_summary: [], // Пустой список для новых фаз
-                best_move: bestMove.value || []
+                best_move: bestMove.value
             }
             
             await apiService.createGamePhase(gameId.value, phaseData)
