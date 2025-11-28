@@ -562,6 +562,9 @@
     if (!props.event?.start_date) return false
     const eventDate = new Date(props.event.start_date)
     const now = new Date()
+    // Сравниваем только даты без учета времени
+    eventDate.setHours(0, 0, 0, 0)
+    now.setHours(0, 0, 0, 0)
     return eventDate < now
   })
 
