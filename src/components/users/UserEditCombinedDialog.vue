@@ -38,7 +38,7 @@
         </el-form-item>
 
         <!-- Роли -->
-        <el-form-item label="Роли пользователя">
+        <el-form-item v-if="!user.is_unregistered" label="Роли пользователя">
           <div>
             <el-checkbox-group v-model="form.roles">
               <el-checkbox 
@@ -190,7 +190,7 @@ const handleClose = () => {
 
 const handleConfirm = async () => {
   if (!formRef.value) return
-  if (form.value.roles.length === 0) {
+  if (form.value.roles.length === 0 && !props.user.is_unregistered) {
     ElMessage.warning('Выберите хотя бы одну роль')
     return
   }
@@ -198,12 +198,14 @@ const handleConfirm = async () => {
   try {
     await formRef.value.validate()
     loading.value = true
-    
-    emit('confirm', {
-      userId: props.user.id,
-      nickname: form.value.nickname,
-      roles: form.value.roles
-    })
+
+    let apiData = { nickname: form.value.nickname }
+
+    if (!props.user.is_unregistered) {
+      apiData.roles = form.value.roles
+    }
+
+    emit('confirm', props.user.id, apiData)
     
     handleClose()
   } catch (error) {
