@@ -283,14 +283,19 @@
       if (nominatedPlayersCount.value === 1 && gameState.value.round > 1) {
 	  // Единственная кандидатура автоматически выбывает
 	  const playerId = gameStore.nominatedPlayers[0]
-	  const player = gameStore.currentPlayer(playerId)
+	  gameStore.currentPlayer(playerId)
 	  
 	  // ElMessage.warning(`Игрок ${player.nickname} автоматически выбывает как единственная кандидатура`)
 	  gameStore.eliminatePlayer(playerId)
 	  
 	  // Очищаем номинации
 	  gameState.value.players.forEach(p => { p.nominated = null })
-	  
+
+    gameStore.setGameStatus(
+	        gameStore.gameState.gameStatus,
+	        GAME_SUBSTATUS.FAREWELL_MINUTE
+	    )
+
 	  return
       }
       
