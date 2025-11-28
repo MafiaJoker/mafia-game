@@ -1,6 +1,6 @@
 <template>
   <div class="game-timer">
-    <div class="timer-container" :class="{ 'timer-expired': isTimerExpired, 'timer-paused': !isRunning }" @click="handleTimerClick">
+    <div class="timer-container" :class="{ 'timer-expired': isTimerExpired, 'timer-paused': !isRunning }" @click="handleTimer">
       <div class="timer-display">
         {{ formattedTime }}
       </div>
@@ -69,7 +69,7 @@
   }
 
   // Обработка клика по таймеру
-  const handleTimerClick = () => {
+  const handleTimer = () => {
       if (isRunning.value) {
           // Если таймер работает - останавливаем и сбрасываем
           isRunning.value = false
@@ -80,17 +80,11 @@
       }
   }
   
-  // Сброс таймера (по пробелу)
-  const resetTimer = () => {
-      isRunning.value = false
-      seconds.value = 0
-  }
-
   // Обработчик нажатия пробела
   const handleKeydown = (event) => {
     if (event.code === 'Space') {
       event.preventDefault()
-      resetTimer()
+      handleTimer()
     }
   }
 
