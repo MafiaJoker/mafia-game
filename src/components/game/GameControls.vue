@@ -329,8 +329,6 @@
           return
       }
       await nightActionsStore.confirmNight()
-      // Обновляем состояние игры после перехода к новому дню
-      await gameStore.updateGameState()
   }
 
   const goToDay = () => {

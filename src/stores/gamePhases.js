@@ -509,9 +509,19 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             // Вместо циклического импорта, используем прямой API вызов
             const gameData = await apiService.getGame(gameId.value)
             
+            // Загружаем полное состояние игры если игра активна
+            let gameStateData = null
+            if (gameData && (gameData.status === 'in_progress' || gameData.result)) {
+                try {
+                    gameStateData = await apiService.getGameState(gameId.value)
+                } catch (error) {
+                    console.warn('Не удалось загрузить состояние игры:', error)
+                }
+            }
+            
             // Перезагружаем фазы из полученных данных
             const gameStatus = gameData?.status || gameData?.result
-            await loadGamePhases(gameId.value, gameStatus, gameData)
+            await loadGamePhases(gameId.value, gameStatus, gameStateData || gameData)
             
             // Уведомляем об успешном обновлении фаз
             // (синхронизация игроков должна происходить в компонентах)

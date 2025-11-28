@@ -176,6 +176,9 @@
   const pressingDonTargetId = ref(null)
   const pressingSheriffTargetId = ref(null)
 
+  const aliveTargets = computed(() => {
+      return gameStore.gameState.players.filter(p => p.isAlive && !p.isEliminated && p.isInGame !== false)
+  })
 
   // Цели для проверки Дона - все игроки (включая мертвых и выбывших)
   const NightCheckTargets = computed(() => {

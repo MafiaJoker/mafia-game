@@ -120,7 +120,7 @@ export const useGameStore = defineStore('game', () => {
 
     const getAlivePlayersFromPhases = computed(() => {
         if (!gamePhasesStore.phases.length) {
-            return gameState.value.players.filter(p => p.isAlive && !p.isEliminated)
+            return gameState.value.players.filter(p => p.isAlive && !p.isEliminated && p.isInGame !== false)
         }
         
         const aliveBoxIds = gamePhasesStore.getAlivePlayersAtPhase(gamePhasesStore.currentPhaseId)
@@ -181,18 +181,6 @@ export const useGameStore = defineStore('game', () => {
             
             // Устанавливаем базовые баллы в зависимости от результата
             setBaseScores(result)
-            
-            // Обновляем статус игры в API
-            if (gameInfo.value) {
-		await apiService.updateGame(
-                    gameInfo.value.gameId, 
-                    {
-			status: 'finished',
-			result: result,
-			currentRound: gameState.value.round
-                    }
-		)
-            }
             
             await gamePhasesStore.saveGamePhases()
             
@@ -737,12 +725,12 @@ export const useGameStore = defineStore('game', () => {
 
     const updateNominatedPlayers = () => {
 	const nominations = gameState.value.players
-	      .filter(p => p.isAlive && !p.isEliminated && p.nominated !== null)
+	      .filter(p => p.isAlive && !p.isEliminated && p.isInGame !== false && p.nominated !== null)
 	      .map(p => p.nominated)
 	
 	gameState.value.nominatedPlayers = [...new Set(nominations)].filter(id => {
 	    const player = currentPlayer.value(id)
-	    return player && player.isAlive && !player.isEliminated
+	    return player && player.isAlive && !player.isEliminated && player.isInGame !== false
 	})
     }
 
@@ -897,15 +885,20 @@ export const useGameStore = defineStore('game', () => {
 	    
 	    // 2. Инициализируем gamePhasesStore
 	    if (gameInfo.value?.gameId) {
-		if (gamePhasesStore.gameId !== gameInfo.value.gameId) {
-		    gamePhasesStore.initializeGame(gameInfo.value.gameId)
-		}
+		// Всегда инициализируем для обеспечения чистого состояния
+		gamePhasesStore.initializeGame(gameInfo.value.gameId)
 		
 		// 3. Создаем первую фазу на сервере
 		const phaseResult = await gamePhasesStore.createPhaseOnServer()
 		if (!phaseResult) {
 		    console.warn('Не удалось создать фазу на сервере, но продолжаем')
 		}
+		
+		// 4. Загружаем актуальное состояние игры для синхронизации last_phase_fouls
+		await loadGameDetailed(gameInfo.value.gameId)
+		
+		// 5. Синхронизируем фолы из gameState в фазы
+		gamePhasesStore.syncFoulsFromGameState(gameState.value.players, gameState.value.last_phase_fouls)
 	    }
 	    
 	    return true
@@ -1153,7 +1146,7 @@ export const useGameStore = defineStore('game', () => {
     
     // Критический раунд - когда за столом 3 или 4 живых игрока
     const isCriticalRound = computed(() => {
-	const alivePlayers = gameState.value.players.filter(p => p.isAlive && !p.isEliminated).length
+	const alivePlayers = gameState.value.players.filter(p => p.isAlive && !p.isEliminated && p.isInGame !== false).length
 	return alivePlayers === 3 || alivePlayers === 4
     })
     

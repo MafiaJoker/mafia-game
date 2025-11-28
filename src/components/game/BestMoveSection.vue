@@ -39,7 +39,7 @@
   const gameStore = useGameStore()
 
   const availablePlayers = computed(() => {
-      return gameStore.gameState.players.filter(p => p.isAlive && !p.isEliminated)
+      return gameStore.gameState.players.filter(p => p.isAlive && !p.isEliminated && p.isInGame !== false)
   })
 
   const selectedCount = computed(() => {
