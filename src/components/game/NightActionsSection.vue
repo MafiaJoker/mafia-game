@@ -70,7 +70,7 @@
               <div class="targets-buttons mb-2">
                 <el-button-group>
                   <el-button 
-                    v-for="player in donTargets"
+                    v-for="player in NightCheckTargets"
                     :key="`don-${player.id}`"
                     :type="getDonTargetType(player.id)"
                     :class="getDonTargetClass(player.id)"
@@ -123,7 +123,7 @@
               <div class="targets-buttons mb-2">
                 <el-button-group>
                   <el-button 
-                    v-for="player in aliveTargets"
+                    v-for="player in NightCheckTargets"
                     :key="`sheriff-${player.id}`"
                     :type="getSheriffTargetType(player.id)"
                     :class="getSheriffTargetClass(player.id)"
@@ -177,12 +177,8 @@
   const pressingSheriffTargetId = ref(null)
 
 
-  const aliveTargets = computed(() => {
-      return gameStore.gameState.players.filter(p => p.isAlive && !p.isEliminated)
-  })
-
   // Цели для проверки Дона - все игроки (включая мертвых и выбывших)
-  const donTargets = computed(() => {
+  const NightCheckTargets = computed(() => {
       return gameStore.gameState.players
   })
 
