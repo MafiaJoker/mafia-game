@@ -22,7 +22,7 @@
               <GameTimer />
             </div>
             
-            <div v-if="!isGameFinished" class="game-actions">
+            <div v-if="!isGameFinished && authStore.isAuthenticated" class="game-actions">
               <GameControls />
             </div>
           </div>
@@ -31,6 +31,17 @@
 
       <el-main>
         <div class="game-content">
+          <!-- Уведомление для незарегистрированных пользователей -->
+          <el-alert
+            v-if="!authStore.isAuthenticated && !isGameFinished"
+            :title="'Режим просмотра'"
+            type="info"
+            :description="'Вы просматриваете игру как гость. Для участия в играх необходимо войти в систему.'"
+            show-icon
+            :closable="false"
+            class="mb-4"
+          />
+          
           <!-- Информация о завершенной игре -->
           <el-card v-if="isGameFinished" class="game-result-card mb-4">
             <div class="game-result-content">
@@ -82,11 +93,11 @@
             <BestMoveSection v-if="showBestMoveSection" />
 
             <!-- Список игроков -->
-            <PlayersTable />
+            <PlayersTable :readonly="!authStore.isAuthenticated" />
           </template>
           
           <!-- Меню для игровых действий -->
-          <div v-if="gameStore.isGameInProgress" class="game-menu-container">
+          <div v-if="gameStore.isGameInProgress && authStore.isAuthenticated" class="game-menu-container">
             <el-dropdown trigger="click" placement="top">
               <el-button 
                 type="default" 
@@ -160,6 +171,7 @@
   const router = useRouter()
   const gameStore = useGameStore()
   const gamePhasesStore = useGamePhasesStore()
+  const authStore = useAuthStore()
   
   const showPpkDialog = ref(false)
   const showCancelDialog = ref(false)

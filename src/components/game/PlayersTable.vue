@@ -43,7 +43,7 @@
         </template>
       </el-table-column>
       
-      <el-table-column v-if="gameStore.isGameInProgress" label="Фолы" width="100" align="center">
+      <el-table-column v-if="gameStore.isGameInProgress && !props.readonly" label="Фолы" width="100" align="center">
         <template #default="{ row }">
           <PlayerFouls 
             :player="row"
@@ -62,7 +62,7 @@
           <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
             <span>Роль</span>
             <el-button 
-              v-if="!isGameFinished && (gameStore.isGameInProgress || gameStore.gameState.gameStatus === GAME_STATUSES.NEGOTIATION || gameStore.gameState.gameStatus === GAME_STATUSES.FREE_SEATING)"
+              v-if="!isGameFinished && !props.readonly && (gameStore.isGameInProgress || gameStore.gameState.gameStatus === GAME_STATUSES.NEGOTIATION || gameStore.gameState.gameStatus === GAME_STATUSES.FREE_SEATING)"
               :type="gameStore.gameState.rolesVisible ? 'primary' : 'default'"
               :icon="gameStore.gameState.rolesVisible ? Hide : View"
               size="small"
@@ -76,7 +76,7 @@
           <PlayerRole 
             :player="row"
             :visible="isGameFinished || gameStore.gameState.rolesVisible"
-            :editable="gameStore.canEditRoles && !isGameFinished"
+            :editable="gameStore.canEditRoles && !isGameFinished && !props.readonly"
             @change-role="handleRoleChange"
             />
         </template>
@@ -116,7 +116,7 @@
         </template>
       </el-table-column>
       
-      <el-table-column v-if="!isGameFinished" label="Выставление" min-width="120">
+      <el-table-column v-if="!isGameFinished && !props.readonly" label="Выставление" min-width="120">
         <template #default="{ row }">
           <PlayerNominateButton 
             :player="row"
@@ -178,6 +178,13 @@
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { Edit, View, Hide, Refresh, Upload } from '@element-plus/icons-vue'
   import { apiService } from '@/services/api'
+
+  const props = defineProps({
+    readonly: {
+      type: Boolean,
+      default: false
+    }
+  })
 
   const gameStore = useGameStore()
 
@@ -243,6 +250,7 @@
   })
 
   const canEditPlayers = computed(() => {
+      if (props.readonly) return false
       const isGameFinished = gameStore.gameState.gameStatus === 'civilians_win' || 
                              gameStore.gameState.gameStatus === 'mafia_win' || 
                              gameStore.gameState.gameStatus === 'draw'
@@ -288,6 +296,7 @@
   })
 
   const showCardHeader = computed(() => {
+      if (props.readonly) return false
       // Показываем шапку только если есть действия для показа (не только кнопка роли)
       const isGameFinished = gameStore.gameState.gameStatus === 'civilians_win' || 
                              gameStore.gameState.gameStatus === 'mafia_win' || 
