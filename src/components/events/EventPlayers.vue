@@ -33,16 +33,19 @@
               </div>
               
               <div class="player-selection-list">
-                <div 
-                  v-for="(selection, index) in playerSelections" 
+                <div
+                  v-for="(selection, index) in playerSelections"
                   :key="index"
                   class="player-selection-row"
                   >
-                  <el-select 
+                  <el-select
                     v-model="selection.selectedUserId"
-                    placeholder="Выберите игрока" 
-                    filterable 
+                    placeholder="Начните вводить имя игрока"
+                    filterable
+                    remote
                     clearable
+                    :remote-method="(query) => searchUsersForSlot(index, query)"
+                    :loading="searchLoading[index]"
                     class="player-select"
                     @change="handlePlayerSelection(index, $event)"
                     >
@@ -112,18 +115,32 @@
                   type="primary" 
                   @click="savePlayerSelections"
                   :loading="addingPlayer"
+                  :disabled="isPastEvent"
+                  :title="isPastEvent ? 'Невозможно регистрировать участников на прошедшие мероприятия' : ''"
                   >
                   <el-icon><Check /></el-icon>
                   Добавить выбранных игроков
                 </el-button>
               </div>
 
+              <!-- Предупреждение для прошедших мероприятий -->
+              <el-alert
+                v-if="isPastEvent"
+                title="Мероприятие завершено"
+                description="Регистрация новых участников невозможна"
+                type="warning"
+                :closable="false"
+                class="mb-3"
+              />
+              
               <!-- Кнопка для тестирования -->
               <div class="test-section">
                 <el-button 
                   type="warning" 
                   @click="registerRandomPlayers"
                   :loading="addingRandomPlayers"
+                  :disabled="isPastEvent"
+                  :title="isPastEvent ? 'Невозможно регистрировать участников на прошедшие мероприятия' : ''"
                   >
                   <el-icon><UserFilled /></el-icon>
                   Зарегестрировать случайных 10 игроков
@@ -444,11 +461,11 @@
   const registrationsStore = useRegistrationsStore()
   const players = ref([])
   const playerSelections = ref([
-    { selectedUserId: null },
-    { selectedUserId: null },
-    { selectedUserId: null },
-    { selectedUserId: null },
-    { selectedUserId: null }
+    { selectedUserId: null, searchQuery: '' },
+    { selectedUserId: null, searchQuery: '' },
+    { selectedUserId: null, searchQuery: '' },
+    { selectedUserId: null, searchQuery: '' },
+    { selectedUserId: null, searchQuery: '' }
   ]) // Текущие выборы игроков
   const allUsers = ref([])
   const loading = ref(false)
@@ -459,6 +476,8 @@
   const addingRandomPlayers = ref(false)
   const isClosedSeating = ref(false)
   const activeRegistrationTab = ref('add')
+  const userSearchResults = ref({}) // Хранит результаты поиска для каждого слота
+  const searchLoading = ref({}) // Индикаторы загрузки для каждого слота
 
   const loadEventPlayers = async () => {
       if (!props.event?.tables) return
@@ -543,6 +562,17 @@
       return false
   }
 
+  // Проверка прошедшего мероприятия
+  const isPastEvent = computed(() => {
+    if (!props.event?.start_date) return false
+    const eventDate = new Date(props.event.start_date)
+    const now = new Date()
+    // Сравниваем только даты без учета времени
+    eventDate.setHours(0, 0, 0, 0)
+    now.setHours(0, 0, 0, 0)
+    return eventDate < now
+  })
+
   // Общее количество зарегистрированных игроков
   const totalRegisteredPlayers = computed(() => {
       return registrationsStore.confirmedRegistrations.length + playerSelections.value.filter(p => p.selectedUserId).length
@@ -567,18 +597,57 @@
       return !lastSlot || !lastSlot.selectedUserId
   })
 
+  // Debounce функция для поиска
+  let searchTimeouts = {}
+
+  const searchUsersForSlot = async (slotIndex, query) => {
+      // Очищаем предыдущий таймер для этого слота
+      if (searchTimeouts[slotIndex]) {
+          clearTimeout(searchTimeouts[slotIndex])
+      }
+
+      // Если запрос пустой, очищаем результаты
+      if (!query || query.trim().length === 0) {
+          userSearchResults.value[slotIndex] = []
+          return
+      }
+
+      // Устанавливаем новый таймер с debounce 300ms
+      searchTimeouts[slotIndex] = setTimeout(async () => {
+          searchLoading.value[slotIndex] = true
+          try {
+              const params = {
+                  nickname: query.trim(),
+                  event_id: props.event.id,
+                  is_applied: false,
+                  limit: 20
+              }
+              const response = await apiService.getUsers(params)
+              userSearchResults.value[slotIndex] = response.items || response || []
+          } catch (error) {
+              console.error('Ошибка поиска пользователей:', error)
+              userSearchResults.value[slotIndex] = []
+          } finally {
+              searchLoading.value[slotIndex] = false
+          }
+      }, 300)
+  }
+
   // Получить доступных пользователей для конкретного слота
   const getAvailableUsersForSlot = (slotIndex) => {
       // Исключаем уже подтвержденных игроков
       const confirmedIds = confirmedPlayers.value.map(p => p.id)
-      
+
       // Исключаем игроков, выбранных в других слотах
       const selectedInOtherSlots = playerSelections.value
           .map((selection, index) => index !== slotIndex ? selection.selectedUserId : null)
           .filter(id => id !== null)
-      
-      return allUsers.value.filter(user => 
-          !confirmedIds.includes(user.id) && 
+
+      // Используем результаты поиска для этого слота, если они есть
+      const usersToFilter = userSearchResults.value[slotIndex] || []
+
+      return usersToFilter.filter(user =>
+          !confirmedIds.includes(user.id) &&
           !selectedInOtherSlots.includes(user.id)
       )
   }
@@ -716,15 +785,6 @@
   }
 
   // Методы для работы с регистрацией игроков
-  const loadAllUsers = async () => {
-      try {
-          const response = await apiService.getUsers()
-          allUsers.value = response.items || response || []
-      } catch (error) {
-          console.error('Ошибка загрузки пользователей:', error)
-      }
-  }
-
   const loadRegisteredPlayers = async () => {
       if (!props.event?.id) return
       
@@ -826,14 +886,26 @@
       }
   }
 
-  const updateClosedSeating = async () => {
+  // Загрузка настройки закрытой рассадки из localStorage
+  const loadClosedSeatingSettings = () => {
+      if (props.event?.id) {
+          const savedClosedSeating = localStorage.getItem(`event_${props.event.id}_closed_seating`)
+          if (savedClosedSeating !== null) {
+              isClosedSeating.value = savedClosedSeating === 'true'
+          }
+      }
+  }
+
+  const updateClosedSeating = () => {
       try {
-          // TODO: Добавить API вызов для обновления настроек мероприятия
-          // await apiService.updateEvent(props.event.id, { closed_seating: isClosedSeating.value })
-          
+          // Сохраняем настройку в localStorage для текущего события
+          if (props.event?.id) {
+              localStorage.setItem(`event_${props.event.id}_closed_seating`, isClosedSeating.value.toString())
+          }
+
           const status = isClosedSeating.value ? 'включена' : 'отключена'
           ElMessage.success(`Закрытая рассадка ${status}`)
-          
+
       } catch (error) {
           console.error('Ошибка обновления настроек:', error)
           ElMessage.error('Ошибка при обновлении настроек')
@@ -844,8 +916,23 @@
 
   // Регистрация 10 случайных игроков для тестирования
   const registerRandomPlayers = async () => {
+      // Проверяем, не прошло ли мероприятие
+      if (props.event?.start_date) {
+          const eventDate = new Date(props.event.start_date)
+          const now = new Date()
+          if (eventDate < now) {
+              ElMessage.error('Невозможно регистрировать участников на прошедшие мероприятия')
+              return
+          }
+      }
+      
       addingRandomPlayers.value = true
       try {
+          // Загружаем всех пользователей если еще не загружены
+          if (allUsers.value.length === 0) {
+              const response = await apiService.getUsers({ limit: 100 })
+              allUsers.value = response.items || response || []
+          }
           // Получаем список всех пользователей, которые еще не зарегистрированы
           const confirmedIds = confirmedPlayers.value.map(p => p.id)
           const availableUsers = allUsers.value.filter(user => !confirmedIds.includes(user.id))
@@ -861,12 +948,25 @@
           
           // Регистрируем каждого игрока
           let registered = 0
+          let failed = 0
+          
           for (const user of playersToRegister) {
-              await registrationsStore.createRegistration(props.event.id, user.id)
-              registered++
+              try {
+                  await registrationsStore.createRegistration(props.event.id, user.id)
+                  registered++
+              } catch (error) {
+                  console.error(`Failed to register user ${user.id}:`, error)
+                  failed++
+                  // Продолжаем регистрацию остальных игроков
+              }
           }
           
-          ElMessage.success(`Зарегистрировано ${registered} игроков`)
+          if (registered > 0) {
+              ElMessage.success(`Зарегистрировано ${registered} игроков`)
+          }
+          if (failed > 0) {
+              ElMessage.warning(`Не удалось зарегистрировать ${failed} игроков`)
+          }
           
       } catch (error) {
           console.error('Ошибка при регистрации случайных игроков:', error)
@@ -878,15 +978,16 @@
 
   onMounted(() => {
       if (props.event?.id) {
+          loadClosedSeatingSettings()
           loadEventPlayers()
           loadRegisteredPlayers()
       }
-      loadAllUsers()
   })
 
   // Следим за изменениями event
   watch(() => props.event, (newEvent) => {
       if (newEvent?.id) {
+          loadClosedSeatingSettings()
           loadEventPlayers()
           loadRegisteredPlayers()
       }

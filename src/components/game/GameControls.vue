@@ -127,6 +127,12 @@
           Подтвердить ЛХ
         </el-button>
       </el-badge>
+      <el-button 
+        type="info" 
+        @click="skipBestMove"
+        >
+        Пропустить ЛХ
+      </el-button>
     </template>
   </div>
 </template>
@@ -277,14 +283,19 @@
       if (nominatedPlayersCount.value === 1 && gameState.value.round > 1) {
 	  // Единственная кандидатура автоматически выбывает
 	  const playerId = gameStore.nominatedPlayers[0]
-	  const player = gameStore.currentPlayer(playerId)
+	  gameStore.currentPlayer(playerId)
 	  
 	  // ElMessage.warning(`Игрок ${player.nickname} автоматически выбывает как единственная кандидатура`)
 	  gameStore.eliminatePlayer(playerId)
 	  
 	  // Очищаем номинации
 	  gameState.value.players.forEach(p => { p.nominated = null })
-	  
+
+    gameStore.setGameStatus(
+	        gameStore.gameState.gameStatus,
+	        GAME_SUBSTATUS.FAREWELL_MINUTE
+	    )
+
 	  return
       }
       
@@ -329,8 +340,6 @@
           return
       }
       await nightActionsStore.confirmNight()
-      // Обновляем состояние игры после перехода к новому дню
-      await gameStore.updateGameState()
   }
 
   const goToDay = () => {
@@ -367,6 +376,9 @@
       // 4. Создаем новую пустую фазу на сервере
       await gamePhasesStore.createPhaseOnServer()
       
+      // 4.1. Перезагружаем состояние игры с сервера для получения актуальных данных
+      await gameStore.loadGameDetailed(gameStore.gameInfo.gameId)
+      
       // 5. Синхронизируем раунд с фазами
       gameStore.gameState.round = gamePhasesStore.currentPhaseId
       
@@ -385,6 +397,46 @@
       gameStore.gameState.bestMoveTargets.clear()
       
       // ElMessage.success('Лучший ход подтвержден')
+  }
+
+  const skipBestMove = async () => {
+      // Получаем gamePhasesStore
+      const { useGamePhasesStore } = await import('@/stores/gamePhases')
+      const gamePhasesStore = useGamePhasesStore()
+      
+      // 1. Записываем null как лучший ход в ТЕКУЩУЮ фазу
+      gamePhasesStore.setBestMove(null)
+      
+      // 2. Обновляем текущую фазу на сервере с пропущенным лучшим ходом
+      await gamePhasesStore.updateCurrentPhaseOnServer()
+      
+      // 3. ТЕПЕРЬ создаем новую фазу (увеличиваем currentPhaseId)
+      gamePhasesStore.nextPhase()
+      
+      // 4. Создаем новую пустую фазу на сервере
+      await gamePhasesStore.createPhaseOnServer()
+      
+      // 4.1. Перезагружаем состояние игры с сервера для получения актуальных данных
+      await gameStore.loadGameDetailed(gameStore.gameInfo.gameId)
+      
+      // 5. Синхронизируем раунд с фазами
+      gameStore.gameState.round = gamePhasesStore.currentPhaseId
+      
+      // 5.1. Сбрасываем флаг голосования для нового раунда
+      gameStore.gameState.votingHappenedThisRound = false
+      
+      // 5.2. Синхронизируем статусы игроков с фазами
+      gameStore.syncPlayersWithPhases()
+      
+      // 6. Переходим к обсуждению нового дня
+      gameStore.setGameStatus(gameStore.gameState.gameStatus, GAME_SUBSTATUS.DISCUSSION)
+      
+      // 7. Обновляем состояние игры
+      gameStore.gameState.bestMoveUsed = true
+      gameStore.gameState.showBestMove = false
+      gameStore.gameState.bestMoveTargets.clear()
+      
+      // ElMessage.info('Лучший ход пропущен')
   }
 
   const showScoreDialog = () => {

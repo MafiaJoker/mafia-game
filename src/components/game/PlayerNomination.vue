@@ -87,7 +87,7 @@
       if (!canNominate.value) return []
       
       const nominatedPlayerIds = props.gameState.players
-	    .filter(p => p.isAlive && !p.isEliminated && p.nominated !== null)
+	    .filter(p => p.isAlive && !p.isEliminated && p.isInGame !== false && p.nominated !== null)
 	    .map(p => p.nominated)
       
       return props.players.filter(p => {

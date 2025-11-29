@@ -114,6 +114,9 @@ export const useNightActionsStore = defineStore('nightActions', () => {
         gamePhasesStore.nextPhase()
         await gamePhasesStore.createPhaseOnServer()
         
+        // Перезагружаем состояние игры с сервера для получения актуальных данных
+        await gameStore.loadGameDetailed(gameStore.gameInfo.gameId)
+        
         // Синхронизируем раунд с фазами
         gameStore.gameState.round = gamePhasesStore.currentPhaseId
         

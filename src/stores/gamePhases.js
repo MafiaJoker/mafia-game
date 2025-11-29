@@ -1,14 +1,65 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { apiService } from '@/services/api.js'
 import { GAME_RULES } from '@/utils/gameConstants.js'
+import { LRUCache } from '@/utils/lruCache.js'
+
+// LRU cache to store game states (max 100 games)
+const gameStatesCache = new LRUCache(100)
+
+// Create default state for a game
+const createDefaultState = () => reactive({
+    bestMove: null,
+    phases: [],
+    currentPhaseId: 1
+})
 
 export const useGamePhasesStore = defineStore('gamePhases', () => {
-    // State
+    // Current game ID tracking
     const gameId = ref(null)
-    const bestMove = ref(null) // array of box_ids or null
-    const phases = ref([])
-    const currentPhaseId = ref(1)
+
+    // Get current game state from cache
+    const getCurrentState = () => {
+        if (!gameId.value) {
+            return createDefaultState()
+        }
+
+        let state = gameStatesCache.get(gameId.value)
+        if (!state) {
+            state = createDefaultState()
+            gameStatesCache.set(gameId.value, state)
+        } else {
+            // Update access time
+            gameStatesCache.touch(gameId.value)
+        }
+
+        return state
+    }
+
+    // Reactive state accessors
+    const bestMove = computed({
+        get: () => getCurrentState().bestMove,
+        set: (value) => {
+            const state = getCurrentState()
+            state.bestMove = value
+        }
+    })
+
+    const phases = computed({
+        get: () => getCurrentState().phases,
+        set: (value) => {
+            const state = getCurrentState()
+            state.phases = value
+        }
+    })
+
+    const currentPhaseId = computed({
+        get: () => getCurrentState().currentPhaseId,
+        set: (value) => {
+            const state = getCurrentState()
+            state.currentPhaseId = value
+        }
+    })
 
     // Getters
     const currentPhase = computed(() => {
@@ -73,12 +124,20 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
     // Actions
     const initializeGame = (gameIdValue) => {
         gameId.value = gameIdValue
-        phases.value = []
-        currentPhaseId.value = 1
-        bestMove.value = null
-        
-        // Создаем первую фазу
-        createNewPhase()
+
+        // Check if state already exists in cache
+        let state = gameStatesCache.get(gameIdValue)
+        if (!state) {
+            // Create new state for this game
+            state = createDefaultState()
+            gameStatesCache.set(gameIdValue, state)
+
+            // Создаем первую фазу
+            createNewPhase()
+        } else {
+            // Update access time for existing game
+            gameStatesCache.touch(gameIdValue)
+        }
     }
 
     const createNewPhase = () => {
@@ -428,7 +487,7 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
                 voted_box_id: phase.voted_box_id || null,
                 // НЕ передаем fouls_summary - пусть сервер копирует из предыдущей фазы
                 voting_summary: [], // Пустой список для новых фаз
-                best_move: bestMove.value || []
+                best_move: bestMove.value
             }
             
             await apiService.createGamePhase(gameId.value, phaseData)
@@ -450,9 +509,19 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             // Вместо циклического импорта, используем прямой API вызов
             const gameData = await apiService.getGame(gameId.value)
             
+            // Загружаем полное состояние игры если игра активна
+            let gameStateData = null
+            if (gameData && (gameData.status === 'in_progress' || gameData.result)) {
+                try {
+                    gameStateData = await apiService.getGameState(gameId.value)
+                } catch (error) {
+                    console.warn('Не удалось загрузить состояние игры:', error)
+                }
+            }
+            
             // Перезагружаем фазы из полученных данных
             const gameStatus = gameData?.status || gameData?.result
-            await loadGamePhases(gameId.value, gameStatus, gameData)
+            await loadGamePhases(gameId.value, gameStatus, gameStateData || gameData)
             
             // Уведомляем об успешном обновлении фаз
             // (синхронизация игроков должна происходить в компонентах)
@@ -467,22 +536,31 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
     const loadGamePhases = async (gameIdValue, gameStatus, gameStateData = null) => {
         try {
             gameId.value = gameIdValue
-            
+
+            // Get or create state for this game
+            let state = gameStatesCache.get(gameIdValue)
+            if (!state) {
+                state = createDefaultState()
+                gameStatesCache.set(gameIdValue, state)
+            } else {
+                gameStatesCache.touch(gameIdValue)
+            }
+
             // Используем переданные данные состояния игры
             if (gameStateData) {
-                bestMove.value = gameStateData.best_move || null
-                
+                state.bestMove = gameStateData.best_move || null
+
                 // Если приходит массив фаз (старый формат)
                 if (gameStateData.phases && Array.isArray(gameStateData.phases)) {
-                    phases.value = gameStateData.phases
-                    currentPhaseId.value = phases.value.length > 0 ? 
-                        Math.max(...phases.value.map(p => p.phase_id)) : 1
-                    console.log('Фазы загружены как массив:', phases.value.length)
+                    state.phases = gameStateData.phases
+                    state.currentPhaseId = state.phases.length > 0 ?
+                        Math.max(...state.phases.map(p => p.phase_id)) : 1
+                    console.log('Фазы загружены как массив:', state.phases.length)
                 }
                 // Если приходит текущая фаза (новый формат)
                 else if (gameStateData.phase_id) {
-                    phases.value = [gameStateData] // создаём массив с одной текущей фазой
-                    currentPhaseId.value = gameStateData.phase_id
+                    state.phases = [gameStateData] // создаём массив с одной текущей фазой
+                    state.currentPhaseId = gameStateData.phase_id
                     console.log('Загружена текущая фаза:', gameStateData.phase_id)
                 }
                 else {
@@ -491,17 +569,18 @@ export const useGamePhasesStore = defineStore('gamePhases', () => {
             } else {
                 console.log('Данные состояния игры отсутствуют')
             }
-            
+
             // Если нет фаз, создаем первую
-            if (phases.value.length === 0) {
+            if (state.phases.length === 0) {
                 createNewPhase()
             }
-            
+
             return true
         } catch (error) {
             console.error('Ошибка загрузки фаз игры:', error)
             // Создаем первую фазу даже в случае ошибки
-            if (phases.value.length === 0) {
+            const state = getCurrentState()
+            if (state.phases.length === 0) {
                 createNewPhase()
             }
             return false

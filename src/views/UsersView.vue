@@ -217,7 +217,7 @@ const loadUsers = async (page = 1, size = 100, searchString = '', roleFilter = '
     
     // Добавляем параметр поиска если есть
     if (searchString && searchString.trim()) {
-      params.searchString = searchString.trim()
+      params.nickname = searchString.trim()
     }
     
     // Добавляем фильтр роли если есть  
@@ -324,13 +324,11 @@ const getUserFullName = (user) => {
   return `${first} ${last}`.trim() || 'Без имени'
 }
 
-const updateUserData = async ({ userId, nickname, roles }) => {
+const updateUserData = async (userId, apiData) => {
   try {
     // Обновляем никнейм и роли через один запрос
-    await apiService.updateUser(userId, { 
-      nickname: nickname,
-      roles: roles 
-    })
+
+    await apiService.updateUser(userId, apiData)
     
     ElMessage.success('Данные пользователя обновлены')
     await loadUsers()

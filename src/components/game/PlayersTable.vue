@@ -47,7 +47,7 @@
         <template #default="{ row }">
           <PlayerFouls 
             :player="row"
-            :can-add-fouls="gameStore.isGameInProgress && row.isInGame && row.isAlive && !row.isEliminated"
+            :can-add-fouls="canAddFoulsToPlayer(row)"
             @increment="handleIncrementFoul"
             @reset="handleResetFouls"
             @silent-now="handleSilentNow"
@@ -98,13 +98,16 @@
         </template>
         <template #default="{ row }">
           <PlayerSelector
-            v-if="isEditingPlayers && row.isInGame !== false"
+            v-if="isEditingPlayers && canEditPlayers && row.isInGame !== false"
             v-model="row.name"
             :player-id="row.id"
             :used-player-ids="getUsedPlayerIds(row.id)"
+            :event-id="gameStore.gameInfo?.eventId"
+            :closed-seating="gameStore.gameInfo?.closedSeating || false"
+            :registered-users="registeredUsers"
             @player-selected="handlePlayerSelected"
           />
-          <span v-else-if="isEditingPlayers && row.isInGame === false" class="player-name-display disabled-slot">
+          <span v-else-if="isEditingPlayers && canEditPlayers && row.isInGame === false" class="player-name-display disabled-slot">
             {{ row.name || `Слот ${row.id}` }} (не в игре)
           </span>
           <span v-else class="player-name-display" :class="{ 'empty-slot': !row.name }">
@@ -164,9 +167,9 @@
 </template>
 
 <script setup>
-  import { computed, ref } from 'vue'
+  import { computed, ref, onMounted, onBeforeUpdate, watch } from 'vue'
   import { useGameStore } from '@/stores/game'
-  import { MAX_FOULS, GAME_STATUSES } from '@/utils/constants'
+  import { MAX_FOULS, GAME_STATUSES, GAME_SUBSTATUS } from '@/utils/constants'
   import PlayerFouls from './PlayerFouls.vue'
   import PlayerRole from './PlayerRole.vue'
   import PlayerNominateButton from './PlayerNominateButton.vue'
@@ -174,10 +177,12 @@
   import PlayerSelector from './PlayerSelector.vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { Edit, View, Hide, Refresh, Upload } from '@element-plus/icons-vue'
+  import { apiService } from '@/services/api'
 
   const gameStore = useGameStore()
 
   const isEditingPlayers = ref(false)
+  const registeredUsers = ref([]) // Список зарегистрированных пользователей для закрытой рассадки
   
   const isGameFinished = computed(() => {
       return gameStore.gameState.gameStatus === 'civilians_win' || gameStore.gameState.gameStatus === 'mafia_win' || gameStore.gameState.gameStatus === 'draw'
@@ -241,11 +246,32 @@
       const isGameFinished = gameStore.gameState.gameStatus === 'civilians_win' || 
                              gameStore.gameState.gameStatus === 'mafia_win' || 
                              gameStore.gameState.gameStatus === 'draw'
-      return !gameStore.isGameInProgress && !isGameFinished
+      const isSeatingConfirmed = gameStore.gameState.gameStatus === GAME_STATUSES.SEATING_READY
+      return !gameStore.isGameInProgress && !isGameFinished && !isSeatingConfirmed
   })
 
   const togglePlayerEdit = () => {
       isEditingPlayers.value = !isEditingPlayers.value
+  }
+  
+  const canAddFoulsToPlayer = (player) => {
+      const isInProgress = gameStore.isGameInProgress
+      const isAlive = player.isAlive
+      const isFarewell = gameStore.gameState.gameSubstatus === GAME_SUBSTATUS.FAREWELL_MINUTE
+      const isVotedOut = player.status === 'VOTED_OUT'
+      
+      // Логирование для отладки
+      if (player.status === 'VOTED_OUT') {
+          console.log(`Player ${player.id} (${player.name}):`, {
+              isInProgress,
+              isAlive,
+              isFarewell,
+              isVotedOut,
+              gameSubstatus: gameStore.gameState.gameSubstatus
+          })
+      }
+      
+      return isInProgress && (isAlive || (isFarewell && isVotedOut))
   }
 
   const showPlayerActions = computed(() => {
@@ -353,8 +379,12 @@
   }
 
   const handleShufflePlayers = () => {
+      const confirmMessage = gameStore.gameInfo?.eventId
+          ? 'Вы уверены, что хотите случайно рассадить участников события по столу?'
+          : 'Вы уверены, что хотите случайно рассадить игроков из базы данных по столу?'
+      
       ElMessageBox.confirm(
-	  'Вы уверены, что хотите случайно рассадить игроков из базы данных по столу?',
+	  confirmMessage,
 	  'Подтверждение перемешивания',
 	  {
 	      confirmButtonText: 'Да, рассадить',
@@ -404,14 +434,54 @@
   }
 
   const getRowClassName = ({ row }) => {
-      if (row.isInGame === false && !isGameFinished.value) {
-          return 'not-in-game'
-      }
-      if ((!row.isAlive || row.isEliminated) && !isGameFinished.value) {
-          return 'dead'
+      if (!isGameFinished.value) {
+          if (row.isInGame === false || !row.isAlive) {
+              return 'dead'
+          }
       }
       return ''
   }
+
+  // Функция загрузки зарегистрированных пользователей для закрытой рассадки
+  const loadRegisteredUsers = async () => {
+      // Загружаем только если включена закрытая рассадка и есть eventId
+      if (!gameStore.gameInfo?.closedSeating || !gameStore.gameInfo?.eventId) {
+          registeredUsers.value = []
+          return
+      }
+
+      try {
+          const response = await apiService.getEventRegistrations(gameStore.gameInfo.eventId, {
+              status: 'confirmed',
+              pageSize: 100
+          })
+          registeredUsers.value = (response.items || []).map(reg => ({
+              nickname: reg.user?.nickname || reg.user_nickname,
+              id: reg.user?.id || reg.user_id,
+              value: reg.user?.nickname || reg.user_nickname
+          }))
+      } catch (error) {
+          console.error('Error loading registered users:', error)
+          registeredUsers.value = []
+      }
+  }
+
+  // Загружаем при монтировании компонента
+  onMounted(() => {
+      loadRegisteredUsers()
+  })
+
+  // Перезагружаем при изменении closedSeating или eventId
+  watch([() => gameStore.gameInfo?.closedSeating, () => gameStore.gameInfo?.eventId], () => {
+      loadRegisteredUsers()
+  })
+  
+  // Автоматически отключаем редактирование при изменении статуса игры
+  watch(() => gameStore.gameState.gameStatus, () => {
+      if (!canEditPlayers.value && isEditingPlayers.value) {
+          isEditingPlayers.value = false
+      }
+  })
 </script>
 
 <style scoped>

@@ -73,11 +73,14 @@ export const useVotingStore = defineStore('voting', () => {
 	    gameStore.eliminatePlayerByVote(eliminatedId)
 	    gameStore.gameState.noCandidatesRounds = 0
 	    eliminatedPlayers.push(eliminatedId)
+	    
+	    // Добавляем игрока в removed_box_ids чтобы он корректно обрабатывался при загрузке
+	    gamePhasesStore.addRemovedPlayer(eliminatedId)
 	}
 	
 	// Сохраняем результат голосования в фазы (даже если никто не выбыл)
 	if (gamePhasesStore.currentPhase) {
-	    gamePhasesStore.currentPhase.voted_box_id = eliminatedPlayers.length > 0 ? eliminatedPlayers : []
+	    gamePhasesStore.currentPhase.voted_box_id = eliminatedPlayers.length > 0 ? eliminatedPlayers : null
 	    // Обновляем фазу на сервере
 	    await gamePhasesStore.updateCurrentPhaseOnServer()
 	}
