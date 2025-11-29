@@ -91,21 +91,9 @@ router.beforeEach(async (to, from, next) => {
         console.log(`Router: navigating from ${from.path} to ${to.path}`)
     }
     
-    // Список маршрутов, доступных без авторизации
-    const publicRoutes = ['/login', '/game/:id']
-    
-    // Проверяем, является ли маршрут публичным
-    const isPublicRoute = publicRoutes.some(route => {
-        if (route.includes(':')) {
-            // Для динамических маршрутов проверяем паттерн
-            const pattern = new RegExp('^' + route.replace(/:[\w]+/g, '[\\w-]+') + '$')
-            return pattern.test(to.path)
-        }
-        return to.path === route
-    })
-    
-    if (isPublicRoute) {
-        console.log(`Router: going to public route ${to.path}, allowing navigation`)
+    // Если пользователь идет на страницу авторизации, пропускаем
+    if (to.path === '/login') {
+        console.log('Router: going to login page, allowing navigation')
         next()
         return
     }
