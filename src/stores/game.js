@@ -367,7 +367,8 @@ export const useGameStore = defineStore('game', () => {
 			isSilent: false,
 			silentNextRound: false,
 			userId: null,
-			isInGame: true
+			isInGame: true,
+			status: null
 		    }))
 		    
 		    // Заполняем данными из API
@@ -405,7 +406,8 @@ export const useGameStore = defineStore('game', () => {
 				silentNextRound: false,
 				userId: userId,
 				boxId: apiPlayer.box_id,
-				isInGame: isInGame
+				isInGame: isInGame,
+				status: null // Инициализируем статус, он будет восстановлен в syncPlayersWithPhases
 			    }
 			}
 		    })
@@ -589,7 +591,8 @@ export const useGameStore = defineStore('game', () => {
 		isSilent: false,
 		silentNextRound: false,
 		userId: null,
-        isInGame: true
+        isInGame: true,
+        status: null
 	    })
 	    gameState.value.scores[i] = { baseScore: 0, additionalScore: 0 }
 	}
@@ -1163,13 +1166,36 @@ export const useGameStore = defineStore('game', () => {
 	
 	console.log('syncPlayersWithPhases: Syncing players with phases, currentPhaseId:', currentPhaseId)
 	
+	// Находим игроков, выбывших на голосовании
+	const votedOutPlayers = []
+	gamePhasesStore.phases.forEach(phase => {
+	    if (phase.phase_id <= currentPhaseId && phase.voted_box_id) {
+		// voted_box_id может быть числом или массивом
+		if (Array.isArray(phase.voted_box_id)) {
+		    votedOutPlayers.push(...phase.voted_box_id)
+		} else {
+		    votedOutPlayers.push(phase.voted_box_id)
+		}
+	    }
+	})
+	
+	console.log('syncPlayersWithPhases: votedOutPlayers:', votedOutPlayers)
+	
 	// Обновляем состойния игроков на основе фаз
 	gameState.value.players.forEach(player => {
 	    const isKilled = killedPlayers.includes(player.id)
 	    const isRemoved = removedPlayers.includes(player.id)
+	    const isVotedOut = votedOutPlayers.includes(player.id)
 	    
-	    player.isAlive = !isKilled && !isRemoved
+	    player.isAlive = !isKilled && !isRemoved && !isVotedOut
 	    player.isEliminated = isRemoved
+	    player.isInGame = !isKilled && !isRemoved && !isVotedOut
+	    
+	    // Восстанавливаем статус VOTED_OUT для игроков, выбывших на голосовании
+	    if (isVotedOut) {
+		player.status = 'VOTED_OUT'
+		console.log(`Player ${player.id} status restored to VOTED_OUT`)
+	    }
 	    
 	    // НЕ обновляем фолы здесь, так как у нас есть только текущая фаза
 	    // Фолы должны приходить из API и обновляться только при явных действиях

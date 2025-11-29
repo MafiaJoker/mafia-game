@@ -77,7 +77,7 @@ export const useVotingStore = defineStore('voting', () => {
 	
 	// Сохраняем результат голосования в фазы (даже если никто не выбыл)
 	if (gamePhasesStore.currentPhase) {
-	    gamePhasesStore.currentPhase.voted_box_id = eliminatedPlayers.length > 0 ? eliminatedPlayers : []
+	    gamePhasesStore.currentPhase.voted_box_id = eliminatedPlayers.length > 0 ? eliminatedPlayers : null
 	    // Обновляем фазу на сервере
 	    await gamePhasesStore.updateCurrentPhaseOnServer()
 	}
