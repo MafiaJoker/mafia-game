@@ -294,6 +294,21 @@ export const useGameStore = defineStore('game', () => {
 
 		// Синхронизируем состояния игроков с фазами
 		syncPlayersWithPhases()
+		
+		// Восстанавливаем статусы VOTED_OUT из voted_box_id последней фазы
+		if (gamePhasesStore.currentPhase && gamePhasesStore.currentPhase.voted_box_id) {
+		    const votedIds = Array.isArray(gamePhasesStore.currentPhase.voted_box_id) 
+		        ? gamePhasesStore.currentPhase.voted_box_id 
+		        : [gamePhasesStore.currentPhase.voted_box_id]
+		    
+		    votedIds.forEach(playerId => {
+		        const player = gameState.value.players.find(p => p.id === playerId)
+		        if (player && gameState.value.gameSubstatus === GAME_SUBSTATUS.FAREWELL_MINUTE) {
+		            player.status = 'VOTED_OUT'
+		            console.log(`Restored VOTED_OUT status for player ${playerId}`)
+		        }
+		    })
+		}
 
 		// Обновляем closedSeating после загрузки eventId из gameData
 		if (gameInfo.value.eventId) {
@@ -1166,36 +1181,13 @@ export const useGameStore = defineStore('game', () => {
 	
 	console.log('syncPlayersWithPhases: Syncing players with phases, currentPhaseId:', currentPhaseId)
 	
-	// Находим игроков, выбывших на голосовании
-	const votedOutPlayers = []
-	gamePhasesStore.phases.forEach(phase => {
-	    if (phase.phase_id <= currentPhaseId && phase.voted_box_id) {
-		// voted_box_id может быть числом или массивом
-		if (Array.isArray(phase.voted_box_id)) {
-		    votedOutPlayers.push(...phase.voted_box_id)
-		} else {
-		    votedOutPlayers.push(phase.voted_box_id)
-		}
-	    }
-	})
-	
-	console.log('syncPlayersWithPhases: votedOutPlayers:', votedOutPlayers)
-	
 	// Обновляем состойния игроков на основе фаз
 	gameState.value.players.forEach(player => {
 	    const isKilled = killedPlayers.includes(player.id)
 	    const isRemoved = removedPlayers.includes(player.id)
-	    const isVotedOut = votedOutPlayers.includes(player.id)
 	    
-	    player.isAlive = !isKilled && !isRemoved && !isVotedOut
+	    player.isAlive = !isKilled && !isRemoved
 	    player.isEliminated = isRemoved
-	    player.isInGame = !isKilled && !isRemoved && !isVotedOut
-	    
-	    // Восстанавливаем статус VOTED_OUT для игроков, выбывших на голосовании
-	    if (isVotedOut) {
-		player.status = 'VOTED_OUT'
-		console.log(`Player ${player.id} status restored to VOTED_OUT`)
-	    }
 	    
 	    // НЕ обновляем фолы здесь, так как у нас есть только текущая фаза
 	    // Фолы должны приходить из API и обновляться только при явных действиях

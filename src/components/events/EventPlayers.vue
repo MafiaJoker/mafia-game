@@ -928,6 +928,11 @@
       
       addingRandomPlayers.value = true
       try {
+          // Загружаем всех пользователей если еще не загружены
+          if (allUsers.value.length === 0) {
+              const response = await apiService.getUsers({ limit: 100 })
+              allUsers.value = response.items || response || []
+          }
           // Получаем список всех пользователей, которые еще не зарегистрированы
           const confirmedIds = confirmedPlayers.value.map(p => p.id)
           const availableUsers = allUsers.value.filter(user => !confirmedIds.includes(user.id))

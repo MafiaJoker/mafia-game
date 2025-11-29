@@ -47,7 +47,7 @@
         <template #default="{ row }">
           <PlayerFouls 
             :player="row"
-            :can-add-fouls="gameStore.isGameInProgress && row.isInGame && row.isAlive && !row.isEliminated"
+            :can-add-fouls="canAddFoulsToPlayer(row)"
             @increment="handleIncrementFoul"
             @reset="handleResetFouls"
             @silent-now="handleSilentNow"
@@ -98,7 +98,7 @@
         </template>
         <template #default="{ row }">
           <PlayerSelector
-            v-if="isEditingPlayers && row.isInGame !== false"
+            v-if="isEditingPlayers && canEditPlayers && row.isInGame !== false"
             v-model="row.name"
             :player-id="row.id"
             :used-player-ids="getUsedPlayerIds(row.id)"
@@ -107,7 +107,7 @@
             :registered-users="registeredUsers"
             @player-selected="handlePlayerSelected"
           />
-          <span v-else-if="isEditingPlayers && row.isInGame === false" class="player-name-display disabled-slot">
+          <span v-else-if="isEditingPlayers && canEditPlayers && row.isInGame === false" class="player-name-display disabled-slot">
             {{ row.name || `Слот ${row.id}` }} (не в игре)
           </span>
           <span v-else class="player-name-display" :class="{ 'empty-slot': !row.name }">
@@ -169,7 +169,7 @@
 <script setup>
   import { computed, ref, onMounted, onBeforeUpdate, watch } from 'vue'
   import { useGameStore } from '@/stores/game'
-  import { MAX_FOULS, GAME_STATUSES } from '@/utils/constants'
+  import { MAX_FOULS, GAME_STATUSES, GAME_SUBSTATUS } from '@/utils/constants'
   import PlayerFouls from './PlayerFouls.vue'
   import PlayerRole from './PlayerRole.vue'
   import PlayerNominateButton from './PlayerNominateButton.vue'
@@ -246,11 +246,32 @@
       const isGameFinished = gameStore.gameState.gameStatus === 'civilians_win' || 
                              gameStore.gameState.gameStatus === 'mafia_win' || 
                              gameStore.gameState.gameStatus === 'draw'
-      return !gameStore.isGameInProgress && !isGameFinished
+      const isSeatingConfirmed = gameStore.gameState.gameStatus === GAME_STATUSES.SEATING_READY
+      return !gameStore.isGameInProgress && !isGameFinished && !isSeatingConfirmed
   })
 
   const togglePlayerEdit = () => {
       isEditingPlayers.value = !isEditingPlayers.value
+  }
+  
+  const canAddFoulsToPlayer = (player) => {
+      const isInProgress = gameStore.isGameInProgress
+      const isAlive = player.isAlive
+      const isFarewell = gameStore.gameState.gameSubstatus === GAME_SUBSTATUS.FAREWELL_MINUTE
+      const isVotedOut = player.status === 'VOTED_OUT'
+      
+      // Логирование для отладки
+      if (player.status === 'VOTED_OUT') {
+          console.log(`Player ${player.id} (${player.name}):`, {
+              isInProgress,
+              isAlive,
+              isFarewell,
+              isVotedOut,
+              gameSubstatus: gameStore.gameState.gameSubstatus
+          })
+      }
+      
+      return isInProgress && (isAlive || (isFarewell && isVotedOut))
   }
 
   const showPlayerActions = computed(() => {
@@ -453,6 +474,13 @@
   // Перезагружаем при изменении closedSeating или eventId
   watch([() => gameStore.gameInfo?.closedSeating, () => gameStore.gameInfo?.eventId], () => {
       loadRegisteredUsers()
+  })
+  
+  // Автоматически отключаем редактирование при изменении статуса игры
+  watch(() => gameStore.gameState.gameStatus, () => {
+      if (!canEditPlayers.value && isEditingPlayers.value) {
+          isEditingPlayers.value = false
+      }
   })
 </script>
 
