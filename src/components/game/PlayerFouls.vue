@@ -11,6 +11,17 @@
         {{ player.fouls }}
       </el-button>
     </div>
+    
+    <!-- Кнопка удаления при 4 фолах -->
+    <div v-if="player.fouls >= MAX_FOULS.BEFORE_ELIMINATION && canAddFouls" class="foul-actions">
+      <el-button
+        type="danger"
+        size="small"
+        @click="$emit('eliminate', player.id)"
+      >
+        Удалить
+      </el-button>
+    </div>
   </div>
 </template>
 
