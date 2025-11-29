@@ -13,7 +13,7 @@
     </div>
     
     <!-- Кнопка удаления при 4 фолах -->
-    <div v-if="player.fouls >= MAX_FOULS.BEFORE_ELIMINATION && canAddFouls" class="foul-actions">
+    <div v-if="player.fouls >= MAX_FOULS.BEFORE_ELIMINATION && canAddFouls && player.isInGame" class="foul-actions">
       <el-button
         type="danger"
         size="small"
