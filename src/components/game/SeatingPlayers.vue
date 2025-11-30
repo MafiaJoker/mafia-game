@@ -20,11 +20,14 @@
         :border="true"
       >
         <el-table-column
-          prop="position"
           label="№"
           width="80"
           align="center"
-        />
+        >
+          <template #default="{ row }">
+            {{ row }}
+          </template>
+        </el-table-column>
 
         <el-table-column
           label="Игрок"
