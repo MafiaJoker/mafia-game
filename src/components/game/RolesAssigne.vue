@@ -17,10 +17,12 @@
           align="left"
         >
           <template #default="{ row }">
-            <CitizenIcon v-if="row.role === GameRolesEnum.civilian" />
-            <SheriffIcon v-else-if="row.role === GameRolesEnum.sheriff" />
-            <DonIcon v-else-if="row.role === GameRolesEnum.don" />
-            <MafiaIcon v-else-if="row.role === GameRolesEnum.mafia" />
+            <div @click="cycleRole(row)" style="cursor: pointer;">
+              <CitizenIcon v-if="row.role === GameRolesEnum.civilian" />
+              <SheriffIcon v-else-if="row.role === GameRolesEnum.sheriff" />
+              <DonIcon v-else-if="row.role === GameRolesEnum.don" />
+              <MafiaIcon v-else-if="row.role === GameRolesEnum.mafia" />
+            </div>
           </template>
         </el-table-column>
 
@@ -56,6 +58,20 @@ const props = defineProps({
 })
 
 const rolesData = ref([])
+
+// Порядок смены ролей по кругу
+const rolesCycle = [
+  GameRolesEnum.civilian,
+  GameRolesEnum.sheriff,
+  GameRolesEnum.don,
+  GameRolesEnum.mafia
+]
+
+const cycleRole = (player) => {
+  const currentIndex = rolesCycle.indexOf(player.role)
+  const nextIndex = (currentIndex + 1) % rolesCycle.length
+  player.role = rolesCycle[nextIndex]
+}
 
 const loadGameData = async () => {
   try {
