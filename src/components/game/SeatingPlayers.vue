@@ -7,11 +7,14 @@
             <el-icon><UserFilled /></el-icon>
             <span>Рассадка игроков</span>
           </div>
+          <el-button type="primary" @click="handleSeatingComplete">
+            Рассадка готова
+          </el-button>
         </div>
       </template>
 
       <el-table
-        :data="players"
+        :data="Array.from({ length: 10 }, (_, i) => i + 1)"
         stripe
         style="width: 100%"
         :border="true"
@@ -41,22 +44,14 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { UserFilled } from '@element-plus/icons-vue'
 
-// Создаем массив из 10 игроков
-const players = ref([
-  { position: 1, name: '' },
-  { position: 2, name: '' },
-  { position: 3, name: '' },
-  { position: 4, name: '' },
-  { position: 5, name: '' },
-  { position: 6, name: '' },
-  { position: 7, name: '' },
-  { position: 8, name: '' },
-  { position: 9, name: '' },
-  { position: 10, name: '' }
-])
+
+const emit = defineEmits(['seating-complete'])
+
+const handleSeatingComplete = () => {
+  console.log('объект игроков',)
+}
 </script>
 
 <style scoped>
