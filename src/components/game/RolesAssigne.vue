@@ -1,75 +1,71 @@
 <template>
   <div class="roles-assigne">
-    <!-- Показываем PreGamePhaseView если договорка началась -->
-    <PreGamePhaseView v-if="showPreGame" :game-id="gameId" />
-
     <!-- Показываем раздачу ролей если договорка еще не началась -->
-    <el-card v-else>
-      <template #header>
-        <div class="card-header">
-          <div class="header-left">
-            <el-icon><User /></el-icon>
-            <span>Раздача ролей</span>
-          </div>
-          <div class="header-right">
-            <el-button
-              type="primary"
-              @click="handleStartNegotiation"
-              :loading="loading"
-            >
-              Начать договорку
-            </el-button>
-          </div>
+    <el-card>
+    <template #header>
+      <div class="card-header">
+        <div class="header-left">
+          <el-icon><User /></el-icon>
+          <span>Раздача ролей</span>
         </div>
-      </template>
+        <div class="header-right">
+          <el-button
+            type="primary"
+            @click="handleStartNegotiation"
+            :loading="loading"
+          >
+            Начать договорку
+          </el-button>
+        </div>
+      </div>
+    </template>
 
-      <GameTable :data="rolesData">
-        <el-table-column
-          label="Роль"
-          width="60"
-          align="left"
-        >
-          <template #default="{ row }">
-            <div @click="cycleRole(row)" style="cursor: pointer;">
-              <CitizenIcon v-if="row.role === GameRolesEnum.civilian" />
-              <SheriffIcon v-else-if="row.role === GameRolesEnum.sheriff" />
-              <DonIcon v-else-if="row.role === GameRolesEnum.don" />
-              <MafiaIcon v-else-if="row.role === GameRolesEnum.mafia" />
-            </div>
-          </template>
-        </el-table-column>
+    <GameTable :data="rolesData">
+      <el-table-column
+        label="Роль"
+        width="60"
+        align="left"
+      >
+        <template #default="{ row }">
+          <div @click="cycleRole(row)" style="cursor: pointer;">
+            <CitizenIcon v-if="row.role === GameRolesEnum.civilian" />
+            <SheriffIcon v-else-if="row.role === GameRolesEnum.sheriff" />
+            <DonIcon v-else-if="row.role === GameRolesEnum.don" />
+            <MafiaIcon v-else-if="row.role === GameRolesEnum.mafia" />
+          </div>
+        </template>
+      </el-table-column>
 
-        <el-table-column
-          label="Игрок"
-          min-width="200"
-        >
-          <template #default="{ row }">
-            {{ row.nickname }}
-          </template>
-        </el-table-column>
-      </GameTable>
+      <el-table-column
+        label="Игрок"
+        min-width="200"
+      >
+        <template #default="{ row }">
+          {{ row.nickname }}
+        </template>
+      </el-table-column>
+    </GameTable>
 
-      <!-- Сообщение об ошибке -->
-      <el-alert
-        v-if="errorMessage"
-        :title="errorMessage"
-        type="error"
-        :closable="false"
-        style="margin-top: 16px"
-      />
-    </el-card>
+    <!-- Сообщение об ошибке -->
+    <el-alert
+      v-if="errorMessage"
+      :title="errorMessage"
+      type="error"
+      :closable="false"
+      style="margin-top: 16px"
+    />
+  </el-card>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { User } from '@element-plus/icons-vue'
 import GameTable from './GameTable.vue'
 import CitizenIcon from './icons/CitizenIcon.vue'
 import SheriffIcon from './icons/SheriffIcon.vue'
 import DonIcon from './icons/DonIcon.vue'
 import MafiaIcon from './icons/MafiaIcon.vue'
-import PreGamePhaseView from './PreGamePhaseView.vue'
 import { apiService } from '@/services/api.js'
 import { GameRolesEnum } from '@/utils/constants.js'
 import { GAME_ERROR_MESSAGES } from '@/utils/errorMessages.js'
@@ -208,6 +204,12 @@ const handleStartNegotiation = async () => {
 
 onMounted(() => {
   loadGameData()
+})
+
+onUnmounted(() => {
+  rolesData.value = []
+  showPreGame.value = false
+  errorMessage.value = ''
 })
 </script>
 
