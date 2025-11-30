@@ -7,6 +7,15 @@
             <el-icon><User /></el-icon>
             <span>Раздача ролей</span>
           </div>
+          <div class="header-right">
+            <el-button
+              type="primary"
+              @click="handleStartNegotiation"
+              :loading="loading"
+            >
+              Начать договорку
+            </el-button>
+          </div>
         </div>
       </template>
 
@@ -58,6 +67,9 @@ const props = defineProps({
 })
 
 const rolesData = ref([])
+const loading = ref(false)
+
+const emit = defineEmits(['negotiation-start'])
 
 // Порядок смены ролей по кругу
 const rolesCycle = [
@@ -89,6 +101,19 @@ const loadGameData = async () => {
   } catch (error) {
     console.error('Failed to load game data:', error)
     rolesData.value = []
+  }
+}
+
+const handleStartNegotiation = async () => {
+  loading.value = true
+
+  try {
+    // Эмитим событие родительскому компоненту
+    emit('negotiation-start')
+  } catch (error) {
+    console.error('Failed to start negotiation:', error)
+  } finally {
+    loading.value = false
   }
 }
 
