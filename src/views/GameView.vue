@@ -26,7 +26,10 @@
           />
 
           <!-- Фаза: Распределение ролей -->
-          <RolesAssigne v-if="gameData?.result === 'seating_ready'" />
+          <RolesAssigne
+            v-if="gameData?.result === 'seating_ready'"
+            :game-id="props.id"
+          />
 
           <!-- Фаза: Игра в процессе -->
           <GameInProgress v-if="gameData?.result === 'roles_assigned' || gameData?.result === 'in_progress'" />

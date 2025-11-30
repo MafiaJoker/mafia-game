@@ -26,7 +26,7 @@
           min-width="200"
         >
           <template #default="{ row }">
-            {{ row.player }}
+            {{ row.nickname }}
           </template>
         </el-table-column>
       </GameTable>
@@ -35,12 +35,42 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { User } from '@element-plus/icons-vue'
 import GameTable from './GameTable.vue'
+import { apiService } from '@/services/api.js'
 
-// Временные данные для отображения таблицы
+const props = defineProps({
+  gameId: {
+    type: String,
+    required: true
+  }
+})
+
 const rolesData = ref([])
+
+const loadGameData = async () => {
+  try {
+    const gameData = await apiService.getGame(props.gameId)
+
+    // Преобразуем данные игроков в формат для таблицы
+    if (gameData.players && Array.isArray(gameData.players)) {
+      rolesData.value = gameData.players.map(player => ({
+        id: player.id,
+        nickname: player.nickname,
+        box_id: player.box_id,
+        role: player.role
+      }))
+    }
+  } catch (error) {
+    console.error('Failed to load game data:', error)
+    rolesData.value = []
+  }
+}
+
+onMounted(() => {
+  loadGameData()
+})
 </script>
 
 <style scoped>
@@ -60,5 +90,12 @@ const rolesData = ref([])
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.error-message {
+  padding: 20px;
+  text-align: center;
+  color: #f56c6c;
+  font-size: 14px;
 }
 </style>
