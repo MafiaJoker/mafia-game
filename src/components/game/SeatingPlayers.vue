@@ -19,25 +19,10 @@
         </div>
       </template>
 
-      <el-table
-        :data="players"
-        stripe
-        style="width: 100%"
-        :border="true"
-      >
-        <el-table-column
-          label="№"
-          width="80"
-          align="center"
-        >
-          <template #default="{ row }">
-            {{ row.box_id }}
-          </template>
-        </el-table-column>
-
+      <GameTable :data="players">
         <el-table-column
           label="Игрок"
-          min-width="300"
+          min-width="200"
         >
           <template #default="{ row }">
             <el-autocomplete
@@ -59,7 +44,7 @@
             </el-autocomplete>
           </template>
         </el-table-column>
-      </el-table>
+      </GameTable>
 
       <!-- Сообщение об ошибке -->
       <el-alert
@@ -74,9 +59,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { UserFilled } from '@element-plus/icons-vue'
 import { apiService } from '@/services/api'
+import GameTable from './GameTable.vue'
 
 const props = defineProps({
   gameId: {
