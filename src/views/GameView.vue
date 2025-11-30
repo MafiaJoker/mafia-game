@@ -19,7 +19,11 @@
       <el-main>
         <el-card>
           <!-- Фаза: Рассадка игроков -->
-          <SeatingPlayers v-if="gameData?.result === 'created'" />
+          <SeatingPlayers
+            v-if="gameData?.result === 'created'"
+            :game-id="props.id"
+            @seating-complete="loadGame"
+          />
 
           <!-- Фаза: Распределение ролей -->
           <RolesAssigne v-if="gameData?.result === 'seating_ready'" />

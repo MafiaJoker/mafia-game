@@ -295,13 +295,6 @@ export const apiService = {
 	return response.data
     },
 
-    async addPlayersToGame(gameId, playersData) {
-	// API ожидает массив игроков, а не объект с ключом players
-	const players = Array.isArray(playersData) ? playersData : playersData.players
-	const response = await api.put(`/games/${gameId}/players`, players)
-	return response.data
-    },
-
     // Game Phases (v1 API - individual phases)
     async updateGamePhase(gameId, phaseData) {
 	const response = await api.put(`/games/${gameId}/phases`, phaseData)

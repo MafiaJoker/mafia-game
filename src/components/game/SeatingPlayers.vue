@@ -7,9 +7,15 @@
             <el-icon><UserFilled /></el-icon>
             <span>Рассадка игроков</span>
           </div>
-          <el-button type="primary" @click="handleSeatingComplete">
-            Рассадка готова
-          </el-button>
+          <div class="header-right">
+            <el-button
+              type="primary"
+              @click="handleSeatingComplete"
+              :loading="loading"
+            >
+              Рассадка готова
+            </el-button>
+          </div>
         </div>
       </template>
 
@@ -54,6 +60,15 @@
           </template>
         </el-table-column>
       </el-table>
+
+      <!-- Сообщение об ошибке -->
+      <el-alert
+        v-if="errorMessage"
+        :title="errorMessage"
+        type="error"
+        :closable="false"
+        style="margin-top: 16px"
+      />
     </el-card>
   </div>
 </template>
@@ -62,6 +77,13 @@
 import { ref } from 'vue'
 import { UserFilled } from '@element-plus/icons-vue'
 import { apiService } from '@/services/api'
+
+const props = defineProps({
+  gameId: {
+    type: String,
+    required: true
+  }
+})
 
 const emit = defineEmits(['seating-complete'])
 
@@ -141,9 +163,56 @@ const updateSelectedUsers = () => {
     }))
 }
 
+// Константы для сообщений об ошибках
+const ERROR_MESSAGES = {
+  NOT_TEN_PLAYERS: 'Выберите 10 игроков для начала игры',
+  UNKNOWN_ERROR: 'Произошла неизвестная ошибка'
+}
+
+// Состояние загрузки и ошибки
+const loading = ref(false)
+const errorMessage = ref('')
+
 // Обработчик нажатия кнопки "Рассадка готова"
-const handleSeatingComplete = () => {
-  console.log('объект игроков', selectedUsers.value)
+const handleSeatingComplete = async () => {
+  // Очищаем предыдущую ошибку
+  errorMessage.value = ''
+
+  // Проверяем, что выбрано ровно 10 игроков
+  if (selectedUsers.value.length !== 10) {
+    errorMessage.value = ERROR_MESSAGES.NOT_TEN_PLAYERS
+    return
+  }
+
+  loading.value = true
+
+  try {
+    // Вызываем API для создания игроков
+    await apiService.createGamePlayers(props.gameId, selectedUsers.value)
+
+    // Если успешно (200), уведомляем родительский компонент
+    emit('seating-complete')
+  } catch (error) {
+    console.error('Ошибка при создании игроков:', error)
+
+    // Обрабатываем различные типы ошибок
+    if (error.response?.status === 400) {
+      const detail = error.response?.data?.detail
+
+      // Проверяем конкретное сообщение об ошибке
+      if (detail === 'only ten boxes is allowed') {
+        errorMessage.value = ERROR_MESSAGES.NOT_TEN_PLAYERS
+      } else {
+        errorMessage.value = ERROR_MESSAGES.UNKNOWN_ERROR
+      }
+    } else if (error.response?.status >= 500) {
+      errorMessage.value = ERROR_MESSAGES.UNKNOWN_ERROR
+    } else {
+      errorMessage.value = ERROR_MESSAGES.UNKNOWN_ERROR
+    }
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
