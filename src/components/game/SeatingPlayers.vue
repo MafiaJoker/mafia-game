@@ -86,12 +86,18 @@ const querySearch = async (queryString, cb) => {
 
   try {
     const users = await apiService.getUsers({ nickname: queryString })
-    // Преобразуем результаты в формат для autocomplete
-    const suggestions = users.items.map(user => ({
-      value: user.nickname,
-      nickname: user.nickname,
-      id: user.id
-    }))
+
+    // Получаем ID уже выбранных пользователей
+    const selectedUserIds = selectedUsers.value.map(u => u.user_id)
+
+    // Преобразуем результаты в формат для autocomplete и фильтруем уже выбранных
+    const suggestions = users.items
+      .filter(user => !selectedUserIds.includes(user.id))
+      .map(user => ({
+        value: user.nickname,
+        nickname: user.nickname,
+        id: user.id
+      }))
     cb(suggestions)
   } catch (error) {
     console.error('Ошибка при поиске пользователей:', error)
