@@ -27,12 +27,12 @@
 
           <!-- Фаза: Распределение ролей -->
           <RolesAssigne
-            v-if="gameData?.result === 'seating_ready'"
+            v-if="gameData?.result === 'seating_ready' || gameData?.result === 'roles_assigned'"
             :game-id="props.id"
           />
 
           <!-- Фаза: Игра в процессе -->
-          <GameInProgress v-if="gameData?.result === 'roles_assigned' || gameData?.result === 'in_progress'" />
+          <GameInProgress v-if="gameData?.result === 'in_progress'" />
         </el-card>
       </el-main>
     </el-container>

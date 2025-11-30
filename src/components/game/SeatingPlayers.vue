@@ -63,6 +63,7 @@ import { ref, computed } from 'vue'
 import { UserFilled } from '@element-plus/icons-vue'
 import { apiService } from '@/services/api'
 import GameTable from './GameTable.vue'
+import { GAME_ERROR_MESSAGES } from '@/utils/errorMessages.js'
 
 const props = defineProps({
   gameId: {
@@ -149,12 +150,6 @@ const updateSelectedUsers = () => {
     }))
 }
 
-// Константы для сообщений об ошибках
-const ERROR_MESSAGES = {
-  NOT_TEN_PLAYERS: 'Выберите 10 игроков для начала игры',
-  UNKNOWN_ERROR: 'Произошла неизвестная ошибка'
-}
-
 // Состояние загрузки и ошибки
 const loading = ref(false)
 const errorMessage = ref('')
@@ -166,7 +161,7 @@ const handleSeatingComplete = async () => {
 
   // Проверяем, что выбрано ровно 10 игроков
   if (selectedUsers.value.length !== 10) {
-    errorMessage.value = ERROR_MESSAGES.NOT_TEN_PLAYERS
+    errorMessage.value = GAME_ERROR_MESSAGES.NOT_TEN_PLAYERS
     return
   }
 
@@ -187,14 +182,14 @@ const handleSeatingComplete = async () => {
 
       // Проверяем конкретное сообщение об ошибке
       if (detail === 'only ten boxes is allowed') {
-        errorMessage.value = ERROR_MESSAGES.NOT_TEN_PLAYERS
+        errorMessage.value = GAME_ERROR_MESSAGES.NOT_TEN_PLAYERS
       } else {
-        errorMessage.value = ERROR_MESSAGES.UNKNOWN_ERROR
+        errorMessage.value = GAME_ERROR_MESSAGES.UNKNOWN_ERROR
       }
     } else if (error.response?.status >= 500) {
-      errorMessage.value = ERROR_MESSAGES.UNKNOWN_ERROR
+      errorMessage.value = GAME_ERROR_MESSAGES.UNKNOWN_ERROR
     } else {
-      errorMessage.value = ERROR_MESSAGES.UNKNOWN_ERROR
+      errorMessage.value = GAME_ERROR_MESSAGES.UNKNOWN_ERROR
     }
   } finally {
     loading.value = false

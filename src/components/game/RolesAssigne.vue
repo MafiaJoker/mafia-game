@@ -1,6 +1,10 @@
 <template>
   <div class="roles-assigne">
-    <el-card>
+    <!-- Показываем PreGamePhaseView если договорка началась -->
+    <PreGamePhaseView v-if="showPreGame" :game-id="gameId" />
+
+    <!-- Показываем раздачу ролей если договорка еще не началась -->
+    <el-card v-else>
       <template #header>
         <div class="card-header">
           <div class="header-left">
@@ -44,6 +48,15 @@
           </template>
         </el-table-column>
       </GameTable>
+
+      <!-- Сообщение об ошибке -->
+      <el-alert
+        v-if="errorMessage"
+        :title="errorMessage"
+        type="error"
+        :closable="false"
+        style="margin-top: 16px"
+      />
     </el-card>
   </div>
 </template>
@@ -56,8 +69,10 @@ import CitizenIcon from './icons/CitizenIcon.vue'
 import SheriffIcon from './icons/SheriffIcon.vue'
 import DonIcon from './icons/DonIcon.vue'
 import MafiaIcon from './icons/MafiaIcon.vue'
+import PreGamePhaseView from './PreGamePhaseView.vue'
 import { apiService } from '@/services/api.js'
 import { GameRolesEnum } from '@/utils/constants.js'
+import { GAME_ERROR_MESSAGES } from '@/utils/errorMessages.js'
 
 const props = defineProps({
   gameId: {
@@ -68,8 +83,8 @@ const props = defineProps({
 
 const rolesData = ref([])
 const loading = ref(false)
-
-const emit = defineEmits(['negotiation-start'])
+const errorMessage = ref('')
+const showPreGame = ref(false)
 
 // Порядок смены ролей по кругу
 const rolesCycle = [
@@ -105,13 +120,41 @@ const loadGameData = async () => {
 }
 
 const handleStartNegotiation = async () => {
+  // Очищаем предыдущую ошибку
+  errorMessage.value = ''
   loading.value = true
 
   try {
-    // Эмитим событие родительскому компоненту
-    emit('negotiation-start')
+    // Собираем список игроков с ролями в формате API
+    const playersData = rolesData.value.map(player => ({
+      user_id: player.id,
+      role: player.role,
+      box_id: player.box_id
+    }))
+
+    // Вызываем API для создания игроков с ролями
+    await apiService.createGamePlayers(props.gameId, playersData)
+
+    // Если успешно (200), показываем PreGamePhaseView
+    showPreGame.value = true
   } catch (error) {
     console.error('Failed to start negotiation:', error)
+
+    // Обрабатываем различные типы ошибок
+    if (error.response?.status === 400) {
+      const detail = error.response?.data?.detail
+
+      // Проверяем конкретное сообщение об ошибке
+      if (detail === '1 - don, 1 - sheriff, 2 - mafia, 6 civilians are allowed') {
+        errorMessage.value = GAME_ERROR_MESSAGES.INVALID_ROLES
+      } else {
+        errorMessage.value = GAME_ERROR_MESSAGES.UNKNOWN_ERROR
+      }
+    } else if (error.response?.status >= 500) {
+      errorMessage.value = GAME_ERROR_MESSAGES.UNKNOWN_ERROR
+    } else {
+      errorMessage.value = GAME_ERROR_MESSAGES.UNKNOWN_ERROR
+    }
   } finally {
     loading.value = false
   }
