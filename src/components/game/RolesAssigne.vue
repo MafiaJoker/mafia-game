@@ -96,8 +96,54 @@ const rolesCycle = [
 
 const cycleRole = (player) => {
   const currentIndex = rolesCycle.indexOf(player.role)
-  const nextIndex = (currentIndex + 1) % rolesCycle.length
-  player.role = rolesCycle[nextIndex]
+  let nextIndex = (currentIndex + 1) % rolesCycle.length
+  let nextRole = rolesCycle[nextIndex]
+
+  // Мирного жителя можно всегда выбрать, независимо от лимитов
+  if (nextRole === GameRolesEnum.civilian) {
+    player.role = nextRole
+    return
+  }
+
+  // Подсчитываем текущее количество ролей (исключая текущего игрока)
+  const roleCount = rolesData.value.reduce((acc, p) => {
+    if (p.id !== player.id) {
+      acc[p.role] = (acc[p.role] || 0) + 1
+    }
+    return acc
+  }, {})
+
+  // Лимиты ролей
+  const roleLimits = {
+    [GameRolesEnum.don]: 1,
+    [GameRolesEnum.sheriff]: 1,
+    [GameRolesEnum.mafia]: 2
+  }
+
+  // Пытаемся найти доступную роль, двигаясь по кругу
+  let attempts = 0
+  while (attempts < rolesCycle.length) {
+    // Мирного жителя всегда можно выбрать
+    if (nextRole === GameRolesEnum.civilian) {
+      player.role = nextRole
+      return
+    }
+
+    const currentCount = roleCount[nextRole] || 0
+    const limit = roleLimits[nextRole]
+
+    // Если роль доступна (не превышен лимит), выбираем её
+    if (currentCount < limit) {
+      player.role = nextRole
+      return
+    }
+
+    // Переходим к следующей роли
+    nextIndex = (nextIndex + 1) % rolesCycle.length
+    nextRole = rolesCycle[nextIndex]
+    attempts++
+  }
+
 }
 
 const loadGameData = async () => {
