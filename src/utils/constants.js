@@ -1,25 +1,17 @@
-// Роли игроков
+// Роли игроков (для API)
+export const GameRolesEnum = {
+    mafia: 'mafia',
+    don: 'don',
+    sheriff: 'sheriff',
+    civilian: 'civilian'
+}
+
+// Роли игроков (для отображения)
 export const PLAYER_ROLES = {
     CIVILIAN: 'Мирный',
-    SHERIFF: 'Шериф', 
+    SHERIFF: 'Шериф',
     MAFIA: 'Мафия',
     DON: 'Дон'
-}
-
-// Роли для API (английские названия)
-export const API_PLAYER_ROLES = {
-    'Мирный': 'civilian',
-    'Шериф': 'sheriff',
-    'Мафия': 'mafia',
-    'Дон': 'don'
-}
-
-// Обратный маппинг из API ролей в локальные
-export const API_TO_LOCAL_ROLES = {
-    'civilian': 'Мирный',
-    'sheriff': 'Шериф',
-    'mafia': 'Мафия',
-    'don': 'Дон'
 }
 
 // Максимальные фолы

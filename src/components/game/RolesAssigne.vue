@@ -17,7 +17,10 @@
           align="left"
         >
           <template #default="{ row }">
-            {{ row.role }}
+            <CitizenIcon v-if="row.role === GameRolesEnum.civilian" />
+            <SheriffIcon v-else-if="row.role === GameRolesEnum.sheriff" />
+            <DonIcon v-else-if="row.role === GameRolesEnum.don" />
+            <MafiaIcon v-else-if="row.role === GameRolesEnum.mafia" />
           </template>
         </el-table-column>
 
@@ -38,7 +41,12 @@
 import { ref, onMounted } from 'vue'
 import { User } from '@element-plus/icons-vue'
 import GameTable from './GameTable.vue'
+import CitizenIcon from './icons/CitizenIcon.vue'
+import SheriffIcon from './icons/SheriffIcon.vue'
+import DonIcon from './icons/DonIcon.vue'
+import MafiaIcon from './icons/MafiaIcon.vue'
 import { apiService } from '@/services/api.js'
+import { GameRolesEnum } from '@/utils/constants.js'
 
 const props = defineProps({
   gameId: {
@@ -59,7 +67,7 @@ const loadGameData = async () => {
         id: player.id,
         nickname: player.nickname,
         box_id: player.box_id,
-        role: player.role
+        role: player.role || GameRolesEnum.civilian
       }))
     }
   } catch (error) {
