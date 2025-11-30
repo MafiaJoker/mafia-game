@@ -91,6 +91,13 @@ export const CATEGORY_PRIORITIES = {
 export const DEFAULT_PLAYERS_COUNT = 10
 export const NO_CANDIDATES_MAX_ROUNDS = 3
 
+// Фазы таймера обратного отсчета
+export const COUNTDOWN_PHASES = {
+    MAFIA_NEGOTIATION: 'mafia_negotiation', // 60 секунд
+    TRANSITION: 'transition', // Желтая вспышка
+    FREE_SEATING: 'free_seating' // 40 секунд
+}
+
 // Причины отмены игры
 export const CANCELLATION_REASONS = {
     PLAYER_MISBEHAVIOR: 'player_misbehavior',

@@ -11,7 +11,11 @@
           </el-button>
           <div class="header-title-section">
             <h1>{{ gameData?.label || 'Игра' }}</h1>
-            <GameTimer v-if="showTimer" />
+            <GameTimer
+              v-if="showTimer"
+              :is-negotiation-started="isNegotiationStarted"
+              @phase-changed="handlePhaseChanged"
+            />
           </div>
           <div class="header-actions">
             <el-tag type="info">{{ getStatusLabel(gameData?.result) }}</el-tag>
@@ -32,8 +36,9 @@
           <RolesAssigne
             v-if="gameData?.result === 'seating_ready' || gameData?.result === 'roles_assigned'"
             :game-id="props.id"
-            @negotiation-started="showTimer = true"
-            @negotiation-ended="showTimer = false"
+            :is-free-seat-phase="isFreeSeatPhase"
+            @negotiation-started="showTimer = true; isNegotiationStarted = true"
+            @negotiation-ended="showTimer = false; isNegotiationStarted = false; isFreeSeatPhase = false"
           />
 
           <!-- Фаза: Игра в процессе -->
@@ -50,6 +55,7 @@ import { useRouter } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { apiService } from '@/services/api.js'
+import { COUNTDOWN_PHASES } from '@/utils/constants.js'
 import SeatingPlayers from '@/components/game/SeatingPlayers.vue'
 import RolesAssigne from '@/components/game/RolesAssigne.vue'
 import GameInProgress from '@/components/game/GameInProgress.vue'
@@ -66,6 +72,14 @@ const router = useRouter()
 const loading = ref(false)
 const gameData = ref(null)
 const showTimer = ref(false)
+const isNegotiationStarted = ref(false)
+const isFreeSeatPhase = ref(false)
+
+const handlePhaseChanged = (phase) => {
+  if (phase === COUNTDOWN_PHASES.FREE_SEATING) {
+    isFreeSeatPhase.value = true
+  }
+}
 
 const getStatusLabel = (status) => {
   const labels = {

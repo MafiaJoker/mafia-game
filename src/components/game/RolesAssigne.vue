@@ -6,7 +6,7 @@
       <div class="card-header">
         <div class="header-left">
           <el-icon><User /></el-icon>
-          <span>{{ isNegotiationStarted ? 'Договорка мафии' : 'Раздача ролей' }}</span>
+          <span :class="{ 'label-highlight': isLabelHighlighted }">{{ headerLabel }}</span>
         </div>
         <div class="header-right">
           <template v-if="!isNegotiationStarted">
@@ -77,7 +77,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { User } from '@element-plus/icons-vue'
 import GameTable from './GameTable.vue'
 import CitizenIcon from './icons/CitizenIcon.vue'
@@ -92,6 +92,10 @@ const props = defineProps({
   gameId: {
     type: String,
     required: true
+  },
+  isFreeSeatPhase: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -102,6 +106,25 @@ const loading = ref(false)
 const errorMessage = ref('')
 const showPreGame = ref(false)
 const isNegotiationStarted = ref(false)
+const isLabelHighlighted = ref(false)
+
+const headerLabel = computed(() => {
+  if (!isNegotiationStarted.value) {
+    return 'Раздача ролей'
+  }
+  return props.isFreeSeatPhase ? 'Свободная рассадка' : 'Договорка мафии'
+})
+
+// Следим за сменой фазы и запускаем анимацию
+watch(() => props.isFreeSeatPhase, (newValue) => {
+  if (newValue) {
+    // Запускаем анимацию подсветки желтым
+    isLabelHighlighted.value = true
+    setTimeout(() => {
+      isLabelHighlighted.value = false
+    }, 500)
+  }
+})
 
 // Порядок смены ролей по кругу
 const rolesCycle = [
@@ -273,5 +296,22 @@ onUnmounted(() => {
   text-align: center;
   color: #f56c6c;
   font-size: 14px;
+}
+
+.label-highlight {
+  animation: highlight-yellow 0.5s ease;
+}
+
+@keyframes highlight-yellow {
+  0%, 100% {
+    background: transparent;
+    color: inherit;
+  }
+  50% {
+    background: #fff7e6;
+    color: #faad14;
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
 }
 </style>
