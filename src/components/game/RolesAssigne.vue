@@ -6,16 +6,34 @@
       <div class="card-header">
         <div class="header-left">
           <el-icon><User /></el-icon>
-          <span>Раздача ролей</span>
+          <span>{{ isNegotiationStarted ? 'Договорка мафии' : 'Раздача ролей' }}</span>
         </div>
         <div class="header-right">
-          <el-button
-            type="primary"
-            @click="handleStartNegotiation"
-            :loading="loading"
-          >
-            Начать договорку
-          </el-button>
+          <template v-if="!isNegotiationStarted">
+            <el-button
+              type="primary"
+              @click="handleStartNegotiation"
+              :loading="loading"
+            >
+              Начать договорку
+            </el-button>
+          </template>
+          <template v-else>
+            <el-button
+              type="danger"
+              @click="handleBackToRoles"
+              :loading="loading"
+            >
+              Вернуться к раздаче
+            </el-button>
+            <el-button
+              type="primary"
+              @click="handleStartGame"
+              :loading="loading"
+            >
+              Начать игру
+            </el-button>
+          </template>
         </div>
       </div>
     </template>
@@ -77,10 +95,13 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['negotiation-started', 'negotiation-ended'])
+
 const rolesData = ref([])
 const loading = ref(false)
 const errorMessage = ref('')
 const showPreGame = ref(false)
+const isNegotiationStarted = ref(false)
 
 // Порядок смены ролей по кругу
 const rolesCycle = [
@@ -91,6 +112,11 @@ const rolesCycle = [
 ]
 
 const cycleRole = (player) => {
+  // Блокируем изменение ролей во время договорки
+  if (isNegotiationStarted.value) {
+    return
+  }
+
   const currentIndex = rolesCycle.indexOf(player.role)
   let nextIndex = (currentIndex + 1) % rolesCycle.length
   let nextRole = rolesCycle[nextIndex]
@@ -162,6 +188,16 @@ const loadGameData = async () => {
 }
 
 const handleStartNegotiation = async () => {
+  isNegotiationStarted.value = true
+  emit('negotiation-started')
+}
+
+const handleBackToRoles = () => {
+  isNegotiationStarted.value = false
+  emit('negotiation-ended')
+}
+
+const handleStartGame = async () => {
   // Очищаем предыдущую ошибку
   errorMessage.value = ''
   loading.value = true

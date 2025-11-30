@@ -9,7 +9,10 @@
           >
             Назад
           </el-button>
-          <h1>{{ gameData?.label || 'Игра' }}</h1>
+          <div class="header-title-section">
+            <h1>{{ gameData?.label || 'Игра' }}</h1>
+            <GameTimer v-if="showTimer" />
+          </div>
           <div class="header-actions">
             <el-tag type="info">{{ getStatusLabel(gameData?.result) }}</el-tag>
           </div>
@@ -29,6 +32,8 @@
           <RolesAssigne
             v-if="gameData?.result === 'seating_ready' || gameData?.result === 'roles_assigned'"
             :game-id="props.id"
+            @negotiation-started="showTimer = true"
+            @negotiation-ended="showTimer = false"
           />
 
           <!-- Фаза: Игра в процессе -->
@@ -48,6 +53,7 @@ import { apiService } from '@/services/api.js'
 import SeatingPlayers from '@/components/game/SeatingPlayers.vue'
 import RolesAssigne from '@/components/game/RolesAssigne.vue'
 import GameInProgress from '@/components/game/GameInProgress.vue'
+import GameTimer from '@/components/game/GameTimer.vue'
 
 const props = defineProps({
   id: {
@@ -59,6 +65,7 @@ const props = defineProps({
 const router = useRouter()
 const loading = ref(false)
 const gameData = ref(null)
+const showTimer = ref(false)
 
 const getStatusLabel = (status) => {
   const labels = {
@@ -107,6 +114,18 @@ onMounted(() => {
   align-items: center;
   height: 100%;
   width: 100%;
+}
+
+.header-title-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+  justify-content: center;
+}
+
+.header-title-section h1 {
+  margin: 0;
 }
 
 .header-actions {
