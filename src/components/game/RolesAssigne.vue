@@ -104,7 +104,6 @@ const emit = defineEmits(['negotiation-started', 'negotiation-ended'])
 const rolesData = ref([])
 const loading = ref(false)
 const errorMessage = ref('')
-const showPreGame = ref(false)
 const isNegotiationStarted = ref(false)
 const isLabelHighlighted = ref(false)
 
@@ -256,7 +255,6 @@ const handleStartGame = async () => {
     await apiService.createGamePlayers(props.gameId, playersData)
 
     // Если успешно (200), показываем PreGamePhaseView
-    showPreGame.value = true
   } catch (error) {
     console.error('Failed to start negotiation:', error)
 
@@ -286,7 +284,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   rolesData.value = []
-  showPreGame.value = false
   errorMessage.value = ''
 })
 </script>
