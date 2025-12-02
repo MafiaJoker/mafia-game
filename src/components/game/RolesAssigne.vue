@@ -211,6 +211,25 @@ const loadGameData = async () => {
 }
 
 const handleStartNegotiation = async () => {
+  // Очищаем предыдущую ошибку
+  errorMessage.value = ''
+
+  // Подсчитываем количество каждой роли
+  const roleCount = rolesData.value.reduce((acc, player) => {
+    acc[player.role] = (acc[player.role] || 0) + 1
+    return acc
+  }, {})
+
+  // Проверяем правильность распределения ролей
+  const donCount = roleCount[GameRolesEnum.don] || 0
+  const sheriffCount = roleCount[GameRolesEnum.sheriff] || 0
+  const mafiaCount = roleCount[GameRolesEnum.mafia] || 0
+
+  if (donCount !== 1 || sheriffCount !== 1 || mafiaCount !== 2) {
+    errorMessage.value = GAME_ERROR_MESSAGES.INVALID_ROLES
+    return
+  }
+
   isNegotiationStarted.value = true
   emit('negotiation-started')
 }
