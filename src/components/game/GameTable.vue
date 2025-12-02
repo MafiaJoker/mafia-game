@@ -4,6 +4,7 @@
     stripe
     style="width: 100%"
     :border="true"
+    :row-class-name="rowClassName"
   >
     <el-table-column
       label="№"
@@ -24,6 +25,10 @@ defineProps({
   data: {
     type: Array,
     default: () => []
+  },
+  rowClassName: {
+    type: Function,
+    default: null
   }
 })
 </script>
