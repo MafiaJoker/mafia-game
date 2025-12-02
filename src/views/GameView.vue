@@ -27,25 +27,25 @@
         <el-card>
           <!-- Фаза: Рассадка игроков -->
           <SeatingPlayers
-            v-if="gameData?.result === 'created'"
+            v-if="currentPhaseTemplate === 'SeatingPlayers'"
             :game-id="props.id"
             @seating-complete="loadGame"
           />
 
           <!-- Фаза: Распределение ролей -->
           <RolesAssigne
-            v-if="gameData?.result === 'seating_ready'"
+            v-if="currentPhaseTemplate === 'RolesAssigne'"
             :game-id="props.id"
             v-model:roles-data="rolesData"
             :is-free-seat-phase="isFreeSeatPhase"
             @negotiation-started="showTimer = true; isNegotiationStarted = true"
             @negotiation-ended="showTimer = false; isNegotiationStarted = false; isFreeSeatPhase = false"
-            @game-started="loadGame"
+            @game-started="handleGameStarted"
           />
 
           <!-- Фаза: Игра в процессе -->
           <GameInProgress
-              v-if="gameData?.result === 'in_progress' || gameData?.result === 'roles_assigned'"
+              v-if="currentPhaseTemplate === 'GameInProgress'"
               :game-id="props.id"
           />
         </el-card>
@@ -55,7 +55,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -80,11 +80,39 @@ const showTimer = ref(false)
 const isNegotiationStarted = ref(false)
 const isFreeSeatPhase = ref(false)
 const rolesData = ref([])
+const gameStartedEventEmitted = ref(false)
+
+const currentPhaseTemplate = computed(() => {
+  // Если событие game-started было заэмичено, показываем игру
+  if (gameStartedEventEmitted.value) {
+    return 'GameInProgress'
+  }
+
+  // Выбор шаблона на основе статуса игры
+  switch (gameData.value?.result) {
+    case 'in_progress':
+    case 'roles_assigned':
+      return 'GameInProgress'
+
+    case 'seating_ready':
+      return 'RolesAssigne'
+
+    case 'created':
+      return 'SeatingPlayers'
+
+    default:
+      return null
+  }
+})
 
 const handlePhaseChanged = (phase) => {
   if (phase === COUNTDOWN_PHASES.FREE_SEATING) {
     isFreeSeatPhase.value = true
   }
+}
+
+const handleGameStarted = () => {
+  gameStartedEventEmitted.value = true
 }
 
 const getStatusLabel = (status) => {
