@@ -43,7 +43,10 @@
           />
 
           <!-- Фаза: Игра в процессе -->
-          <GameInProgress v-if="gameData?.result === 'in_progress' || gameData?.result === 'roles_assigned'" />
+          <GameInProgress
+              v-if="gameData?.result === 'in_progress' || gameData?.result === 'roles_assigned'"
+              :game-id="props.id"
+          />
         </el-card>
       </el-main>
     </el-container>
