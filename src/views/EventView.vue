@@ -786,7 +786,7 @@
       'draw': 'Ничья',
       'created': 'Создана',
       'seating_ready': 'Рассадка готова',
-      'roles_assigned': 'Рассадка готова',
+      'roles_assigned': 'Роли розданы',
       'role_distribution': 'Роздача ролей',
       'in_progress': 'В процессе',
       'finished_no_scores': 'Завершена без баллов',

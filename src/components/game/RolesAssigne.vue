@@ -99,7 +99,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['negotiation-started', 'negotiation-ended'])
+const emit = defineEmits(['negotiation-started', 'negotiation-ended', 'game-started'])
 
 const rolesData = ref([])
 const loading = ref(false)
@@ -254,7 +254,8 @@ const handleStartGame = async () => {
     // Вызываем API для создания игроков с ролями
     await apiService.createGamePlayers(props.gameId, playersData)
 
-    // Если успешно (200), показываем PreGamePhaseView
+    // Если успешно (200), уведомляем родительский компонент
+    emit('game-started')
   } catch (error) {
     console.error('Failed to start negotiation:', error)
 

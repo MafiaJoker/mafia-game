@@ -34,15 +34,16 @@
 
           <!-- Фаза: Распределение ролей -->
           <RolesAssigne
-            v-if="gameData?.result === 'seating_ready' || gameData?.result === 'roles_assigned'"
+            v-if="gameData?.result === 'seating_ready'"
             :game-id="props.id"
             :is-free-seat-phase="isFreeSeatPhase"
             @negotiation-started="showTimer = true; isNegotiationStarted = true"
             @negotiation-ended="showTimer = false; isNegotiationStarted = false; isFreeSeatPhase = false"
+            @game-started="loadGame"
           />
 
           <!-- Фаза: Игра в процессе -->
-          <GameInProgress v-if="gameData?.result === 'in_progress'" />
+          <GameInProgress v-if="gameData?.result === 'in_progress' || gameData?.result === 'roles_assigned'" />
         </el-card>
       </el-main>
     </el-container>
