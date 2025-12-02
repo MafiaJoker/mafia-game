@@ -36,6 +36,7 @@
           <RolesAssigne
             v-if="gameData?.result === 'seating_ready'"
             :game-id="props.id"
+            v-model:roles-data="rolesData"
             :is-free-seat-phase="isFreeSeatPhase"
             @negotiation-started="showTimer = true; isNegotiationStarted = true"
             @negotiation-ended="showTimer = false; isNegotiationStarted = false; isFreeSeatPhase = false"
@@ -78,6 +79,7 @@ const gameData = ref(null)
 const showTimer = ref(false)
 const isNegotiationStarted = ref(false)
 const isFreeSeatPhase = ref(false)
+const rolesData = ref([])
 
 const handlePhaseChanged = (phase) => {
   if (phase === COUNTDOWN_PHASES.FREE_SEATING) {
@@ -102,6 +104,16 @@ const loadGame = async () => {
   loading.value = true
   try {
     gameData.value = await apiService.getGame(props.id)
+
+    // Формируем rolesData для компонента RolesAssigne
+    if (gameData.value.players && Array.isArray(gameData.value.players)) {
+      rolesData.value = gameData.value.players.map(player => ({
+        id: player.id,
+        nickname: player.nickname,
+        box_id: player.box_id,
+        role: player.role || 'civilian'
+      }))
+    }
 
     // Если игра завершена, перенаправляем на страницу результатов
     if (['mafia_win', 'civilians_win', 'draw'].includes(gameData.value.result)) {

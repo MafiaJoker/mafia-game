@@ -38,7 +38,7 @@
       </div>
     </template>
 
-    <GameTable :data="rolesData">
+    <GameTable :data="props.rolesData">
       <el-table-column
         label="Роль"
         width="60"
@@ -77,7 +77,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { User } from '@element-plus/icons-vue'
 import GameTable from './GameTable.vue'
 import CitizenIcon from './icons/CitizenIcon.vue'
@@ -93,15 +93,17 @@ const props = defineProps({
     type: String,
     required: true
   },
+  rolesData: {
+    type: Array,
+    required: true
+  },
   isFreeSeatPhase: {
     type: Boolean,
     default: false
   }
 })
 
-const emit = defineEmits(['negotiation-started', 'negotiation-ended', 'game-started'])
-
-const rolesData = ref([])
+const emit = defineEmits(['negotiation-started', 'negotiation-ended', 'game-started', 'update:rolesData'])
 const loading = ref(false)
 const errorMessage = ref('')
 const isNegotiationStarted = ref(false)
@@ -143,14 +145,8 @@ const cycleRole = (player) => {
   let nextIndex = (currentIndex + 1) % rolesCycle.length
   let nextRole = rolesCycle[nextIndex]
 
-  // Мирного жителя можно всегда выбрать, независимо от лимитов
-  if (nextRole === GameRolesEnum.civilian) {
-    player.role = nextRole
-    return
-  }
-
   // Подсчитываем текущее количество ролей (исключая текущего игрока)
-  const roleCount = rolesData.value.reduce((acc, p) => {
+  const roleCount = props.rolesData.reduce((acc, p) => {
     if (p.id !== player.id) {
       acc[p.role] = (acc[p.role] || 0) + 1
     }
@@ -169,7 +165,7 @@ const cycleRole = (player) => {
   while (attempts < rolesCycle.length) {
     // Мирного жителя всегда можно выбрать
     if (nextRole === GameRolesEnum.civilian) {
-      player.role = nextRole
+      updatePlayerRole(player.id, nextRole)
       return
     }
 
@@ -178,7 +174,7 @@ const cycleRole = (player) => {
 
     // Если роль доступна (не превышен лимит), выбираем её
     if (currentCount < limit) {
-      player.role = nextRole
+      updatePlayerRole(player.id, nextRole)
       return
     }
 
@@ -187,26 +183,17 @@ const cycleRole = (player) => {
     nextRole = rolesCycle[nextIndex]
     attempts++
   }
-
 }
 
-const loadGameData = async () => {
-  try {
-    const gameData = await apiService.getGame(props.gameId)
-
-    // Преобразуем данные игроков в формат для таблицы
-    if (gameData.players && Array.isArray(gameData.players)) {
-      rolesData.value = gameData.players.map(player => ({
-        id: player.id,
-        nickname: player.nickname,
-        box_id: player.box_id,
-        role: player.role || GameRolesEnum.civilian
-      }))
-    }
-  } catch (error) {
-    console.error('Failed to load game data:', error)
-    rolesData.value = []
-  }
+const updatePlayerRole = (playerId, newRole) => {
+  // Создаем новый массив с обновленной ролью игрока
+  const updatedData = props.rolesData.map(player =>
+    player.id === playerId
+      ? { ...player, role: newRole }
+      : player
+  )
+  // Эмитим событие для обновления данных в родительском компоненте
+  emit('update:rolesData', updatedData)
 }
 
 const handleStartNegotiation = async () => {
@@ -214,7 +201,7 @@ const handleStartNegotiation = async () => {
   errorMessage.value = ''
 
   // Подсчитываем количество каждой роли
-  const roleCount = rolesData.value.reduce((acc, player) => {
+  const roleCount = props.rolesData.reduce((acc, player) => {
     acc[player.role] = (acc[player.role] || 0) + 1
     return acc
   }, {})
@@ -245,7 +232,7 @@ const handleStartGame = async () => {
 
   try {
     // Собираем список игроков с ролями в формате API
-    const playersData = rolesData.value.map(player => ({
+    const playersData = props.rolesData.map(player => ({
       user_id: player.id,
       role: player.role,
       box_id: player.box_id
@@ -279,12 +266,7 @@ const handleStartGame = async () => {
   }
 }
 
-onMounted(() => {
-  loadGameData()
-})
-
 onUnmounted(() => {
-  rolesData.value = []
   errorMessage.value = ''
 })
 </script>
