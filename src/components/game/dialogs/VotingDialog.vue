@@ -10,7 +10,8 @@
         <el-empty description="Нет кандидатов для голосования" />
       </div>
 
-      <div v-else>
+      <!-- Раунды 1 и 2: показываем список игроков -->
+      <div v-else-if="votingRound < 3">
         <div v-for="candidate in currentCandidates" :key="candidate.box_id" class="candidate-row">
           <div class="candidate-info">
             <span class="box-id">{{ candidate.box_id }}</span>
@@ -41,6 +42,35 @@
             <span>Раунд голосования:</span>
             <span class="summary-value">{{ votingRound }}</span>
           </div>
+        </div>
+      </div>
+
+      <!-- Раунд 3: голосование за подъем всех кандидатур -->
+      <div v-else class="round-three-container">
+        <div class="vote-for-all-section">
+          <p class="vote-prompt">Выберите количество рук за подъем всех кандидатур:</p>
+
+          <div class="vote-buttons-grid">
+            <el-button
+              v-for="voteCount in maxVotes"
+              :key="voteCount - 1"
+              :type="votesForAll === (voteCount - 1) ? 'primary' : 'default'"
+              size="large"
+              @click="votesForAll = voteCount - 1"
+              class="vote-btn-large"
+            >
+              {{ voteCount - 1 }}
+            </el-button>
+          </div>
+
+          <el-alert
+            v-if="showWarning"
+            title="Все игроки покинут игру"
+            type="warning"
+            :closable="false"
+            show-icon
+            class="warning-alert"
+          />
         </div>
       </div>
     </div>
@@ -83,6 +113,7 @@ const votes = reactive({})
 const votingRound = ref(1)
 const currentCandidates = ref([])
 const previousTiedPlayers = ref([])
+const votesForAll = ref(0)
 
 const visible = computed({
   get: () => props.modelValue,
@@ -95,7 +126,7 @@ const dialogTitle = computed(() => {
   } else if (votingRound.value === 2) {
     return 'Перестрелка'
   } else {
-    return 'Голосование за перестрелку'
+    return 'Голосование за подъем всех кандидатур'
   }
 })
 
@@ -110,7 +141,18 @@ const totalVotesAssigned = computed(() => {
 })
 
 const canContinue = computed(() => {
+  if (votingRound.value === 3) {
+    return true // Для 3-го раунда можно всегда продолжить
+  }
   return totalVotesAssigned.value === alivePlayersCount.value
+})
+
+const showWarning = computed(() => {
+  if (votingRound.value === 3) {
+    const halfAlivePlayers = Math.floor(alivePlayersCount.value / 2)
+    return votesForAll.value > halfAlivePlayers
+  }
+  return false
 })
 
 const setVote = (boxId, count) => {
@@ -180,10 +222,10 @@ const handleContinue = () => {
         currentTiedPlayers.every(id => previousTiedPlayers.value.includes(id))
 
       if (samePlayersAsBefore) {
-        // Голосование за перестрелку
+        // Голосование за подъем всех кандидатур
         votingRound.value = 3
         Object.keys(votes).forEach(key => delete votes[key])
-        currentCandidates.value.forEach(c => votes[c.box_id] = 0)
+        votesForAll.value = 0
       } else {
         // Новая комбинация игроков - продолжаем перестрелку
         previousTiedPlayers.value = currentTiedPlayers
@@ -194,16 +236,13 @@ const handleContinue = () => {
       }
     }
   } else if (votingRound.value === 3) {
-    // Голосование за перестрелку
+    // Голосование за подъем всех кандидатур
     const halfAlivePlayers = Math.floor(alivePlayersCount.value / 2)
 
-    const playersWithMajority = Object.entries(votes)
-      .filter(([_, count]) => count > halfAlivePlayers)
-      .map(([boxId, _]) => parseInt(boxId))
-
-    if (playersWithMajority.length > 0) {
-      // Есть игроки с большинством голосов
-      addToVotedBoxIds(playersWithMajority)
+    if (votesForAll.value > halfAlivePlayers) {
+      // Если строго больше половины голосов - все игроки покидают игру
+      const allCandidateIds = currentCandidates.value.map(c => c.box_id)
+      addToVotedBoxIds(allCandidateIds)
     }
 
     handleClose()
@@ -214,12 +253,18 @@ const handleClose = () => {
   visible.value = false
   resetVoting()
 }
-
+// TODO
+// 1) Визуально сделать красивее голосовалку
+// 2) В правом верхнем углу по умолчанию должна быть кнопка ночь и превращаться в начать голосование только если есть выставленные кандидаты
+// 3) Если phase_id=1 то при одной выставленной кандидатуре кнопка Начать голосование не появляется
+// 4) Если phase_id>1 при нажатии Начать голосование модальное окно не появляется и пользователь автоматически заголосовывается
+// 5) После голосования в колонке выставления должны пропасть кнопки "выставить", а на против заголосованных игроков надпись "покинул игру"
 const resetVoting = () => {
   votingRound.value = 1
   Object.keys(votes).forEach(key => delete votes[key])
   previousTiedPlayers.value = []
   currentCandidates.value = []
+  votesForAll.value = 0
 }
 
 // Инициализация при открытии диалога
@@ -318,5 +363,40 @@ watch(() => props.modelValue, (newValue) => {
 .summary-value {
   font-weight: 600;
   color: #303133;
+}
+
+.round-three-container {
+  padding: 16px 0;
+}
+
+.vote-for-all-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.vote-prompt {
+  font-size: 15px;
+  font-weight: 500;
+  color: #303133;
+  margin: 0;
+  text-align: center;
+}
+
+.vote-buttons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.vote-btn-large {
+  height: 48px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.warning-alert {
+  margin-top: 8px;
 }
 </style>
