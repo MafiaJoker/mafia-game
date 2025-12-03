@@ -103,6 +103,18 @@ const playersData = ref([])
 const rolesVisible = ref(true)
 const phaseId = ref(null)
 
+// Объект для формирования данных фазы игры
+const phaseData = ref({
+  don_checked_box_id: null,
+  sheriff_checked_box_id: null,
+  killed_box_id: null,
+  removed_box_ids: [],
+  voted_box_ids: [],
+  ppk_box_id: null,
+  fouls_summary: [],
+  best_move: []
+})
+
 const toggleRolesVisibility = () => {
   rolesVisible.value = !rolesVisible.value
 }
