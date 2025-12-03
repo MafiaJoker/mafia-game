@@ -8,6 +8,16 @@
             <span>Игра в процессе</span>
             <span v-if="phaseId !== null" class="phase-indicator">День {{ phaseId }}</span>
           </div>
+          <div class="header-right">
+            <el-button
+              type="primary"
+              size="default"
+              :disabled="nominatedPlayers.length === 0"
+              @click="openVotingDialog"
+            >
+              Начать голосование
+            </el-button>
+          </div>
         </div>
       </template>
 
@@ -99,6 +109,15 @@
         </el-table-column>
       </GameTable>
     </el-card>
+
+    <VotingDialog
+      v-model="votingDialogVisible"
+      :nominated-players="nominatedPlayers"
+      :players-data="playersData"
+      :phase-data="phaseData"
+      @update:phase-data="phaseData = $event"
+      @update:nominated-players="nominatedPlayers = $event"
+    />
   </div>
 </template>
 
@@ -110,6 +129,7 @@ import CitizenIcon from './icons/CitizenIcon.vue'
 import SheriffIcon from './icons/SheriffIcon.vue'
 import DonIcon from './icons/DonIcon.vue'
 import MafiaIcon from './icons/MafiaIcon.vue'
+import VotingDialog from './dialogs/VotingDialog.vue'
 import { apiService } from '@/services/api.js'
 import { GameRolesEnum } from '@/utils/constants.js'
 
@@ -126,6 +146,9 @@ const phaseId = ref(null)
 
 // Массив для хранения box_id номинированных игроков в порядке выставления
 const nominatedPlayers = ref([])
+
+// Состояние модального окна голосования
+const votingDialogVisible = ref(false)
 
 // Объект для формирования данных фазы игры
 const phaseData = ref({
@@ -171,6 +194,11 @@ const removeNomination = (boxId) => {
   if (index !== -1) {
     nominatedPlayers.value.splice(index, 1)
   }
+}
+
+// Открывает модальное окно голосования
+const openVotingDialog = () => {
+  votingDialogVisible.value = true
 }
 
 const loadGameData = async () => {
