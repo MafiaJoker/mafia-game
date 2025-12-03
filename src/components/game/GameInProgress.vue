@@ -69,11 +69,32 @@
 
         <el-table-column
           label="Выставление"
-          width="120"
+          width="150"
           align="center"
         >
           <template #default="{ row }">
-            <span>{{ row.eliminated || '-' }}</span>
+            <div v-if="row.is_in_game" class="nomination-cell">
+              <el-button
+                v-if="!isPlayerNominated(row.box_id)"
+                type="warning"
+                size="small"
+                plain
+                @click="addNomination(row.box_id)"
+              >
+                Выставить
+              </el-button>
+              <div v-else class="nomination-order">
+                <span class="order-number">{{ getNominationOrder(row.box_id) }}</span>
+                <el-icon
+                  class="remove-icon"
+                  @click="removeNomination(row.box_id)"
+                  :size="16"
+                >
+                  <Close />
+                </el-icon>
+              </div>
+            </div>
+            <span v-else>-</span>
           </template>
         </el-table-column>
       </GameTable>
@@ -83,7 +104,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { User, View, Hide } from '@element-plus/icons-vue'
+import { User, View, Hide, Close } from '@element-plus/icons-vue'
 import GameTable from './GameTable.vue'
 import CitizenIcon from './icons/CitizenIcon.vue'
 import SheriffIcon from './icons/SheriffIcon.vue'
@@ -103,6 +124,9 @@ const playersData = ref([])
 const rolesVisible = ref(true)
 const phaseId = ref(null)
 
+// Массив для хранения box_id номинированных игроков в порядке выставления
+const nominatedPlayers = ref([])
+
 // Объект для формирования данных фазы игры
 const phaseData = ref({
   don_checked_box_id: null,
@@ -121,6 +145,32 @@ const toggleRolesVisibility = () => {
 
 const getRowClassName = ({ row }) => {
   return !row.is_in_game ? 'inactive-player' : ''
+}
+
+// Проверяет, номинирован ли игрок
+const isPlayerNominated = (boxId) => {
+  return nominatedPlayers.value.includes(boxId)
+}
+
+// Возвращает порядковый номер номинации игрока
+const getNominationOrder = (boxId) => {
+  const index = nominatedPlayers.value.indexOf(boxId)
+  return index !== -1 ? index + 1 : null
+}
+
+// Добавляет игрока в список номинированных
+const addNomination = (boxId) => {
+  if (!nominatedPlayers.value.includes(boxId)) {
+    nominatedPlayers.value.push(boxId)
+  }
+}
+
+// Удаляет игрока из списка номинированных
+const removeNomination = (boxId) => {
+  const index = nominatedPlayers.value.indexOf(boxId)
+  if (index !== -1) {
+    nominatedPlayers.value.splice(index, 1)
+  }
 }
 
 const loadGameData = async () => {
@@ -217,5 +267,49 @@ onMounted(() => {
 
 :deep(.inactive-player td) {
   color: #909399 !important;
+}
+
+.nomination-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.nomination-order {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background-color: #fdf6ec;
+  border: 1px solid #e6a23c;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.nomination-order:hover {
+  background-color: #faecd8;
+  border-color: #d89614;
+}
+
+.order-number {
+  font-weight: 600;
+  font-size: 16px;
+  color: #e6a23c;
+  min-width: 20px;
+  text-align: center;
+}
+
+.remove-icon {
+  cursor: pointer;
+  color: #e6a23c;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-icon:hover {
+  color: #cf7e0f;
+  transform: scale(1.2);
 }
 </style>

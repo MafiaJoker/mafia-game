@@ -85,6 +85,8 @@ const gameStartedEventEmitted = ref(false)
 const currentPhaseTemplate = computed(() => {
   // Если событие game-started было заэмичено, показываем игру
   if (gameStartedEventEmitted.value) {
+    showTimer.value = true
+    isNegotiationStarted.value = false
     return 'GameInProgress'
   }
 
@@ -92,6 +94,8 @@ const currentPhaseTemplate = computed(() => {
   switch (gameData.value?.result) {
     case 'in_progress':
     case 'roles_assigned':
+      showTimer.value = true
+      isNegotiationStarted.value = false
       return 'GameInProgress'
 
     case 'seating_ready':
