@@ -198,7 +198,7 @@ onMounted(() => {
   min-width: 24px;
   height: 24px;
   padding: 0 8px;
-  background-color: #f56c6c;
+  background-color: #409eff;
   color: white;
   border-radius: 12px;
   font-weight: 600;
