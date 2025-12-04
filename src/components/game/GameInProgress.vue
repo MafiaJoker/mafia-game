@@ -92,7 +92,13 @@
         >
           <template #default="{ row }">
             <div v-if="votingCompleted">
-              <span>-</span>
+              <span
+                v-if="phaseData.voted_box_ids.includes(row.box_id)"
+                class="left-game"
+              >
+                покинул игру
+              </span>
+              <span v-else>-</span>
             </div>
             <div v-else-if="row.is_in_game" class="nomination-cell">
               <el-button
@@ -364,5 +370,12 @@ onMounted(() => {
 .remove-icon:hover {
   color: #cf7e0f;
   transform: scale(1.2);
+}
+
+.left-game {
+  font-size: 13px;
+  color: #d89614;
+  font-style: italic;
+  font-weight: 500;
 }
 </style>
