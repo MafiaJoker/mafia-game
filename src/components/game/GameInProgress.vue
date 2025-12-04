@@ -10,12 +10,20 @@
           </div>
           <div class="header-right">
             <el-button
+              v-if="showVotingButton"
               type="primary"
               size="default"
-              :disabled="nominatedPlayers.length === 0"
               @click="openVotingDialog"
             >
               Начать голосование
+            </el-button>
+            <el-button
+              v-else
+              type="info"
+              size="default"
+            >
+              <el-icon style="margin-right: 6px;"><Moon /></el-icon>
+              Ночь
             </el-button>
           </div>
         </div>
@@ -83,7 +91,10 @@
           align="center"
         >
           <template #default="{ row }">
-            <div v-if="row.is_in_game" class="nomination-cell">
+            <div v-if="votingCompleted">
+              <span>-</span>
+            </div>
+            <div v-else-if="row.is_in_game" class="nomination-cell">
               <el-button
                 v-if="!isPlayerNominated(row.box_id)"
                 type="warning"
@@ -117,13 +128,14 @@
       :phase-data="phaseData"
       @update:phase-data="phaseData = $event"
       @update:nominated-players="nominatedPlayers = $event"
+      @voting-completed="handleVotingCompleted"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { User, View, Hide, Close } from '@element-plus/icons-vue'
+import { ref, computed, onMounted } from 'vue'
+import { User, View, Hide, Close, Moon } from '@element-plus/icons-vue'
 import GameTable from './GameTable.vue'
 import CitizenIcon from './icons/CitizenIcon.vue'
 import SheriffIcon from './icons/SheriffIcon.vue'
@@ -150,6 +162,9 @@ const nominatedPlayers = ref([])
 // Состояние модального окна голосования
 const votingDialogVisible = ref(false)
 
+// Флаг завершения голосования
+const votingCompleted = ref(false)
+
 // Объект для формирования данных фазы игры
 const phaseData = ref({
   don_checked_box_id: null,
@@ -161,6 +176,16 @@ const phaseData = ref({
   fouls_summary: [],
   best_move: []
 })
+
+// Определяем, показывать ли кнопку "Начать голосование" или "Ночь"
+const showVotingButton = computed(() => {
+  return !votingCompleted.value && nominatedPlayers.value.length > 0
+})
+
+// Обработчик завершения голосования
+const handleVotingCompleted = () => {
+  votingCompleted.value = true
+}
 
 const toggleRolesVisibility = () => {
   rolesVisible.value = !rolesVisible.value

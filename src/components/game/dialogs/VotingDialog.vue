@@ -107,7 +107,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'update:phaseData', 'update:nominatedPlayers'])
+const emit = defineEmits(['update:modelValue', 'update:phaseData', 'update:nominatedPlayers', 'voting-completed'])
 
 const votes = reactive({})
 const votingRound = ref(1)
@@ -195,6 +195,7 @@ const handleContinue = () => {
       // Есть однозначный победитель
       addToVotedBoxIds([winners[0].boxId])
       handleClose()
+      emit('voting-completed')
     } else if (winners.length > 1) {
       // Ничья - переходим к перестрелке
       votingRound.value = 2
@@ -214,6 +215,7 @@ const handleContinue = () => {
       // Есть однозначный победитель перестрелки
       addToVotedBoxIds([winners[0].boxId])
       handleClose()
+      emit('voting-completed')
     } else if (winners.length > 1) {
       // Снова ничья между теми же игроками
       const currentTiedPlayers = winners.map(w => w.boxId)
@@ -244,6 +246,7 @@ const handleContinue = () => {
       const allCandidateIds = currentCandidates.value.map(c => c.box_id)
       addToVotedBoxIds(allCandidateIds)
     }
+    emit('voting-completed')
 
     handleClose()
   }
