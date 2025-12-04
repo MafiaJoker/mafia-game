@@ -2,13 +2,18 @@
   <el-dialog
     v-model="visible"
     :title="dialogTitle"
-    width="600px"
+    width="800px"
     :before-close="handleClose"
   >
     <div class="voting-container">
       <!-- Раунды 1 и 2: показываем список игроков -->
       <div v-if="votingRound < 3">
-        <div v-for="candidate in currentCandidates" :key="candidate.box_id" class="candidate-row">
+        <div
+          v-for="(candidate, index) in currentCandidates"
+          :key="candidate.box_id"
+          class="candidate-row"
+          :class="{ 'candidate-row-locked': !isCandidateAvailable(index) }"
+        >
           <div class="candidate-info">
             <el-tooltip content="Номер игрока" placement="top">
               <div class="player-badge">
@@ -23,10 +28,17 @@
             <el-button
               v-for="voteCount in maxVotes"
               :key="voteCount - 1"
-              :type="votes[candidate.box_id] === (voteCount - 1) ? 'primary' : 'default'"
+              :type="getButtonType(candidate.box_id, voteCount - 1)"
               size="small"
               @click="setVote(candidate.box_id, voteCount - 1)"
-              class="vote-btn"
+              :disabled="!isVoteAvailable(index, candidate.box_id, voteCount - 1)"
+              :class="[
+                'vote-btn',
+                {
+                  'vote-btn-selected': isVoteSelected(candidate.box_id, voteCount - 1),
+                  'vote-btn-unavailable': !isVoteAvailable(index, candidate.box_id, voteCount - 1)
+                }
+              ]"
             >
               {{ voteCount - 1 }}
             </el-button>
@@ -160,6 +172,68 @@ const setVote = (boxId, count) => {
   votes[boxId] = count
 }
 
+const getLastVotedIndex = () => {
+  // Находим ПОСЛЕДНЕГО (самого нижнего) кандидата с голосами > 0
+  for (let i = currentCandidates.value.length - 1; i >= 0; i--) {
+    const candidate = currentCandidates.value[i]
+    if (votes[candidate.box_id] && votes[candidate.box_id] > 0) {
+      return i
+    }
+  }
+  return -1
+}
+
+const isCandidateAvailable = (index) => {
+  const lastVotedIndex = getLastVotedIndex()
+
+  // Если никто не проголосован, все доступны
+  if (lastVotedIndex === -1) {
+    return true
+  }
+
+  // Заблокированы все ВЫШЕ последнего проголосованного
+  // Доступны последний проголосованный и все НИЖЕ
+  return index >= lastVotedIndex
+}
+
+const isVoteSelected = (boxId, voteValue) => {
+  const currentVotes = votes[boxId] || 0
+  return voteValue <= currentVotes
+}
+
+const isVoteAvailable = (index, boxId, voteValue) => {
+  // Если кандидат недоступен - все кнопки недоступны
+  if (!isCandidateAvailable(index)) {
+    return false
+  }
+
+  // Считаем сумму голосов, отданных другим кандидатам
+  const votesForOthers = Object.entries(votes)
+    .filter(([candidateId]) => parseInt(candidateId) !== boxId)
+    .reduce((sum, [, count]) => sum + count, 0)
+
+  // Максимум для этого кандидата = всего голосов - голоса других
+  const maxAvailable = alivePlayersCount.value - votesForOthers
+
+  return voteValue <= maxAvailable
+}
+
+const getButtonType = (boxId, voteValue) => {
+  const currentVotes = votes[boxId] || 0
+
+  // Если это выбранное значение - primary
+  if (currentVotes === voteValue) {
+    return 'primary'
+  }
+
+  // Если слева от выбранного и есть выбор - тоже primary
+  if (currentVotes > 0 && voteValue < currentVotes) {
+    return 'primary'
+  }
+
+  return 'default'
+}
+
 const getCandidateData = (boxId) => {
   return props.playersData.find(p => p.box_id === boxId)
 }
@@ -258,7 +332,8 @@ const handleClose = () => {
   resetVoting()
 }
 // TODO
-// 1) Визуально сделать красивее голосовалку
+// 1) Исправить визуальный стиль голосования за подъем
+// 2) Активировать кнопку продолжить если количество отданных голосов за текущего кандидата строго больше количества оставшихся голосов в пуле
 const resetVoting = () => {
   votingRound.value = 1
   Object.keys(votes).forEach(key => delete votes[key])
@@ -309,6 +384,12 @@ watch(() => props.modelValue, (newValue) => {
   background-color: #ecf5ff;
 }
 
+.candidate-row-locked {
+  opacity: 0.5;
+  pointer-events: none;
+  background-color: #f0f0f0 !important;
+}
+
 .candidate-info {
   display: flex;
   align-items: flex-end;
@@ -355,15 +436,35 @@ watch(() => props.modelValue, (newValue) => {
 
 .vote-buttons {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 0;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   flex: 1;
+  overflow-x: auto;
 }
 
 .vote-btn {
   min-width: 36px;
   padding: 8px 12px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.vote-btn + .vote-btn {
+  border-left: 1px solid #dcdfe6;
+}
+
+.vote-btn.el-button--primary + .vote-btn {
+  border-left-color: #409eff;
+}
+
+.vote-btn-unavailable {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.vote-btn-unavailable:hover {
+  opacity: 0.4;
 }
 
 .voting-summary {
