@@ -6,15 +6,16 @@
     :before-close="handleClose"
   >
     <div class="voting-container">
-      <div v-if="currentCandidates.length === 0" class="no-candidates">
-        <el-empty description="Нет кандидатов для голосования" />
-      </div>
-
       <!-- Раунды 1 и 2: показываем список игроков -->
-      <div v-else-if="votingRound < 3">
+      <div v-if="votingRound < 3">
         <div v-for="candidate in currentCandidates" :key="candidate.box_id" class="candidate-row">
           <div class="candidate-info">
-            <span class="box-id">{{ candidate.box_id }}</span>
+            <el-tooltip content="Номер игрока" placement="top">
+              <div class="player-badge">
+                <span class="player-label">Игрок</span>
+                <span class="box-id">{{ candidate.box_id }}</span>
+              </div>
+            </el-tooltip>
             <span class="nickname">{{ candidate.nickname }}</span>
           </div>
 
@@ -310,28 +311,46 @@ watch(() => props.modelValue, (newValue) => {
 
 .candidate-info {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 12px;
   flex: 0 0 200px;
+}
+
+.player-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: help;
+}
+
+.player-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #409eff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .box-id {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   background-color: #409eff;
   color: white;
   border-radius: 50%;
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow: 0 2px 4px rgba(64, 158, 255, 0.3);
 }
 
 .nickname {
   font-size: 15px;
   font-weight: 500;
   color: #303133;
+  padding-bottom: 6px;
 }
 
 .vote-buttons {
