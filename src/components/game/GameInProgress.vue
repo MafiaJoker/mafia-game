@@ -185,6 +185,10 @@ const phaseData = ref({
 
 // Определяем, показывать ли кнопку "Начать голосование" или "Ночь"
 const showVotingButton = computed(() => {
+  // Если phaseId == 1 и только один номинированный игрок - кнопка не показывается
+  if (phaseId.value === 1 && nominatedPlayers.value.length === 1) {
+    return false
+  }
   return !votingCompleted.value && nominatedPlayers.value.length > 0
 })
 
@@ -229,6 +233,13 @@ const removeNomination = (boxId) => {
 
 // Открывает модальное окно голосования
 const openVotingDialog = () => {
+  // Если phaseId > 1 и только один номинированный игрок - автоматически завершаем голосование
+  if (phaseId.value > 1 && nominatedPlayers.value.length === 1) {
+    const votedPlayerId = nominatedPlayers.value[0]
+    phaseData.value.voted_box_ids.push(votedPlayerId)
+    votingCompleted.value = true
+    return
+  }
   votingDialogVisible.value = true
 }
 
