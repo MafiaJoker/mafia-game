@@ -187,7 +187,7 @@ const props = defineProps({
 })
 
 const playersData = ref([])
-const rolesVisible = ref(true)
+const rolesVisible = ref(false)
 const phaseId = ref(null)
 
 // Массив для хранения box_id номинированных игроков в порядке выставления

@@ -172,13 +172,13 @@ const setDonCheck = (boxId) => {
         ElMessage({
           message: 'Проверенный игрок шериф',
           type: 'success',
-          duration: 3000
+          duration: 1000
         })
       } else {
         ElMessage({
           message: 'Проверенный игрок не шериф',
           type: 'error',
-          duration: 3000
+          duration: 1000
         })
       }
     }
@@ -202,14 +202,14 @@ const setSheriffCheck = (boxId) => {
         ElMessage({
           message: 'Игрок мафия',
           type: 'warning',
-          duration: 3000,
+          duration: 1000,
           customClass: 'black-toast'
         })
       } else {
         ElMessage({
           message: 'Игрок мирный',
           type: 'error',
-          duration: 3000
+          duration: 1000
         })
       }
     }
