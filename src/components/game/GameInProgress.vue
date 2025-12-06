@@ -36,8 +36,15 @@
           align="center"
         >
           <template #default="{ row }">
-            <div class="fouls-badge" :class="{ 'is-disabled': !row.is_in_game }">
-              {{ row.fouls || 0 }}
+            <div
+              class="fouls-badge"
+              :class="{
+                'is-disabled': !row.is_in_game,
+                'is-warning': getCurrentFouls(row) > 2
+              }"
+              @click="handleFoulsClick(row)"
+            >
+              {{ getCurrentFouls(row) }}
             </div>
           </template>
         </el-table-column>
@@ -243,6 +250,62 @@ const openVotingDialog = () => {
   votingDialogVisible.value = true
 }
 
+// Получает текущее количество фолов для игрока
+const getCurrentFouls = (row) => {
+  // Ищем фолы в phaseData.fouls_summary
+  const foulEntry = phaseData.value.fouls_summary.find(f => f.box_id === row.box_id)
+  if (foulEntry) {
+    // Текущие фолы = исходные фолы + добавленные в этой фазе
+    return (row.fouls || 0) + foulEntry.count_fouls
+  }
+  return row.fouls || 0
+}
+
+// Обработчик клика по бейджу фолов
+const handleFoulsClick = (row) => {
+  // Если игрок не в игре, ничего не делаем
+  if (!row.is_in_game) return
+
+  const currentFouls = getCurrentFouls(row)
+  const initialFouls = row.fouls || 0
+
+  // Вычисляем новое значение
+  let newTotalFouls
+  if (currentFouls === 4) {
+    // Если 4, сбрасываем на исходное значение
+    newTotalFouls = initialFouls
+  } else {
+    // Иначе увеличиваем до 4
+    newTotalFouls = currentFouls + 1
+  }
+
+  // Вычисляем count_fouls для phaseData.fouls_summary
+  const countFouls = newTotalFouls - initialFouls
+
+  // Обновляем или добавляем запись в fouls_summary
+  const existingIndex = phaseData.value.fouls_summary.findIndex(f => f.box_id === row.box_id)
+
+  if (countFouls === 0) {
+    // Если count_fouls равен 0, удаляем запись
+    if (existingIndex !== -1) {
+      phaseData.value.fouls_summary.splice(existingIndex, 1)
+    }
+  } else {
+    const foulEntry = {
+      box_id: row.box_id,
+      count_fouls: countFouls
+    }
+
+    if (existingIndex !== -1) {
+      // Обновляем существующую запись
+      phaseData.value.fouls_summary[existingIndex] = foulEntry
+    } else {
+      // Добавляем новую запись
+      phaseData.value.fouls_summary.push(foulEntry)
+    }
+  }
+}
+
 const loadGameData = async () => {
   try {
     const gameState = await apiService.getGameState(props.gameId)
@@ -323,11 +386,28 @@ onMounted(() => {
   border-radius: 12px;
   font-weight: 600;
   font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+  user-select: none;
+}
+
+.fouls-badge:hover:not(.is-disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.4);
+}
+
+.fouls-badge.is-warning {
+  background-color: #e6a23c;
+}
+
+.fouls-badge.is-warning:hover {
+  box-shadow: 0 2px 8px rgba(230, 162, 60, 0.4);
 }
 
 .fouls-badge.is-disabled {
   background-color: #dcdfe6;
   color: #909399;
+  cursor: not-allowed;
 }
 
 :deep(.inactive-player) {
