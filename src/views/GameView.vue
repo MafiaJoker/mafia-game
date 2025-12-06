@@ -46,9 +46,20 @@
           <!-- Фаза: Игра в процессе -->
           <GameInProgress
               v-if="currentPhaseTemplate === 'GameInProgress'"
+              ref="gameInProgressRef"
               :game-id="props.id"
           />
         </el-card>
+
+        <!-- Дополнительные кнопки для фазы игры -->
+        <div v-if="currentPhaseTemplate === 'GameInProgress'" class="additional-actions">
+          <el-button type="warning" size="large" @click="handlePPKClick">
+            ППК
+          </el-button>
+          <el-button type="danger" size="large" @click="handleRemovePlayersClick">
+            Удалить игроков
+          </el-button>
+        </div>
       </el-main>
     </el-container>
   </div>
@@ -81,6 +92,7 @@ const isNegotiationStarted = ref(false)
 const isFreeSeatPhase = ref(false)
 const rolesData = ref([])
 const gameStartedEventEmitted = ref(false)
+const gameInProgressRef = ref(null)
 
 const currentPhaseTemplate = computed(() => {
   // Если событие game-started было заэмичено, показываем игру
@@ -130,6 +142,18 @@ const getStatusLabel = (status) => {
     'draw': 'Ничья'
   }
   return labels[status] || status
+}
+
+const handlePPKClick = () => {
+  if (gameInProgressRef.value) {
+    gameInProgressRef.value.openPPKDialog()
+  }
+}
+
+const handleRemovePlayersClick = () => {
+  if (gameInProgressRef.value) {
+    gameInProgressRef.value.openRemovePlayersDialog()
+  }
 }
 
 const loadGame = async () => {
@@ -205,5 +229,13 @@ onMounted(() => {
   .header-content h1 {
     margin: 0;
   }
+}
+
+.additional-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 16px;
+  padding: 0 20px 20px;
 }
 </style>

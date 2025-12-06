@@ -75,9 +75,9 @@
           align="center"
         >
           <template #default="{ row }">
-            <div v-if="votingCompleted">
+            <div v-if="votingCompleted || (phaseData.removed_box_ids && phaseData.removed_box_ids.length > 0)">
               <span
-                v-if="phaseData.voted_box_ids.includes(row.box_id)"
+                v-if="phaseData.voted_box_ids.includes(row.box_id) || (phaseData.removed_box_ids && phaseData.removed_box_ids.includes(row.box_id))"
                 class="left-game"
               >
                 покинул игру
@@ -138,6 +138,22 @@
       @update:phase-data="phaseData = $event"
       @accept="handleNightActionDialog"
     />
+
+    <PPKDialog
+      v-model="ppkDialogVisible"
+      :players-data="playersData"
+      :phase-data="phaseData"
+      @update:phase-data="phaseData = $event"
+      @accept="handlePPKAccept"
+    />
+
+    <RemovePlayersDialog
+      v-model="removePlayersDialogVisible"
+      :players-data="playersData"
+      :phase-data="phaseData"
+      @update:phase-data="phaseData = $event"
+      @accept="handleRemovePlayersAccept"
+    />
   </div>
 </template>
 
@@ -149,6 +165,8 @@ import RoleColumn from './RoleColumn.vue'
 import VotingDialog from './dialogs/VotingDialog.vue'
 import NightActionsDialog from './dialogs/NightActionsDialog.vue'
 import BestMoveDialog from './dialogs/BestMoveDialog.vue'
+import PPKDialog from './dialogs/PPKDialog.vue'
+import RemovePlayersDialog from './dialogs/RemovePlayersDialog.vue'
 import { apiService } from '@/services/api.js'
 import { GameRolesEnum } from '@/utils/constants.js'
 
@@ -174,6 +192,12 @@ const nightDialogVisible = ref(false)
 // Состояние модального окна лучшего хода
 const bestMoveDialogVisible = ref(false)
 
+// Состояние модального окна ППК
+const ppkDialogVisible = ref(false)
+
+// Состояние модального окна удаления игроков
+const removePlayersDialogVisible = ref(false)
+
 // Флаг завершения голосования
 const votingCompleted = ref(false)
 
@@ -194,6 +218,10 @@ const phaseData = ref({
 
 // Определяем, показывать ли кнопку "Начать голосование" или "Ночь"
 const showVotingButton = computed(() => {
+  // Если есть удаленные игроки, не показываем кнопку голосования
+  if (phaseData.value.removed_box_ids && phaseData.value.removed_box_ids.length > 0) {
+    return false
+  }
   // Если phaseId == 1 и только один номинированный игрок - кнопка не показывается
   if (phaseId.value === 1 && nominatedPlayers.value.length === 1) {
     return false
@@ -259,6 +287,16 @@ const openBestMoveDialog = () => {
   bestMoveDialogVisible.value = true
 }
 
+// Открывает модальное окно ППК
+const openPPKDialog = () => {
+  ppkDialogVisible.value = true
+}
+
+// Открывает модальное окно удаления игроков
+const openRemovePlayersDialog = () => {
+  removePlayersDialogVisible.value = true
+}
+
 // Обработчик завершения ночи/лучшего хода (вызывается из диалогов)
 const handleNightActionDialog = () => {
   console.log('Night action dialog completed', phaseData.value)
@@ -266,6 +304,17 @@ const handleNightActionDialog = () => {
   nextRoundButtonVisible.value = true
   // Никаких голосований перед ночью
   handleVotingCompleted()
+}
+
+// Обработчик принятия ППК
+const handlePPKAccept = () => {
+  console.log('PPK accepted', phaseData.value.ppk_box_id)
+  handleNextRound()
+}
+
+// Обработчик принятия удаления игроков
+const handleRemovePlayersAccept = () => {
+  console.log('Players removed', phaseData.value.removed_box_ids)
 }
 
 // Обработчик клика по кнопке "Следующий круг" (заглушка)
@@ -356,6 +405,12 @@ const loadGameData = async () => {
 
 onMounted(() => {
   loadGameData()
+})
+
+// Экспортируем методы для вызова из родительского компонента
+defineExpose({
+  openPPKDialog,
+  openRemovePlayersDialog
 })
 </script>
 
