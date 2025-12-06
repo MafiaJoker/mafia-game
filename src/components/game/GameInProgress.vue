@@ -21,6 +21,7 @@
               v-else
               type="info"
               size="default"
+              @click="openNightDialog"
             >
               <el-icon style="margin-right: 6px;"><Moon /></el-icon>
               Ночь
@@ -143,6 +144,24 @@
       @update:nominated-players="nominatedPlayers = $event"
       @voting-completed="handleVotingCompleted"
     />
+
+    <NightActionsDialog
+      v-model="nightDialogVisible"
+      :players-data="playersData"
+      :phase-data="phaseData"
+      :phase-id="phaseId"
+      @update:phase-data="phaseData = $event"
+      @show-best-move="openBestMoveDialog"
+      @next-round="handleNextRound"
+    />
+
+    <BestMoveDialog
+      v-model="bestMoveDialogVisible"
+      :players-data="playersData"
+      :phase-data="phaseData"
+      @update:phase-data="phaseData = $event"
+      @accept="handleNextRound"
+    />
   </div>
 </template>
 
@@ -155,6 +174,8 @@ import SheriffIcon from './icons/SheriffIcon.vue'
 import DonIcon from './icons/DonIcon.vue'
 import MafiaIcon from './icons/MafiaIcon.vue'
 import VotingDialog from './dialogs/VotingDialog.vue'
+import NightActionsDialog from './dialogs/NightActionsDialog.vue'
+import BestMoveDialog from './dialogs/BestMoveDialog.vue'
 import { apiService } from '@/services/api.js'
 import { GameRolesEnum } from '@/utils/constants.js'
 
@@ -174,6 +195,12 @@ const nominatedPlayers = ref([])
 
 // Состояние модального окна голосования
 const votingDialogVisible = ref(false)
+
+// Состояние модального окна ночи
+const nightDialogVisible = ref(false)
+
+// Состояние модального окна лучшего хода
+const bestMoveDialogVisible = ref(false)
 
 // Флаг завершения голосования
 const votingCompleted = ref(false)
@@ -248,6 +275,23 @@ const openVotingDialog = () => {
     return
   }
   votingDialogVisible.value = true
+}
+
+// Открывает модальное окно ночи
+const openNightDialog = () => {
+  nightDialogVisible.value = true
+}
+
+// Открывает модальное окно лучшего хода
+const openBestMoveDialog = () => {
+  nightDialogVisible.value = false
+  bestMoveDialogVisible.value = true
+}
+
+// Обработчик следующего круга (заглушка)
+const handleNextRound = () => {
+  console.log('Next round handler - to be implemented', phaseData.value)
+  // TODO: Implement next round logic
 }
 
 // Получает текущее количество фолов для игрока
