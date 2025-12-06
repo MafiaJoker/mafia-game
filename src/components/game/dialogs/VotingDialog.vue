@@ -59,30 +59,33 @@
       </div>
 
       <!-- Раунд 3: голосование за подъем всех кандидатур -->
-      <div v-else class="round-three-container">
-        <div class="vote-for-all-section">
-          <p class="vote-prompt">Выберите количество рук за подъем всех кандидатур:</p>
+      <div v-else>
+        <div class="vote-buttons vote-buttons-centered">
+          <el-button
+            v-for="voteCount in maxVotes"
+            :key="voteCount - 1"
+            :type="getButtonTypeForAll(voteCount - 1)"
+            size="large"
+            @click="votesForAll = voteCount - 1"
+            :class="[
+              'vote-btn',
+              'vote-btn-large',
+              {
+                'vote-btn-selected': isVoteSelectedForAll(voteCount - 1)
+              }
+            ]"
+          >
+            {{ voteCount - 1 }}
+          </el-button>
+        </div>
 
-          <div class="vote-buttons-grid">
-            <el-button
-              v-for="voteCount in maxVotes"
-              :key="voteCount - 1"
-              :type="votesForAll === (voteCount - 1) ? 'primary' : 'default'"
-              size="large"
-              @click="votesForAll = voteCount - 1"
-              class="vote-btn-large"
-            >
-              {{ voteCount - 1 }}
-            </el-button>
-          </div>
-
+        <div v-if="showWarning" class="voting-summary">
+          <el-divider />
           <el-alert
-            v-if="showWarning"
             title="Все игроки покинут игру"
             type="warning"
             :closable="false"
             show-icon
-            class="warning-alert"
           />
         </div>
       </div>
@@ -234,6 +237,24 @@ const getButtonType = (boxId, voteValue) => {
   return 'default'
 }
 
+const getButtonTypeForAll = (voteValue) => {
+  // Если это выбранное значение - primary
+  if (votesForAll.value === voteValue) {
+    return 'primary'
+  }
+
+  // Если слева от выбранного и есть выбор - тоже primary
+  if (votesForAll.value > 0 && voteValue < votesForAll.value) {
+    return 'primary'
+  }
+
+  return 'default'
+}
+
+const isVoteSelectedForAll = (voteValue) => {
+  return voteValue <= votesForAll.value
+}
+
 const getCandidateData = (boxId) => {
   return props.playersData.find(p => p.box_id === boxId)
 }
@@ -331,9 +352,8 @@ const handleClose = () => {
   visible.value = false
   resetVoting()
 }
-// TODO
-// 1) Исправить визуальный стиль голосования за подъем
-// 2) Активировать кнопку продолжить если количество отданных голосов за текущего кандидата строго больше количества оставшихся голосов в пуле
+
+
 const resetVoting = () => {
   votingRound.value = 1
   Object.keys(votes).forEach(key => delete votes[key])
@@ -484,38 +504,15 @@ watch(() => props.modelValue, (newValue) => {
   color: #303133;
 }
 
-.round-three-container {
-  padding: 16px 0;
-}
-
-.vote-for-all-section {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.vote-prompt {
-  font-size: 15px;
-  font-weight: 500;
-  color: #303133;
-  margin: 0;
-  text-align: center;
-}
-
-.vote-buttons-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
-  gap: 12px;
-  padding: 0 16px;
+.vote-buttons-centered {
+  justify-content: center;
+  padding: 20px 0;
 }
 
 .vote-btn-large {
-  height: 48px;
+  min-width: 50px;
+  padding: 12px 16px;
   font-size: 18px;
   font-weight: 600;
-}
-
-.warning-alert {
-  margin-top: 8px;
 }
 </style>
