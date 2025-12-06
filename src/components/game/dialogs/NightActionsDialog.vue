@@ -105,7 +105,7 @@
         type="primary"
         @click="handleNextRound"
       >
-        {{ phaseId === 1 ? 'Лучший ход' : 'Следующий круг' }}
+        {{ phaseId === 1 ? 'Лучший ход' : 'Продолжить' }}
       </el-button>
     </template>
   </el-dialog>

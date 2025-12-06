@@ -10,7 +10,15 @@
           </div>
           <div class="header-right">
             <el-button
-              v-if="showVotingButton"
+              v-if="nextRoundButtonVisible"
+              type="primary"
+              size="default"
+              @click="handleNextRound"
+            >
+              Следующий круг
+            </el-button>
+            <el-button
+              v-else-if="showVotingButton"
               type="primary"
               size="default"
               @click="openVotingDialog"
@@ -120,7 +128,7 @@
       :phase-id="phaseId"
       @update:phase-data="phaseData = $event"
       @show-best-move="openBestMoveDialog"
-      @next-round="handleNextRound"
+      @next-round="handleNightActionDialog"
     />
 
     <BestMoveDialog
@@ -128,7 +136,7 @@
       :players-data="playersData"
       :phase-data="phaseData"
       @update:phase-data="phaseData = $event"
-      @accept="handleNextRound"
+      @accept="handleNightActionDialog"
     />
   </div>
 </template>
@@ -168,6 +176,9 @@ const bestMoveDialogVisible = ref(false)
 
 // Флаг завершения голосования
 const votingCompleted = ref(false)
+
+// Флаг для показа кнопки "Следующий круг"
+const nextRoundButtonVisible = ref(false)
 
 // Объект для формирования данных фазы игры
 const phaseData = ref({
@@ -248,10 +259,19 @@ const openBestMoveDialog = () => {
   bestMoveDialogVisible.value = true
 }
 
-// Обработчик следующего круга (заглушка)
+// Обработчик завершения ночи/лучшего хода (вызывается из диалогов)
+const handleNightActionDialog = () => {
+  console.log('Night action dialog completed', phaseData.value)
+  // Показываем кнопку "Следующий круг"
+  nextRoundButtonVisible.value = true
+  // Никаких голосований перед ночью
+  handleVotingCompleted()
+}
+
+// Обработчик клика по кнопке "Следующий круг" (заглушка)
 const handleNextRound = () => {
-  console.log('Next round handler - to be implemented', phaseData.value)
-  // TODO: Implement next round logic
+  console.log('Next round button clicked - to be implemented')
+  // TODO: Implement next round button logic
 }
 
 // Получает текущее количество фолов для игрока
