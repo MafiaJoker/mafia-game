@@ -50,39 +50,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column
-          width="90"
-          align="left"
-        >
-          <template #header>
-            <div class="role-header">
-              <span>Роль</span>
-              <el-tooltip :content="rolesVisible ? 'Скрыть роли' : 'Отобразить роли'" placement="top">
-                <el-icon
-                  class="eye-icon"
-                  @click="toggleRolesVisibility"
-                  style="cursor: pointer; margin-left: 4px;"
-                >
-                  <View v-if="rolesVisible" />
-                  <Hide v-else />
-                </el-icon>
-              </el-tooltip>
-            </div>
-          </template>
-          <template #default="{ row }">
-            <div v-if="rolesVisible">
-              <CitizenIcon v-if="row.role === GameRolesEnum.civilian" />
-              <SheriffIcon v-else-if="row.role === GameRolesEnum.sheriff" />
-              <DonIcon v-else-if="row.role === GameRolesEnum.don" />
-              <MafiaIcon v-else-if="row.role === GameRolesEnum.mafia" />
-            </div>
-            <div v-else>
-              <el-icon :size="24" style="color: #909399;">
-                <Hide />
-              </el-icon>
-            </div>
-          </template>
-        </el-table-column>
+        <RoleColumn :is-default-hidden="true" />
 
         <el-table-column
           label="Игрок"
@@ -167,12 +135,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { User, View, Hide, Close, Moon } from '@element-plus/icons-vue'
+import { User, Close, Moon } from '@element-plus/icons-vue'
 import GameTable from './GameTable.vue'
-import CitizenIcon from './icons/CitizenIcon.vue'
-import SheriffIcon from './icons/SheriffIcon.vue'
-import DonIcon from './icons/DonIcon.vue'
-import MafiaIcon from './icons/MafiaIcon.vue'
+import RoleColumn from './RoleColumn.vue'
 import VotingDialog from './dialogs/VotingDialog.vue'
 import NightActionsDialog from './dialogs/NightActionsDialog.vue'
 import BestMoveDialog from './dialogs/BestMoveDialog.vue'
@@ -187,7 +152,6 @@ const props = defineProps({
 })
 
 const playersData = ref([])
-const rolesVisible = ref(false)
 const phaseId = ref(null)
 
 // Массив для хранения box_id номинированных игроков в порядке выставления
@@ -229,10 +193,6 @@ const showVotingButton = computed(() => {
 // Обработчик завершения голосования
 const handleVotingCompleted = () => {
   votingCompleted.value = true
-}
-
-const toggleRolesVisibility = () => {
-  rolesVisible.value = !rolesVisible.value
 }
 
 const getRowClassName = ({ row }) => {
@@ -402,20 +362,6 @@ onMounted(() => {
   margin-left: 8px;
   color: #909399;
   font-weight: normal;
-}
-
-.role-header {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.eye-icon {
-  transition: color 0.3s;
-}
-
-.eye-icon:hover {
-  color: #409eff;
 }
 
 .fouls-badge {

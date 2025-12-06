@@ -39,20 +39,11 @@
     </template>
 
     <GameTable :data="props.rolesData">
-      <el-table-column
-        label="Роль"
-        width="60"
-        align="left"
-      >
-        <template #default="{ row }">
-          <div @click="cycleRole(row)" style="cursor: pointer;">
-            <CitizenIcon v-if="row.role === GameRolesEnum.civilian" />
-            <SheriffIcon v-else-if="row.role === GameRolesEnum.sheriff" />
-            <DonIcon v-else-if="row.role === GameRolesEnum.don" />
-            <MafiaIcon v-else-if="row.role === GameRolesEnum.mafia" />
-          </div>
-        </template>
-      </el-table-column>
+      <RoleColumn
+        :clickable="!isNegotiationStarted"
+        :is-default-hidden="isDefaultRolesHidden"
+        @role-click="cycleRole"
+      />
 
       <el-table-column
         label="Игрок"
@@ -80,10 +71,7 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { User } from '@element-plus/icons-vue'
 import GameTable from './GameTable.vue'
-import CitizenIcon from './icons/CitizenIcon.vue'
-import SheriffIcon from './icons/SheriffIcon.vue'
-import DonIcon from './icons/DonIcon.vue'
-import MafiaIcon from './icons/MafiaIcon.vue'
+import RoleColumn from './RoleColumn.vue'
 import { apiService } from '@/services/api.js'
 import { GameRolesEnum } from '@/utils/constants.js'
 import { GAME_ERROR_MESSAGES } from '@/utils/errorMessages.js'
@@ -108,6 +96,7 @@ const loading = ref(false)
 const errorMessage = ref('')
 const isNegotiationStarted = ref(false)
 const isLabelHighlighted = ref(false)
+const isDefaultRolesHidden = ref(false)
 
 const headerLabel = computed(() => {
   if (!isNegotiationStarted.value) {
@@ -217,11 +206,13 @@ const handleStartNegotiation = async () => {
   }
 
   isNegotiationStarted.value = true
+  isDefaultRolesHidden.value = true
   emit('negotiation-started')
 }
 
 const handleBackToRoles = () => {
   isNegotiationStarted.value = false
+  isDefaultRolesHidden.value = false
   emit('negotiation-ended')
 }
 
