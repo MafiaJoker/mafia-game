@@ -157,7 +157,7 @@ const canContinue = computed(() => {
   if (votingRound.value === 3) {
     return true // Для 3-го раунда можно всегда продолжить
   }
-  return totalVotesAssigned.value === alivePlayersCount.value
+  return totalVotesAssigned.value > (alivePlayersCount.value / 2)
 })
 
 const showWarning = computed(() => {
