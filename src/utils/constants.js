@@ -1,25 +1,17 @@
-// Роли игроков
+// Роли игроков (для API)
+export const GameRolesEnum = {
+    mafia: 'mafia',
+    don: 'don',
+    sheriff: 'sheriff',
+    civilian: 'civilian'
+}
+
+// Роли игроков (для отображения)
 export const PLAYER_ROLES = {
     CIVILIAN: 'Мирный',
-    SHERIFF: 'Шериф', 
+    SHERIFF: 'Шериф',
     MAFIA: 'Мафия',
     DON: 'Дон'
-}
-
-// Роли для API (английские названия)
-export const API_PLAYER_ROLES = {
-    'Мирный': 'civilian',
-    'Шериф': 'sheriff',
-    'Мафия': 'mafia',
-    'Дон': 'don'
-}
-
-// Обратный маппинг из API ролей в локальные
-export const API_TO_LOCAL_ROLES = {
-    'civilian': 'Мирный',
-    'sheriff': 'Шериф',
-    'mafia': 'Мафия',
-    'don': 'Дон'
 }
 
 // Максимальные фолы
@@ -98,6 +90,13 @@ export const CATEGORY_PRIORITIES = {
 // Настройки игры
 export const DEFAULT_PLAYERS_COUNT = 10
 export const NO_CANDIDATES_MAX_ROUNDS = 3
+
+// Фазы таймера обратного отсчета
+export const COUNTDOWN_PHASES = {
+    MAFIA_NEGOTIATION: 'mafia_negotiation', // 60 секунд
+    TRANSITION: 'transition', // Желтая вспышка
+    FREE_SEATING: 'free_seating' // 40 секунд
+}
 
 // Причины отмены игры
 export const CANCELLATION_REASONS = {
