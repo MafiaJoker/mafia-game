@@ -5,6 +5,17 @@
     width="800px"
   >
     <div class="voting-container">
+      <div v-if="phaseData.killed_box_id" class="killed-player-info">
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+        >
+          <template #title>
+            Убит игрок № <strong>{{ phaseData.killed_box_id }}</strong>
+          </template>
+        </el-alert>
+      </div>
       <div class="vote-buttons vote-buttons-centered">
         <el-button
           v-for="boxId in totalPlayers"
@@ -104,6 +115,10 @@ const handleAccept = () => {
 <style scoped>
 .voting-container {
   padding: 8px 0;
+}
+
+.killed-player-info {
+  margin-bottom: 20px;
 }
 
 .vote-buttons {
