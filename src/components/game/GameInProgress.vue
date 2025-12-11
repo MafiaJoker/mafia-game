@@ -49,9 +49,9 @@
               class="fouls-badge"
               :class="{
                 'is-disabled': !row.is_in_game,
-                'is-warning': getCurrentFouls(row) > 2
+                'is-warning': getCurrentFouls(row) > 2,
               }"
-              @click="handleFoulsClick(row)"
+              @click.stop="handleFoulsClick(row)"
             >
               {{ getCurrentFouls(row) }}
             </div>
@@ -99,7 +99,7 @@
                 <el-icon
                   class="remove-icon"
                   @click="removeNomination(row.box_id)"
-                  :size="16"
+                  :size="14"
                 >
                   <Close />
                 </el-icon>
@@ -538,6 +538,8 @@ defineExpose({
   cursor: pointer;
   transition: all 0.3s;
   user-select: none;
+  position: relative;
+  z-index: 9999;
 }
 
 .fouls-badge:hover:not(.is-disabled) {
@@ -559,6 +561,14 @@ defineExpose({
   cursor: not-allowed;
 }
 
+:deep(.el-table .el-table__row) {
+  height: 48px;
+}
+
+:deep(.el-table .el-table__cell) {
+  padding: 6px 0;
+}
+
 :deep(.inactive-player) {
   opacity: 0.5;
   pointer-events: none;
@@ -577,8 +587,8 @@ defineExpose({
 .nomination-order {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 12px;
+  gap: 4px;
+  padding: 2px 8px;
   background-color: #fdf6ec;
   border: 1px solid #e6a23c;
   border-radius: 4px;
@@ -592,9 +602,9 @@ defineExpose({
 
 .order-number {
   font-weight: 600;
-  font-size: 16px;
+  font-size: 14px;
   color: #e6a23c;
-  min-width: 20px;
+  min-width: 16px;
   text-align: center;
 }
 
