@@ -63,7 +63,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'update:phaseData', 'accept'])
+const emit = defineEmits(['update:modelValue', 'accept'])
 
 const visible = computed({
   get: () => props.modelValue,
@@ -113,6 +113,10 @@ const handleAccept = () => {
 </script>
 
 <style scoped>
+:deep(.el-dialog) {
+  z-index: 2000 !important;
+}
+
 .voting-container {
   padding: 8px 0;
 }

@@ -6,6 +6,14 @@
     :before-close="handleClose"
   >
     <div class="voting-container">
+      <FoulsPanel
+        :players-data="props.playersData"
+        :phase-data="props.phaseData"
+        @update:phase-data="emit('update:phaseData', $event)"
+      />
+
+      <el-divider />
+
       <!-- Раунды 1 и 2: показываем список игроков -->
       <div v-if="votingRound < 3">
         <div
@@ -106,6 +114,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
+import FoulsPanel from '../FoulsPanel.vue'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -376,11 +385,16 @@ watch(() => props.modelValue, (newValue) => {
     currentCandidates.value.forEach(candidate => {
       votes[candidate.box_id] = 0
     })
+
   }
 })
 </script>
 
 <style scoped>
+:deep(.el-dialog) {
+  z-index: 2000 !important;
+}
+
 .voting-container {
   padding: 8px 0;
 }
