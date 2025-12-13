@@ -15,30 +15,31 @@
         mode="horizontal"
         @select="handleSelect"
         class="app-menu"
+        :ellipsis="false"
 	>
-        <el-menu-item index="/">
+        <el-menu-item v-if="showRatings" index="/ratings">
+          <el-icon><Medal /></el-icon>
+          <span>Рейтинг</span>
+        </el-menu-item>
+
+        <el-menu-item v-if="showEvents" index="/">
           <el-icon><Calendar /></el-icon>
           <span>Мероприятия</span>
         </el-menu-item>
 
-        <el-menu-item index="/event-types">
+        <el-menu-item v-if="showEventType" index="/event-types">
           <el-icon><Collection /></el-icon>
           <span>Категории</span>
         </el-menu-item>
 
-        <el-menu-item index="/users">
+        <el-menu-item v-if="showUsers" index="/users">
           <el-icon><UserFilled /></el-icon>
           <span>Пользователи</span>
         </el-menu-item>
 
-        <el-menu-item index="/tariffs">
+        <el-menu-item v-if="showTariffs" index="/tariffs">
           <el-icon><CreditCard /></el-icon>
           <span>Тарифы</span>
-        </el-menu-item>
-        
-        <el-menu-item v-if="currentGameLink" :index="currentGameLink">
-          <el-icon><VideoPlay /></el-icon>
-          <span>Текущая игра</span>
         </el-menu-item>
       </el-menu>
     </div>
@@ -79,17 +80,17 @@
   import { useRoute, useRouter } from 'vue-router'
   import { useAuthStore } from '@/stores/auth'
   import { ElMessage, ElMessageBox } from 'element-plus'
-  import { 
-      Trophy, 
+  import {
+      Trophy,
       Calendar,
-      Collection, 
-      VideoPlay,
+      Collection,
       User,
       UserFilled,
       Setting,
       SwitchButton,
       ArrowDown,
-      CreditCard
+      CreditCard,
+      Medal
   } from '@element-plus/icons-vue'
 
   const route = useRoute()
@@ -103,20 +104,40 @@
   const userInitials = computed(() => {
       const user = authStore.user
       if (!user) return '?'
-      
+
       const first = user.first_name?.[0] || user.nickname?.[0] || ''
       const last = user.last_name?.[0] || ''
       return (first + last).toUpperCase() || '?'
   })
 
-  // Ссылка на текущую игру (если есть)
-  const currentGameLink = computed(() => {
-      const gameInfo = localStorage.getItem('currentGame')
-      if (gameInfo) {
-	  const { eventId, tableId, gameId } = JSON.parse(gameInfo)
-	  return `/game?eventId=${eventId}&tableId=${tableId}&gameId=${gameId}`
-      }
-      return null
+  // Проверка наличия роли у пользователя
+  const hasRole = (role) => {
+      return authStore.user?.roles?.includes(role) || false
+  }
+
+  // Рейтинг: для player, game_master, cashier, admin
+  const showRatings = computed(() => {
+      return hasRole('player') || hasRole('game_master') || hasRole('cashier') || hasRole('admin')
+  })
+
+  // Мероприятия: для game_master
+  const showEvents = computed(() => {
+      return hasRole('game_master')
+  })
+
+  // Категории: для game_master
+  const showEventType = computed(() => {
+      return hasRole('game_master')
+  })
+
+  // Пользователи: для admin
+  const showUsers = computed(() => {
+      return hasRole('admin')
+  })
+
+  // Тарифы: для cashier
+  const showTariffs = computed(() => {
+      return hasRole('cashier')
   })
 
   const handleSelect = (index) => {
@@ -162,10 +183,12 @@
       justify-content: space-between;
       height: 60px;
       padding: 0 24px;
+      gap: 16px;
   }
 
   .logo-section {
       flex-shrink: 0;
+      min-width: fit-content;
   }
 
   .logo-link {
@@ -180,20 +203,30 @@
       margin: 0;
       color: #303133;
       font-weight: 600;
+      white-space: nowrap;
   }
 
   .nav-section {
       flex: 1;
       display: flex;
       justify-content: center;
+      min-width: 0;
+      overflow: visible;
   }
 
   .app-menu {
       border-bottom: none;
+      width: auto;
+  }
+
+  .app-menu :deep(.el-menu-item) {
+      white-space: nowrap;
+      padding: 0 12px;
   }
 
   .user-section {
       flex-shrink: 0;
+      min-width: fit-content;
   }
 
   .user-info {

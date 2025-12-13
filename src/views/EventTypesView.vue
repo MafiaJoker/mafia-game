@@ -19,7 +19,7 @@
         <PaginationFilter
           :total-items="totalTypes"
           items-label="категорий"
-          search-placeholder="Поиск по названию или описанию..."
+          search-placeholder="Поиск по названию..."
           :default-page-size="20"
           @filter-change="handleFilterChange"
         />
@@ -38,55 +38,36 @@
               sortable
             />
             
-            <el-table-column 
-              prop="description" 
-              label="Описание" 
-              min-width="300"
-            >
-              <template #default="scope">
-                {{ scope.row.description || '-' }}
-              </template>
-            </el-table-column>
-            
-            <el-table-column 
-              prop="color" 
-              label="Цвет" 
+            <el-table-column
+              prop="color"
+              label="Цвет"
               width="100"
               align="center"
             >
               <template #default="scope">
-                <div 
+                <div
                   v-if="scope.row.color"
-                  class="color-preview" 
+                  class="color-preview"
                   :style="{ backgroundColor: scope.row.color }"
                 />
               </template>
             </el-table-column>
-            
-            <el-table-column 
-              prop="events_count" 
-              label="Мероприятий" 
+
+            <el-table-column
+              prop="is_ranked"
+              label="Рейтинговая"
               width="120"
               align="center"
               sortable
             >
               <template #default="scope">
-                <el-badge :value="scope.row.events_count || 0" type="primary" />
+                <el-tag :type="scope.row.is_ranked ? 'success' : 'info'">
+                  {{ scope.row.is_ranked ? 'Да' : 'Нет' }}
+                </el-tag>
               </template>
             </el-table-column>
-            
-            <el-table-column 
-              prop="created_at" 
-              label="Создана" 
-              width="150"
-              sortable
-            >
-              <template #default="scope">
-                {{ formatDate(scope.row.created_at) }}
-              </template>
-            </el-table-column>
-            
-            <el-table-column 
+
+            <el-table-column
               label="Действия" 
               width="150"
               align="center"
@@ -100,12 +81,11 @@
                     @click="handleEdit(scope.row)"
                     :icon="Edit"
                   />
-                  <el-button 
+                  <el-button
                     size="small"
                     type="danger"
                     @click="handleDelete(scope.row)"
                     :icon="Delete"
-                    :disabled="scope.row.events_count > 0"
                   />
                 </el-button-group>
               </template>
@@ -129,26 +109,21 @@
         label-width="120px"
       >
         <el-form-item label="Название" prop="label">
-          <el-input 
-            v-model="formData.label" 
+          <el-input
+            v-model="formData.label"
             placeholder="Введите название категории"
           />
         </el-form-item>
-        
-        <el-form-item label="Описание" prop="description">
-          <el-input 
-            v-model="formData.description" 
-            type="textarea"
-            :rows="3"
-            placeholder="Введите описание (необязательно)"
-          />
-        </el-form-item>
-        
+
         <el-form-item label="Цвет" prop="color">
-          <el-color-picker 
+          <el-color-picker
             v-model="formData.color"
             :predefine="predefineColors"
           />
+        </el-form-item>
+
+        <el-form-item label="Рейтинговая" prop="is_ranked">
+          <el-switch v-model="formData.is_ranked" />
         </el-form-item>
       </el-form>
       
@@ -190,8 +165,8 @@ const formRef = ref()
 // Форма
 const formData = reactive({
   label: '',
-  description: '',
-  color: '#409EFF'
+  color: '#409EFF',
+  is_ranked: false
 })
 
 // Предустановленные цвета
@@ -260,9 +235,8 @@ const applyFilters = () => {
   // Поиск
   if (filters.value.search) {
     const searchLower = filters.value.search.toLowerCase()
-    result = result.filter(type => 
-      type.label.toLowerCase().includes(searchLower) ||
-      (type.description && type.description.toLowerCase().includes(searchLower))
+    result = result.filter(type =>
+      type.label.toLowerCase().includes(searchLower)
     )
   }
   
@@ -285,18 +259,13 @@ const handleEdit = (type) => {
   editingId.value = type.id
   Object.assign(formData, {
     label: type.label,
-    description: type.description || '',
-    color: type.color || '#409EFF'
+    color: type.color || '#409EFF',
+    is_ranked: type.is_ranked || false
   })
   showDialog.value = true
 }
 
 const handleDelete = async (type) => {
-  if (type.events_count > 0) {
-    ElMessage.warning('Невозможно удалить категорию с привязанными мероприятиями')
-    return
-  }
-  
   try {
     await ElMessageBox.confirm(
       `Вы уверены, что хотите удалить категорию "${type.label}"?`,
@@ -321,7 +290,7 @@ const handleDelete = async (type) => {
 const handleSubmit = async () => {
   const valid = await formRef.value.validate()
   if (!valid) return
-  
+
   submitting.value = true
   try {
     if (isEdit.value) {
@@ -331,11 +300,23 @@ const handleSubmit = async () => {
       await apiService.createEventType(formData)
       ElMessage.success('Категория создана')
     }
-    
+
     showDialog.value = false
     resetForm()
     await loadTypes()
   } catch (error) {
+    // Проверяем специфичную ошибку для рейтинговых категорий
+    if (error.response?.status === 400) {
+      try {
+        const errorData = await error.response.json()
+        if (errorData.detail === 'only one ranked event type available') {
+          ElMessage.error('Может быть только одна рейтинговая категория')
+          return
+        }
+      } catch (parseError) {
+        // Если не удалось распарсить JSON, используем стандартное сообщение
+      }
+    }
     ElMessage.error(UI_MESSAGES.ERRORS.SAVE_FAILED)
   } finally {
     submitting.value = false
@@ -347,16 +328,10 @@ const resetForm = () => {
   editingId.value = null
   Object.assign(formData, {
     label: '',
-    description: '',
-    color: '#409EFF'
+    color: '#409EFF',
+    is_ranked: false
   })
   formRef.value?.resetFields()
-}
-
-// Утилиты
-const formatDate = (date) => {
-  if (!date) return '-'
-  return new Date(date).toLocaleDateString('ru-RU')
 }
 
 // Хуки

@@ -171,7 +171,6 @@ import PPKDialog from './dialogs/PPKDialog.vue'
 import RemovePlayersDialog from './dialogs/RemovePlayersDialog.vue'
 import { apiService } from '@/services/api.js'
 import { GameRolesEnum } from '@/utils/constants.js'
-
 const router = useRouter()
 
 const props = defineProps({
@@ -245,7 +244,7 @@ const showVotingButton = computed(() => {
     return false
   }
   // Если phaseId == 1 и только один номинированный игрок - кнопка не показывается
-  if (phaseId.value === 1 && nominatedPlayers.value.length === 1) {
+  if (phaseId.value === 1 && nominatedPlayers.value.length === 1 && gameStatus.value === 'roles_assigned') {
     return false
   }
   return !votingCompleted.value && nominatedPlayers.value.length > 0
@@ -288,8 +287,8 @@ const removeNomination = (boxId) => {
 
 // Открывает модальное окно голосования
 const openVotingDialog = () => {
-  // Если phaseId > 1 и только один номинированный игрок - автоматически завершаем голосование
-  if (phaseId.value > 1 && nominatedPlayers.value.length === 1) {
+  // in_progress означается любую фазу от 1 и выше когда нам нужно голосовать сразу
+  if (gameStatus.value === 'in_progress' && nominatedPlayers.value.length === 1 ) {
     const votedPlayerId = nominatedPlayers.value[0]
     phaseData.value.voted_box_ids.push(votedPlayerId)
     votingCompleted.value = true

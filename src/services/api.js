@@ -443,6 +443,12 @@ export const apiService = {
         return response.data
     },
 
+    // Overall Ratings
+    async getRatings(params = {}) {
+        const response = await api.get('/events/ratings', { params })
+        return response.data
+    },
+
     // Logout
     async logout() {
 	try {
