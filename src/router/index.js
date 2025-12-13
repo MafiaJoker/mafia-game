@@ -62,6 +62,11 @@ const routes = [
 	component: () => import('@/views/EventsCalendarView.vue')
     },
     {
+	path: '/ratings',
+	name: 'Ratings',
+	component: () => import('@/views/RatingsView.vue')
+    },
+    {
 	path: '/event/:id/register',
 	name: 'EventRegistration',
 	component: () => import('@/views/EventRegistrationView.vue'),
@@ -192,6 +197,37 @@ router.beforeEach(async (to, from, next) => {
     }
     
     console.log('Router: user authenticated, continuing navigation')
+
+    // Редирект на основе роли при переходе на главную страницу
+    if (to.path === '/' && authStore.isAuthenticated) {
+        const userRoles = authStore.user?.roles || []
+
+        // game_master остается на главной (Мероприятия)
+        if (userRoles.includes('game_master')) {
+            next()
+            return
+        }
+
+        // cashier -> Тарифы
+        if (userRoles.includes('cashier')) {
+            console.log('Router: cashier role detected, redirecting to /tariffs')
+            next('/tariffs')
+            return
+        }
+
+        // admin -> Пользователи
+        if (userRoles.includes('admin')) {
+            console.log('Router: admin role detected, redirecting to /users')
+            next('/users')
+            return
+        }
+
+        // player и остальные -> Рейтинг
+        console.log('Router: player or default role, redirecting to /ratings')
+        next('/ratings')
+        return
+    }
+
     next()
 })
 

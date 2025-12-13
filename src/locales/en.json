@@ -49,5 +49,21 @@
 	"description": "Unfortunately, the requested page does not exist or has been moved. You may have followed an outdated link or entered an incorrect address.",
 	"toEvents": "To Events",
 	"goBack": "Go Back"
+    },
+    "ratings": {
+	"title": "Player Ratings",
+	"period": "Period",
+	"allPeriod": "All Time",
+	"apply": "Apply",
+	"position": "Position",
+	"player": "Player",
+	"total": "Total",
+	"autoPoints": "Auto Points",
+	"extraPoints": "Extra Points",
+	"penaltyPoints": "Penalty",
+	"bestMovePoints": "Best Move",
+	"ci": "CI",
+	"noData": "No data for selected period",
+	"loadError": "Failed to load ratings"
     }
 }
