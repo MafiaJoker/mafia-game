@@ -7,47 +7,54 @@
     <div class="dies-top">
       <!-- Top left -->
       <div class="dies-top-left">
-        <div class="dies-title">{{ game.label }}</div>
-        <div class="dies-table">{{ game.table_name }}</div>
+        <div class="dies-info-row">
+          <div class="dies-title-badge">{{ game.label }}</div>
+          <div class="dies-table-badge">{{ game.table_name }}</div>
+        </div>
         <div v-if="game.nominated_box_ids?.length" class="dies-nominated">
           На голосовании: {{ game.nominated_box_ids.join(', ') }}
         </div>
-        <!-- Compact checks/votes indicators -->
-        <div class="dies-indicators">
-          <span
-            v-for="check in game.don_checks"
-            :key="'don-' + check.phase_id"
-            class="indicator-badge don-badge"
-            :title="'Дон проверил ' + check.box_id"
-          >
-            <img :src="donIcon" class="indicator-icon-img" alt="don" />
-            {{ check.box_id }}
-            <span :class="check.is_sheriff ? 'check-hit' : 'check-miss'">{{ check.is_sheriff ? '+' : '-' }}</span>
-          </span>
-          <span
-            v-for="check in game.sheriff_checks"
-            :key="'sher-' + check.phase_id"
-            class="indicator-badge sheriff-badge"
-            :title="'Шериф проверил ' + check.box_id"
-          >
-            <img :src="sheriffIcon" class="indicator-icon-img" alt="sheriff" />
-            {{ check.box_id }}
-            <span :class="check.role === 'mafia' ? 'check-hit' : 'check-miss'">{{ check.role === 'mafia' ? '+' : '-' }}</span>
-          </span>
-          <span
-            v-for="vote in game.previous_votes"
-            :key="'vote-' + vote.phase_id"
-            class="indicator-badge vote-badge"
-            :title="'Голосование ' + vote.phase_id"
-          >
-            <img :src="thumbsupIcon" class="indicator-icon-img" alt="vote" />
-            {{ vote.voted_box_ids.join(',') }}
-          </span>
+        <!-- Separate indicator blocks -->
+        <div class="dies-indicators-row">
+          <div v-if="game.don_checks?.length" class="indicator-block don-block">
+            <IconDon :size="14" class="indicator-block-icon" />
+            <span
+              v-for="check in game.don_checks"
+              :key="'don-' + check.phase_id"
+              class="indicator-item"
+            >
+              {{ check.box_id }}
+            </span>
+          </div>
+          <div v-if="game.sheriff_checks?.length" class="indicator-block sheriff-block">
+            <IconSheriff :size="14" class="indicator-block-icon" />
+            <span
+              v-for="check in game.sheriff_checks"
+              :key="'sher-' + check.phase_id"
+              class="indicator-item"
+              :class="check.role === 'mafia' ? 'check-black' : 'check-red'"
+            >
+              {{ check.box_id }}
+            </span>
+          </div>
+          <div v-if="game.previous_votes?.length" class="indicator-block vote-block">
+            <IconVote :size="14" class="indicator-block-icon" />
+            <span
+              v-for="vote in game.previous_votes"
+              :key="'vote-' + vote.phase_id"
+              class="indicator-item"
+            >
+              {{ vote.voted_box_ids.join(', ') }}
+            </span>
+          </div>
         </div>
       </div>
       <!-- Top right -->
       <div class="dies-top-right">
-        <div class="dies-gm">{{ game.game_master?.nickname }}</div>
+        <div class="dies-gm-badge">
+          <span class="dies-gm-label">Ведущий:</span>
+          <span class="dies-gm-name">{{ game.game_master?.nickname }}</span>
+        </div>
       </div>
     </div>
 
@@ -60,44 +67,43 @@
           class="player-card"
           :class="{ 'eliminated': !player.is_in_game }"
         >
-          <!-- Best move indicator above card -->
+          <!-- Best move at top of card -->
           <div v-if="player.best_move_box_ids?.length" class="best-move">
             ЛХ {{ player.best_move_box_ids.join(', ') }}
           </div>
 
-          <!-- Role icon (top-right), hidden if best_move -->
-          <div v-if="!player.best_move_box_ids?.length" class="role-badge" :class="'role-' + player.role">
-            <img :src="getRoleIcon(player.role)" class="role-icon-img" alt="role" />
+          <!-- Role icon (top-right) -->
+          <div class="role-badge">
+            <component :is="roleIconComponent(player.role)" :size="14" class="role-icon-svg" />
           </div>
 
           <!-- Avatar -->
           <div class="player-avatar">
             <img v-if="player.avatar_url" :src="player.avatar_url" :alt="player.nickname" />
             <div v-else class="avatar-placeholder">
-              <span>{{ player.box_id }}</span>
+              <IconDefaultAvatar :size="32" />
             </div>
           </div>
 
-          <!-- Box ID -->
-          <div class="player-box-id">{{ player.box_id }}</div>
-          <!-- Nickname -->
-          <div class="player-nickname">{{ player.nickname }}</div>
-
-          <!-- Bottom-right: fouls or leave reason -->
-          <div class="player-status-corner">
-            <template v-if="player.is_in_game">
-              <span v-if="player.fouls > 0" class="fouls">{{ '!'.repeat(player.fouls) }}</span>
-            </template>
-            <template v-else>
-              <img
-                v-if="leaveReasonIcons[player.leave_reason]"
-                :src="leaveReasonIcons[player.leave_reason]"
-                class="leave-icon-img"
-                :class="'leave-' + player.leave_reason"
-                alt="leave"
-              />
-              <span v-else class="leave-reason">&#x2715;</span>
-            </template>
+          <!-- Box ID + Nickname + Status in one row -->
+          <div class="player-info-row">
+            <span class="player-box-id">{{ player.box_id }}</span>
+            <span class="player-nickname">{{ player.nickname }}</span>
+            <span class="player-status">
+              <template v-if="player.is_in_game">
+                <span v-if="player.fouls > 0" class="fouls">{{ '!'.repeat(player.fouls) }}</span>
+              </template>
+              <template v-else>
+                <img
+                  v-if="leaveReasonIcons[player.leave_reason]"
+                  :src="leaveReasonIcons[player.leave_reason]"
+                  class="leave-icon-img"
+                  :class="'leave-' + player.leave_reason"
+                  alt="leave"
+                />
+                <span v-else class="leave-reason">&#x2715;</span>
+              </template>
+            </span>
           </div>
         </div>
       </div>
@@ -108,11 +114,13 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 
-import donIcon from '@/assets/icons/don.svg'
-import sheriffIcon from '@/assets/icons/sheriff.svg'
-import pistolIcon from '@/assets/icons/pistol.svg'
-import citizenIcon from '@/assets/icons/citizen.svg'
-import thumbsupIcon from '@/assets/icons/thumbsup.svg'
+import IconDon from '@/components/icons/IconDon.vue'
+import IconSheriff from '@/components/icons/IconSheriff.vue'
+import IconMafia from '@/components/icons/IconMafia.vue'
+import IconCivilian from '@/components/icons/IconCivilian.vue'
+import IconVote from '@/components/icons/IconVote.vue'
+import IconDefaultAvatar from '@/components/icons/IconDefaultAvatar.vue'
+
 import votedIcon from '@/assets/icons/voted.svg'
 import killedIcon from '@/assets/icons/killed.svg'
 import disqualifiedIcon from '@/assets/icons/disqualified.svg'
@@ -281,15 +289,15 @@ onUnmounted(() => {
   }
 })
 
-const roleIconMap = {
-  don: donIcon,
-  sheriff: sheriffIcon,
-  mafia: pistolIcon,
-  civilian: citizenIcon
+const roleComponentMap = {
+  don: IconDon,
+  sheriff: IconSheriff,
+  mafia: IconMafia,
+  civilian: IconCivilian
 }
 
-const getRoleIcon = (role) => {
-  return roleIconMap[role] || citizenIcon
+const roleIconComponent = (role) => {
+  return roleComponentMap[role] || IconCivilian
 }
 
 const leaveReasonIcons = {
@@ -336,91 +344,129 @@ html:has(.dies-overlay) {
 .dies-top-left {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
-.dies-title {
-  font-size: 24px;
+/* Game & Table badges with contrasting background */
+.dies-info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dies-title-badge {
+  font-size: 20px;
   font-weight: 700;
-  text-shadow: 0 0 6px rgba(0, 0, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.6);
+  padding: 4px 14px;
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
 }
 
-.dies-table {
-  font-size: 16px;
-  font-weight: 500;
-  opacity: 0.85;
+.dies-table-badge {
+  font-size: 15px;
+  font-weight: 600;
+  padding: 5px 12px;
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  opacity: 0.9;
   text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
 }
 
 .dies-nominated {
   font-size: 14px;
-  margin-top: 4px;
-  padding: 2px 8px;
+  margin-top: 2px;
+  padding: 3px 10px;
   background: rgba(255, 152, 0, 0.6);
   border-radius: 4px;
   display: inline-block;
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
 }
 
-/* Compact indicators for checks/votes */
-.dies-indicators {
+/* Indicator blocks row */
+.dies-indicators-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  gap: 10px;
   margin-top: 8px;
+  flex-wrap: wrap;
 }
 
-.indicator-badge {
-  display: inline-flex;
+.indicator-block {
+  display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  text-shadow: none;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
 }
 
-.indicator-icon-img {
-  width: 14px;
-  height: 14px;
-  filter: brightness(0) invert(1);
-  flex-shrink: 0;
-}
-
-.don-badge {
-  background: rgba(33, 33, 33, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.sheriff-badge {
-  background: rgba(13, 71, 161, 0.7);
-  border: 1px solid rgba(100, 181, 246, 0.5);
-}
-
-.vote-badge {
-  background: rgba(56, 56, 56, 0.6);
+.don-block {
+  background: rgba(33, 33, 33, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.check-hit {
-  color: #69f0ae;
+.sheriff-block {
+  background: rgba(13, 50, 100, 0.75);
+  border: 1px solid rgba(100, 181, 246, 0.35);
 }
 
-.check-miss {
+.vote-block {
+  background: rgba(50, 50, 50, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.indicator-block-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+  color: #fff;
+}
+
+.indicator-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.check-black {
+  color: #111;
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.4);
+}
+
+.check-red {
   color: #ff5252;
 }
 
-/* Top right */
+/* Top right - Game master badge */
 .dies-top-right {
   text-align: right;
 }
 
-.dies-gm {
+.dies-gm-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+.dies-gm-label {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.dies-gm-name {
   font-size: 16px;
   font-weight: 600;
-  opacity: 0.85;
-  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
 }
 
 /* Bottom section: player cards */
@@ -431,16 +477,19 @@ html:has(.dies-overlay) {
 .player-cards {
   display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
+  padding: 0 4px;
 }
 
 .player-card {
   position: relative;
-  width: 90px;
+  flex: 1;
+  max-width: 120px;
+  min-width: 0;
   background: rgba(30, 30, 30, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
-  padding: 8px 6px;
+  padding: 10px 6px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -453,20 +502,7 @@ html:has(.dies-overlay) {
   opacity: 0.7;
 }
 
-/* Best move indicator above card */
-.best-move {
-  position: absolute;
-  top: -20px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
-  font-weight: 700;
-  color: #ffd740;
-  white-space: nowrap;
-  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
-}
-
-/* Role badge (top-right of card) */
+/* Role badge (top-right of card) — monochrome white */
 .role-badge {
   position: absolute;
   top: 4px;
@@ -477,41 +513,18 @@ html:has(.dies-overlay) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(80, 80, 80, 0.8);
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
 }
 
-.role-icon-img {
-  width: 14px;
-  height: 14px;
-  filter: brightness(0) invert(1);
-}
-
-.role-mafia {
-  background: rgba(183, 28, 28, 0.85);
-}
-
-.role-don {
-  background: rgba(30, 30, 30, 0.9);
-  border: 1px solid #ffd740;
-}
-
-.role-don .role-icon-img {
-  filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(15deg);
-}
-
-.role-sheriff {
-  background: rgba(13, 71, 161, 0.85);
-  border: 1px solid #64b5f6;
-}
-
-.role-civilian {
-  background: rgba(46, 125, 50, 0.75);
+.role-icon-svg {
+  flex-shrink: 0;
 }
 
 /* Avatar */
 .player-avatar {
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
@@ -526,37 +539,58 @@ html:has(.dies-overlay) {
 .avatar-placeholder {
   width: 100%;
   height: 100%;
-  background: rgba(100, 100, 100, 0.5);
+  background: rgba(100, 100, 100, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.45);
   border-radius: 50%;
 }
 
-.player-box-id {
-  font-size: 14px;
+/* Best move at top of card */
+.best-move {
+  font-size: 10px;
   font-weight: 700;
+  color: #ffd740;
+  white-space: nowrap;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  padding: 1px 6px;
+  background: rgba(255, 215, 64, 0.12);
+  border-radius: 3px;
+  align-self: stretch;
+  text-align: center;
+}
+
+/* Box ID + Nickname + Status in one row */
+.player-info-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.player-box-id {
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
 }
 
 .player-nickname {
   font-size: 11px;
-  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 80px;
   opacity: 0.85;
+  min-width: 0;
 }
 
-/* Fouls / leave reason (bottom-right of card) */
-.player-status-corner {
-  position: absolute;
-  bottom: 4px;
-  right: 4px;
+.player-status {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
   font-size: 12px;
   font-weight: 700;
 }
