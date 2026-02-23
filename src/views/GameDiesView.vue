@@ -67,6 +67,15 @@
           class="player-card"
           :class="{ 'eliminated': !player.is_in_game }"
         >
+          <!-- Full-card avatar background -->
+          <div class="player-avatar-bg">
+            <img v-if="player.avatar_url" :src="player.avatar_url" :alt="player.nickname" />
+            <div v-else class="avatar-placeholder">
+              <IconDefaultAvatar :size="48" />
+            </div>
+          </div>
+          <div class="player-avatar-overlay"></div>
+
           <!-- Best move at top of card -->
           <div v-if="player.best_move_box_ids?.length" class="best-move">
             ЛХ {{ player.best_move_box_ids.join(', ') }}
@@ -75,14 +84,6 @@
           <!-- Role icon (top-right) -->
           <div class="role-badge">
             <component :is="roleIconComponent(player.role)" :size="14" class="role-icon-svg" />
-          </div>
-
-          <!-- Avatar -->
-          <div class="player-avatar">
-            <img v-if="player.avatar_url" :src="player.avatar_url" :alt="player.nickname" />
-            <div v-else class="avatar-placeholder">
-              <IconDefaultAvatar :size="32" />
-            </div>
           </div>
 
           <!-- Box ID + Nickname + Status in one row -->
@@ -504,6 +505,7 @@ html:has(.dies-overlay) {
   flex: 1;
   max-width: 120px;
   min-width: 0;
+  aspect-ratio: 5 / 6;
   background: rgba(30, 30, 30, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
@@ -513,6 +515,7 @@ html:has(.dies-overlay) {
   align-items: center;
   gap: 4px;
   transition: filter 0.3s ease;
+  overflow: hidden;
 }
 
 .player-card.eliminated {
@@ -533,25 +536,37 @@ html:has(.dies-overlay) {
   justify-content: center;
   background: rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.7);
+  z-index: 2;
 }
 
 .role-icon-svg {
   flex-shrink: 0;
 }
 
-/* Avatar */
-.player-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  overflow: hidden;
-  flex-shrink: 0;
+/* Full-card avatar background */
+.player-avatar-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
 }
 
-.player-avatar img {
+.player-avatar-bg img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.player-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0.05) 30%,
+    rgba(0, 0, 0, 0.3) 70%,
+    rgba(0, 0, 0, 0.7) 100%
+  );
 }
 
 .avatar-placeholder {
@@ -562,7 +577,6 @@ html:has(.dies-overlay) {
   align-items: center;
   justify-content: center;
   color: rgba(255, 255, 255, 0.45);
-  border-radius: 50%;
 }
 
 /* Best move at top of card */
@@ -577,6 +591,7 @@ html:has(.dies-overlay) {
   border-radius: 3px;
   align-self: stretch;
   text-align: center;
+  z-index: 2;
 }
 
 /* Box ID + Nickname + Status in one row, pinned to card bottom */
@@ -588,6 +603,7 @@ html:has(.dies-overlay) {
   margin-top: auto;
   gap: 3px;
   padding: 0 2px;
+  z-index: 2;
 }
 
 .player-box-id {
