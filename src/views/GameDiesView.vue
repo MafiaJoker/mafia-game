@@ -335,9 +335,9 @@ const vFitText = {
 
 <style>
 /* Global styles for transparent OBS overlay */
-.dies-overlay ~ *,
-body:has(.dies-overlay),
-html:has(.dies-overlay) {
+html:has(.dies-overlay),
+html:has(.dies-overlay) body,
+html:has(.dies-overlay) #app {
   background: transparent !important;
 }
 </style>
