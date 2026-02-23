@@ -298,7 +298,7 @@
                           >
                           <el-icon><Plus /></el-icon>
                           Новая игра
-                        </el-Headerbutton>
+                        </el-button>
                       </div>
 
                       <!-- Предупреждение для виртуальных столов -->
@@ -327,16 +327,6 @@
                             @click="openGame(game.id)"
                             >
                             <el-button
-                              v-if="authStore.isJudge"
-                              class="game-obs-btn"
-                              link
-                              size="small"
-                              title="Copy OBS Link"
-                              @click.stop="copyObsLink(game.id)"
-                              >
-                              <el-icon><CopyDocument /></el-icon>
-                            </el-button>
-                            <el-button
                               class="game-delete-btn"
                               link
                               size="small"
@@ -344,7 +334,7 @@
                               >
                               <el-icon><Close /></el-icon>
                             </el-button>
-                            
+
                             <div class="game-main-content">
                               <div class="game-header">
                                 <h6 class="game-name">{{ game.label }}</h6>
@@ -367,6 +357,14 @@
                                   <el-icon size="14"><User /></el-icon>
                                   {{ game.game_master.nickname }}
                                 </span>
+                                <el-button
+                                  v-if="authStore.isJudge"
+                                  size="small"
+                                  @click.stop="copyObsLink(game.id)"
+                                >
+                                  <el-icon><CopyDocument /></el-icon>
+                                  Копировать ссылку на OBS
+                                </el-button>
                               </div>
                             </div>
                           </div>
@@ -1252,27 +1250,6 @@
   }
 
   .game-item:hover .game-delete-btn {
-      opacity: 1;
-  }
-
-  .game-obs-btn {
-      position: absolute;
-      top: 8px;
-      right: 36px;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      padding: 4px;
-      min-width: auto;
-      width: 24px;
-      height: 24px;
-  }
-
-  .game-obs-btn:hover {
-      color: #409eff;
-      background-color: #ecf5ff;
-  }
-
-  .game-item:hover .game-obs-btn {
       opacity: 1;
   }
 

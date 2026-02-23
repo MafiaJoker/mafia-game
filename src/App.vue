@@ -38,7 +38,7 @@
 
   // Определяем страницы авторизации и страницу 404
   const isAuthPage = computed(() => {
-      return route.name === 'Login' || route.name === 'Register' || route.name === 'NotFound'
+      return route.name === 'Login' || route.name === 'Register' || route.name === 'NotFound' || route.name === 'GameDies'
   })
 
   // Скрываем заголовок на страницах авторизации и игры
