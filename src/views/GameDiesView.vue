@@ -237,6 +237,13 @@ function connect() {
       return
     }
 
+    if (msg.method === 'game_state' && msg.params) {
+      console.log('[WS] game_state notification received')
+      game.value = msg.params
+      error.value = null
+      return
+    }
+
     if (msg.result) {
       console.log('[WS] RPC result, game:', !!msg.result.game, 'expires_in:', msg.result.subscription_expired_in)
       if (msg.result.game) {
