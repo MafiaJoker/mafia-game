@@ -298,7 +298,7 @@
                           >
                           <el-icon><Plus /></el-icon>
                           Новая игра
-                        </el-button>
+                        </el-Headerbutton>
                       </div>
 
                       <!-- Предупреждение для виртуальных столов -->
@@ -320,13 +320,23 @@
                         </div>
 
                         <div v-else class="games-list">
-                          <div 
+                          <div
                             v-for="game in games"
                             :key="game.id"
                             class="game-item clickable"
                             @click="openGame(game.id)"
                             >
-                            <el-button 
+                            <el-button
+                              v-if="authStore.isJudge"
+                              class="game-obs-btn"
+                              link
+                              size="small"
+                              title="Copy OBS Link"
+                              @click.stop="copyObsLink(game.id)"
+                              >
+                              <el-icon><CopyDocument /></el-icon>
+                            </el-button>
+                            <el-button
                               class="game-delete-btn"
                               link
                               size="small"
@@ -431,14 +441,15 @@
   import { useEventsStore } from '@/stores/events'
   import { useRegistrationsStore } from '@/stores/registrations'
   import { useEventTypesStore } from '@/stores/eventTypes'
+  import { useAuthStore } from '@/stores/auth'
   import { apiService } from '@/services/api'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import EventFinances from '@/components/events/EventFinances.vue'
   import EventPlayers from '@/components/events/EventPlayers.vue'
   import EventResults from '@/components/events/EventResults.vue'
   import GenerateSeatingDialog from '@/components/events/GenerateSeatingDialog.vue'
-  import { 
-      ArrowLeft, 
+  import {
+      ArrowLeft,
       InfoFilled,
       Plus,
       Delete,
@@ -448,7 +459,8 @@
       User,
       Money,
       Trophy,
-      Edit
+      Edit,
+      CopyDocument
   } from '@element-plus/icons-vue'
 
   const route = useRoute()
@@ -456,6 +468,7 @@
   const eventsStore = useEventsStore()
   const registrationsStore = useRegistrationsStore()
   const eventTypesStore = useEventTypesStore()
+  const authStore = useAuthStore()
 
   const event = ref(null)
   const selectedTable = ref(null)
@@ -549,6 +562,12 @@
 
   const openGame = (gameId) => {
     router.push(`/game/${gameId}`)
+  }
+
+  const copyObsLink = (gameId) => {
+    const url = `${window.location.origin}/game/${gameId}/dies`
+    navigator.clipboard.writeText(url)
+    ElMessage.success('OBS ссылка скопирована!')
   }
 
   const deleteGame = async (gameId) => {
@@ -1233,6 +1252,27 @@
   }
 
   .game-item:hover .game-delete-btn {
+      opacity: 1;
+  }
+
+  .game-obs-btn {
+      position: absolute;
+      top: 8px;
+      right: 36px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      padding: 4px;
+      min-width: auto;
+      width: 24px;
+      height: 24px;
+  }
+
+  .game-obs-btn:hover {
+      color: #409eff;
+      background-color: #ecf5ff;
+  }
+
+  .game-item:hover .game-obs-btn {
       opacity: 1;
   }
 
