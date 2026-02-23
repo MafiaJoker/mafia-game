@@ -113,6 +113,7 @@
 
     <VotingDialog
       v-model="votingDialogVisible"
+      :game-id="gameId"
       :nominated-players="nominatedPlayers"
       :players-data="playersData"
       :phase-data="phaseData"
@@ -271,17 +272,31 @@ const getNominationOrder = (boxId) => {
 }
 
 // Добавляет игрока в список номинированных
-const addNomination = (boxId) => {
+const addNomination = async (boxId) => {
   if (!nominatedPlayers.value.includes(boxId)) {
     nominatedPlayers.value.push(boxId)
+    try {
+      await apiService.patchGamePhase(props.gameId, {
+        nominated_box_ids: [...nominatedPlayers.value]
+      })
+    } catch (error) {
+      console.error('Failed to patch nominated_box_ids:', error)
+    }
   }
 }
 
 // Удаляет игрока из списка номинированных
-const removeNomination = (boxId) => {
+const removeNomination = async (boxId) => {
   const index = nominatedPlayers.value.indexOf(boxId)
   if (index !== -1) {
     nominatedPlayers.value.splice(index, 1)
+    try {
+      await apiService.patchGamePhase(props.gameId, {
+        nominated_box_ids: [...nominatedPlayers.value]
+      })
+    } catch (error) {
+      console.error('Failed to patch nominated_box_ids:', error)
+    }
   }
 }
 
@@ -341,8 +356,11 @@ const handleRemovePlayersAccept = () => {
 // Обработчик клика по кнопке "Следующий круг"
 const handleNextRound = async () => {
   try {
-    // Отправляем данные фазы на сервер
-    await apiService.createGamePhase(props.gameId, phaseData.value)
+    // Обновляем данные фазы на сервере через PUT
+    await apiService.updateGamePhase(props.gameId, phaseData.value)
+
+    // Создаем новую пустую фазу для следующего круга
+    await apiService.createGamePhase(props.gameId, {})
 
     // Эмитим событие для сброса таймера в родительском компоненте
     emit('round-completed')
@@ -367,7 +385,7 @@ const getCurrentFouls = (row) => {
 }
 
 // Обработчик клика по бейджу фолов
-const handleFoulsClick = (row) => {
+const handleFoulsClick = async (row) => {
   // Если игрок не в игре, ничего не делаем
   if (!row.is_in_game) return
 
@@ -421,6 +439,15 @@ const handleFoulsClick = (row) => {
     if (removedIndex !== -1) {
       phaseData.value.removed_box_ids.splice(removedIndex, 1)
     }
+  }
+
+  // Отправляем обновленные фолы на сервер
+  try {
+    await apiService.patchGamePhase(props.gameId, {
+      fouls_summary: [...phaseData.value.fouls_summary]
+    })
+  } catch (error) {
+    console.error('Failed to patch fouls_summary:', error)
   }
 }
 
@@ -486,8 +513,14 @@ const resetComponent = async () => {
   await loadGameData()
 }
 
-onMounted(() => {
-  loadGameData()
+onMounted(async () => {
+  await loadGameData()
+  // Создаем пустую фазу при открытии страницы
+  try {
+    await apiService.createGamePhase(props.gameId, {})
+  } catch (error) {
+    console.error('Failed to create empty phase:', error)
+  }
 })
 
 // Экспортируем методы для вызова из родительского компонента

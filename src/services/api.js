@@ -301,6 +301,11 @@ export const apiService = {
 	return response.data
     },
 
+    async patchGamePhase(gameId, phaseData) {
+	const response = await api.patch(`/games/${gameId}/phases`, phaseData)
+	return response.data
+    },
+
     async createGamePhase(gameId, phaseData) {
 	const response = await api.post(`/games/${gameId}/phases`, phaseData)
 	return response.data

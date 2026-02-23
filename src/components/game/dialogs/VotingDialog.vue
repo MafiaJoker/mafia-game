@@ -7,6 +7,7 @@
   >
     <div class="voting-container">
       <FoulsPanel
+        :game-id="props.gameId"
         :players-data="props.playersData"
         :phase-data="props.phaseData"
         @update:phase-data="emit('update:phaseData', $event)"
@@ -118,6 +119,10 @@ import FoulsPanel from '../FoulsPanel.vue'
 
 const props = defineProps({
   modelValue: Boolean,
+  gameId: {
+    type: String,
+    required: true
+  },
   nominatedPlayers: {
     type: Array,
     default: () => []
