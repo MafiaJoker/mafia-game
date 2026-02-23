@@ -36,6 +36,12 @@ const routes = [
 	props: true
     },
     {
+	path: '/game/:id/dies',
+	name: 'GameDies',
+	component: () => import('@/views/GameDiesView.vue'),
+	props: true
+    },
+    {
 	path: '/event-types',
 	name: 'EventTypes',
 	component: () => import('@/views/EventTypesView.vue')
