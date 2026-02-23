@@ -102,9 +102,9 @@ router.beforeEach(async (to, from, next) => {
         console.log(`Router: navigating from ${from.path} to ${to.path}`)
     }
     
-    // Если пользователь идет на страницу авторизации, пропускаем
-    if (to.path === '/login') {
-        console.log('Router: going to login page, allowing navigation')
+    // Если пользователь идет на страницу авторизации или публичную страницу, пропускаем
+    if (to.path === '/login' || to.name === 'GameDies') {
+        console.log('Router: going to public page, allowing navigation')
         next()
         return
     }
