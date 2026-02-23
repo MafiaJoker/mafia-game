@@ -88,7 +88,7 @@
           <!-- Box ID + Nickname + Status in one row -->
           <div class="player-info-row">
             <span class="player-box-id">{{ player.box_id }}</span>
-            <span class="player-nickname">{{ player.nickname }}</span>
+            <span class="player-nickname" v-fit-text>{{ player.nickname }}</span>
             <span class="player-status">
               <template v-if="player.is_in_game">
                 <span v-if="player.fouls > 0" class="fouls">{{ '!'.repeat(player.fouls) }}</span>
@@ -304,6 +304,24 @@ const leaveReasonIcons = {
   killed: killedIcon,
   voted: votedIcon,
   removed: disqualifiedIcon
+}
+
+function fitText(el) {
+  requestAnimationFrame(() => {
+    const max = 11
+    const min = 7
+    el.style.fontSize = max + 'px'
+    let size = max
+    while (el.scrollWidth > el.clientWidth && size > min) {
+      size -= 0.5
+      el.style.fontSize = size + 'px'
+    }
+  })
+}
+
+const vFitText = {
+  mounted: fitText,
+  updated: fitText
 }
 </script>
 
@@ -561,19 +579,21 @@ html:has(.dies-overlay) {
   text-align: center;
 }
 
-/* Box ID + Nickname + Status in one row */
+/* Box ID + Nickname + Status in one row, pinned to card bottom */
 .player-info-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
+  align-self: stretch;
+  margin-top: auto;
   gap: 3px;
-  max-width: 100%;
-  overflow: hidden;
+  padding: 0 2px;
 }
 
 .player-box-id {
   font-size: 13px;
   font-weight: 700;
-  flex-shrink: 0;
+  justify-self: start;
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
 }
 
@@ -584,11 +604,11 @@ html:has(.dies-overlay) {
   text-overflow: ellipsis;
   opacity: 0.85;
   min-width: 0;
+  text-align: center;
 }
 
 .player-status {
-  flex-shrink: 0;
-  margin-left: auto;
+  justify-self: end;
   display: flex;
   align-items: center;
   font-size: 12px;
