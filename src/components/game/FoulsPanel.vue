@@ -25,7 +25,13 @@
 </template>
 
 <script setup>
+import { apiService } from '@/services/api.js'
+
 const props = defineProps({
+  gameId: {
+    type: String,
+    required: true
+  },
   playersData: {
     type: Array,
     required: true
@@ -48,7 +54,7 @@ const getCurrentFouls = (row) => {
 }
 
 // Обработчик клика по бейджу фолов
-const handleFoulsClick = (row) => {
+const handleFoulsClick = async (row) => {
   if (!row.is_in_game) return
 
   const currentFouls = getCurrentFouls(row)
@@ -100,6 +106,15 @@ const handleFoulsClick = (row) => {
     removed_box_ids
   }
   emit('update:phaseData', updatedPhaseData)
+
+  // Отправляем обновленные фолы на сервер
+  try {
+    await apiService.patchGamePhase(props.gameId, {
+      fouls_summary
+    })
+  } catch (error) {
+    console.error('Failed to patch fouls_summary:', error)
+  }
 }
 </script>
 
