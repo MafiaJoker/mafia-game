@@ -309,8 +309,9 @@ const handleContinue = () => {
     } else if (winners.length > 1) {
       // Ничья - переходим к перестрелке
       votingRound.value = 2
-      previousTiedPlayers.value = winners.map(w => w.boxId)
-      currentCandidates.value = winners.map(w => getCandidateData(w.boxId))
+      const tiedBoxIds = new Set(winners.map(w => w.boxId))
+      currentCandidates.value = currentCandidates.value.filter(c => tiedBoxIds.has(c.box_id))
+      previousTiedPlayers.value = currentCandidates.value.map(c => c.box_id)
 
       // Обновляем список номинированных - оставляем только тех, кто в перестрелке
       emit('update:nominatedPlayers', previousTiedPlayers.value)
@@ -340,8 +341,9 @@ const handleContinue = () => {
         votesForAll.value = 0
       } else {
         // Новая комбинация игроков - продолжаем перестрелку
-        previousTiedPlayers.value = currentTiedPlayers
-        currentCandidates.value = winners.map(w => getCandidateData(w.boxId))
+        const tiedBoxIds = new Set(currentTiedPlayers)
+        currentCandidates.value = currentCandidates.value.filter(c => tiedBoxIds.has(c.box_id))
+        previousTiedPlayers.value = currentCandidates.value.map(c => c.box_id)
         emit('update:nominatedPlayers', previousTiedPlayers.value)
         Object.keys(votes).forEach(key => delete votes[key])
         currentCandidates.value.forEach(c => votes[c.box_id] = 0)
