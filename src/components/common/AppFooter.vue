@@ -2,10 +2,11 @@
   <el-footer class="app-footer">
     <div class="footer-content">
       <div class="footer-info">
-        <span class="version-info">
-          v{{ version }} 
+        <span class="version-info" v-if="version || commitHash">
+          <template v-if="version">v{{ version }} </template>
           <span v-if="commitHash" class="commit-hash">
-            ({{ commitHash }})
+            <template v-if="version">({{ commitHash }})</template>
+            <template v-else>{{ commitHash }}</template>
           </span>
         </span>
         <span class="build-time" v-if="buildTime">
@@ -23,7 +24,7 @@
   import { computed } from 'vue'
   
   const version = computed(() => {
-    return import.meta.env.VITE_APP_VERSION || '1.0.0'
+    return import.meta.env.VITE_APP_VERSION || ''
   })
   
   const commitHash = computed(() => {

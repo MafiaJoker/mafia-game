@@ -10,14 +10,15 @@ export default defineConfig(({ command, mode }) => {
   const isElectron = process.env.ELECTRON === 'true'
 
   // Получаем информацию о коммите
-  let commitHash = ''
-  let buildTime = ''
-  
-  try {
-    commitHash = execSync('git rev-parse HEAD').toString().trim()
-    buildTime = new Date().toISOString()
-  } catch (error) {
-    console.warn('Could not retrieve git commit hash:', error.message)
+  let commitHash = process.env.VITE_APP_COMMIT_HASH || ''
+  let buildTime = new Date().toISOString()
+
+  if (!commitHash) {
+    try {
+      commitHash = execSync('git rev-parse HEAD').toString().trim()
+    } catch (error) {
+      console.warn('Could not retrieve git commit hash:', error.message)
+    }
   }
 
   return {
@@ -106,7 +107,7 @@ export default defineConfig(({ command, mode }) => {
       __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
       'import.meta.env.VITE_APP_COMMIT_HASH': JSON.stringify(commitHash),
       'import.meta.env.VITE_APP_BUILD_TIME': JSON.stringify(buildTime),
-      'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.npm_package_version || '1.0.0'),
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.VITE_APP_VERSION || ''),
       '__ELECTRON_API_BASE_URL__': JSON.stringify(process.env.VITE_API_BASE_URL || null)
     },
     test: {

@@ -1,97 +1,100 @@
-name: Deploy to Production
+name: Deploy
 
 on:
   push:
-    branches: [ master ]
-  workflow_dispatch:
+    branches: [master]
+  release:
+    types: [published]
+
+concurrency:
+  group: deploy-${{ github.event_name == 'release' && 'production' || 'development' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  deploy-prod:
+  build:
     runs-on: ubuntu-latest
-
-    env:
-      DEPLOY_HOST: ${{ secrets.PROD_HOST }}
-      DEPLOY_USER: ${{ secrets.PROD_USER }}
-      DEPLOY_PORT: 22
-      DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
-
+    outputs:
+      version: ${{ steps.primary.outputs.version }}
+      short_sha: ${{ steps.primary.outputs.short_sha }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
+      - uses: docker/setup-buildx-action@v3
 
-    - name: Install dependencies
-      run: npm install
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.VULTR_REGISTRY_URL }}
+          username: ${{ secrets.VULTR_REGISTRY_USERNAME }}
+          password: ${{ secrets.VULTR_REGISTRY_PASSWORD }}
 
-    - name: Build application
-      run: npm run build
-      env:
-        NODE_ENV: production
-        VITE_API_BASE_URL: https://api.jokermafia.am/api/v1
-        VITE_TELEGRAM_BOT_USERNAME: mafia_joker_widget_bot
-        VITE_SHOW_TEST_LOGIN: false
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.VULTR_REGISTRY_URL }}/mafia-helper-web
+          tags: |
+            type=sha,format=short,prefix=dev-,enable=${{ github.event_name == 'push' }}
+            type=raw,value=dev-latest,enable=${{ github.event_name == 'push' }}
+            type=ref,event=tag,enable=${{ github.event_name == 'release' }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
 
-    - name: Debug SSH key format
-      run: |
-        echo "SSH key length: $(echo '${{ secrets.PROD_KEY }}' | wc -c)"
-        echo "SSH key first line:"
-        echo "${{ secrets.PROD_KEY }}" | head -n 1
-        echo "SSH key last line:"
-        echo "${{ secrets.PROD_KEY }}" | tail -n 1
+      - id: primary
+        run: |
+          short_sha="${GITHUB_SHA:0:7}"
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            version="${{ github.ref_name }}"
+          else
+            version="dev-${short_sha}"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
 
-    - name: Deploy to server
-      uses: appleboy/ssh-action@v0.1.5
-      with:
-        host: ${{ env.DEPLOY_HOST }}
-        username: ${{ env.DEPLOY_USER }}
-        key: ${{ secrets.PROD_KEY }}
-        port: ${{ env.DEPLOY_PORT }}
-        script: |
-          # Очищаем старые файлы
-          rm -rf ${{ env.DEPLOY_PATH }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VITE_API_BASE_URL=${{ github.event_name == 'release' && 'https://api.jokermafia.am/api/v1' || 'https://dev.api.jokermafia.am/api/v1' }}
+            VITE_TELEGRAM_BOT_USERNAME=${{ github.event_name == 'release' && 'mafia_joker_widget_bot' || 'dev_mafia_joker_widget_bot' }}
+            VITE_SHOW_TEST_LOGIN=false
+            VITE_APP_COMMIT_HASH=${{ steps.primary.outputs.short_sha }}
+            VITE_APP_VERSION=${{ github.event_name == 'release' && github.ref_name || '' }}
 
-    - name: Copy files to server
-      uses: appleboy/scp-action@v0.1.4
-      with:
-        host: ${{ env.DEPLOY_HOST }}
-        username: ${{ env.DEPLOY_USER }}
-        key: ${{ secrets.PROD_KEY }}
-        port: ${{ env.DEPLOY_PORT }}
-        source: "dist/*"
-        target: "/tmp/frontend-deploy/"
-        strip_components: 1
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'release' && 'production' || 'development' }}
+    env:
+      IMAGE: ${{ secrets.VULTR_REGISTRY_URL }}/mafia-helper-web:${{ needs.build.outputs.version }}
+      NAMESPACE: ${{ github.event_name == 'release' && 'mafia-helper-prod' || 'mafia-helper-dev' }}
+      OVERLAY: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
 
-    - name: Move files and set permissions
-      uses: appleboy/ssh-action@v0.1.5
-      with:
-        host: ${{ env.DEPLOY_HOST }}
-        username: ${{ env.DEPLOY_USER }}
-        key: ${{ secrets.PROD_KEY }}
-        port: ${{ env.DEPLOY_PORT }}
-        script: |
-          # Создаем временную директорию если не существует
-          mkdir -p /tmp/frontend-deploy
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@c0c8b32d33a5244f1e5947304550403b63930415 # v4
 
-          # Создаем директорию если не существует
-          mkdir -p ${{ env.DEPLOY_PATH }}
-          chown -R nginx:${{ env.DEPLOY_USER }} ${{ env.DEPLOY_PATH }}
-          
-          # Перемещаем файлы в финальную директорию
-          cp -r /tmp/frontend-deploy/* ${{ env.DEPLOY_PATH }}/
+      - name: Setup kustomize
+        uses: imranismail/setup-kustomize@2ba527d4d055ab63514ba50a99456fc35684947f # v2
 
-          # Устанавливаем права доступа
-          chmod -R 755 ${{ env.DEPLOY_PATH }}
-          chown -R www-data:www-data ${{ env.DEPLOY_PATH }}
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > "$HOME/.kube/config"
+          chmod 0600 "$HOME/.kube/config"
 
-          # Очищаем временную директорию
-          rm -rf /tmp/frontend-deploy
+      - name: Apply overlay
+        run: |
+          cd "deployments/overlays/${OVERLAY}"
+          kustomize edit set image "mafia-helper-web=${IMAGE}"
+          kubectl apply -k .
 
-    - name: Notify deployment success
-      run: |
-        echo "✅ Production deployment completed successfully!"
-        echo "🌐 Application deployed to production"
-        echo "🔗 Using API: https://api.jokermafia.am"
+      - name: Wait for rollout
+        run: |
+          kubectl -n "$NAMESPACE" rollout status deployment/web --timeout=5m

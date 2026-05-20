@@ -25,7 +25,7 @@
 ## Установка и запуск
 
 ### Требования
-- Node.js 16+
+- Node.js 20+
 - npm или yarn
 - Backend API (должен быть запущен отдельно на http://localhost:8000)
 
@@ -150,10 +150,37 @@ VITE_API_BASE_URL=https://your-api-server.com/api/v1
 
 Файлы переводов находятся в `src/locales/`
 
+## Деплой
+
+Web SPA деплоится в Kubernetes (Vultr VKE) через GitHub Actions:
+
+- `push` в `master` → dev (`https://dev.jokermafia.am`, namespace `mafia-helper-dev`)
+- `release published` → prod (`https://app.jokermafia.am`, namespace `mafia-helper-prod`)
+
+`VITE_*` значения запекаются в bundle на этапе `docker build` (см.
+`.github/workflows/deploy.yml`, build-args). Для изменения переменной нужно править
+Dockerfile (`ARG`/`ENV`) и workflow.
+
+Подробности: [deployments/README.md](deployments/README.md).
+
+### Локальная проверка Docker-сборки
+
+```bash
+docker build \
+  --build-arg VITE_API_BASE_URL=https://dev.api.jokermafia.am/api/v1 \
+  --build-arg VITE_TELEGRAM_BOT_USERNAME=dev_mafia_joker_widget_bot \
+  --build-arg VITE_SHOW_TEST_LOGIN=false \
+  --build-arg VITE_APP_COMMIT_HASH=$(git rev-parse --short HEAD) \
+  -t mafia-helper-web:local .
+
+docker run --rm -p 8080:8080 mafia-helper-web:local
+# открыть http://localhost:8080
+```
+
 ## Документация
 
 - [ELECTRON.md](ELECTRON.md) - Сборка Electron приложения
-- [DEPLOYMENT.md](DEPLOYMENT.md) - Развертывание приложения
+- [deployments/README.md](deployments/README.md) - Kubernetes-деплой и CI/CD
 - [CLAUDE.md](CLAUDE.md) - Инструкции для Claude Code
 
 ## Лицензия
