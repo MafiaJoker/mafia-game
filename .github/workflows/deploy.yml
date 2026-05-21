@@ -19,7 +19,6 @@ jobs:
     outputs:
       version: ${{ steps.primary.outputs.version }}
       short_sha: ${{ steps.primary.outputs.short_sha }}
-      registry: ${{ steps.registry.outputs.host }}
     steps:
       - uses: actions/checkout@v4
 
@@ -85,7 +84,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'release' && 'production' || 'development' }}
     env:
-      IMAGE: ${{ needs.build.outputs.registry }}/mafia-helper-web:${{ needs.build.outputs.version }}
       NAMESPACE: ${{ github.event_name == 'release' && 'mafia-helper-prod' || 'mafia-helper-dev' }}
       OVERLAY: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
     steps:
@@ -104,9 +102,21 @@ jobs:
           chmod 0600 "$HOME/.kube/config"
 
       - name: Apply overlay
+        env:
+          RAW_REGISTRY_URL: ${{ secrets.VULTR_REGISTRY_URL }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
+          host="${RAW_REGISTRY_URL#https://}"
+          host="${host#http://}"
+          host="${host%/}"
+          if [[ -z "$host" ]]; then
+            echo "VULTR_REGISTRY_URL secret is empty" >&2
+            exit 1
+          fi
+          image="${host}/mafia-helper-web:${VERSION}"
+          echo "Deploying ${image}"
           cd "deployments/overlays/${OVERLAY}"
-          kustomize edit set image "mafia-helper-web=${IMAGE}"
+          kustomize edit set image "mafia-helper-web=${image}"
           kubectl apply -k .
 
       - name: Wait for rollout
