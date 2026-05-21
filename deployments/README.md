@@ -36,8 +36,8 @@ kubectl -n mafia-helper-prod get secret vultr-registry
 
 ### GitHub repo secrets
 
-- `VULTR_REGISTRY_URL` = `puppeyregistry.vultrcr.com`
-- `VULTR_REGISTRY_USERNAME` (из `secrets/registry-creds` infra-репозитория)
+- `VULTR_REGISTRY_URL` = `ewr.vultrcr.com/puppeyregistry` (см. `REGISTRY_URN` в `secrets/registry-creds` infra-репозитория — формат `<region>.vultrcr.com/<name>`)
+- `VULTR_REGISTRY_USERNAME` (из того же `secrets/registry-creds`)
 - `VULTR_REGISTRY_PASSWORD` (там же)
 
 ### GitHub environment secrets
