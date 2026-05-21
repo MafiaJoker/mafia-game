@@ -18,7 +18,7 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL} \
     NODE_ENV=production
 
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+RUN npm ci --include=dev --no-audit --no-fund
 
 COPY index.html vite.config.mjs ./
 COPY src ./src
