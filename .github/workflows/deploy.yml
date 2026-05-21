@@ -19,21 +19,35 @@ jobs:
     outputs:
       version: ${{ steps.primary.outputs.version }}
       short_sha: ${{ steps.primary.outputs.short_sha }}
+      registry: ${{ steps.registry.outputs.host }}
     steps:
       - uses: actions/checkout@v4
+
+      - id: registry
+        env:
+          RAW_URL: ${{ secrets.VULTR_REGISTRY_URL }}
+        run: |
+          host="${RAW_URL#https://}"
+          host="${host#http://}"
+          host="${host%/}"
+          if [[ -z "$host" ]]; then
+            echo "VULTR_REGISTRY_URL secret is empty" >&2
+            exit 1
+          fi
+          echo "host=${host}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
         with:
-          registry: ${{ secrets.VULTR_REGISTRY_URL }}
+          registry: ${{ steps.registry.outputs.host }}
           username: ${{ secrets.VULTR_REGISTRY_USERNAME }}
           password: ${{ secrets.VULTR_REGISTRY_PASSWORD }}
 
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.VULTR_REGISTRY_URL }}/mafia-helper-web
+          images: ${{ steps.registry.outputs.host }}/mafia-helper-web
           tags: |
             type=sha,format=short,prefix=dev-,enable=${{ github.event_name == 'push' }}
             type=raw,value=dev-latest,enable=${{ github.event_name == 'push' }}
@@ -71,7 +85,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'release' && 'production' || 'development' }}
     env:
-      IMAGE: ${{ secrets.VULTR_REGISTRY_URL }}/mafia-helper-web:${{ needs.build.outputs.version }}
+      IMAGE: ${{ needs.build.outputs.registry }}/mafia-helper-web:${{ needs.build.outputs.version }}
       NAMESPACE: ${{ github.event_name == 'release' && 'mafia-helper-prod' || 'mafia-helper-dev' }}
       OVERLAY: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
     steps:
