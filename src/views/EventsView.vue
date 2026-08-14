@@ -63,9 +63,19 @@
               width="150"
             >
               <template #default="scope">
-                <el-tag v-if="scope.row.event_type">
-                  {{ scope.row.event_type.label }}
-                </el-tag>
+                <div v-if="scope.row.event_type" class="event-type-cell">
+                  <el-tag>
+                    {{ scope.row.event_type.label }}
+                  </el-tag>
+                  <el-tooltip
+                    v-if="scope.row.event_type.rule_system"
+                    :content="scope.row.event_type.rule_system.description"
+                    :disabled="!scope.row.event_type.rule_system.description"
+                    placement="top"
+                  >
+                    <span class="rule-system-label">{{ scope.row.event_type.rule_system.label }}</span>
+                  </el-tooltip>
+                </div>
               </template>
             </el-table-column>
             
@@ -395,6 +405,18 @@ onMounted(() => {
 
 .el-table {
   cursor: pointer;
+}
+
+.event-type-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.rule-system-label {
+  font-size: 12px;
+  color: #909399;
 }
 
 .el-table :deep(.el-table__row:hover) {

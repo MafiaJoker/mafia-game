@@ -442,6 +442,12 @@ export const apiService = {
         return response.data
     },
 
+    // Rule Systems
+    async getRuleSystems() {
+        const response = await api.get('/rule-systems')
+        return response.data
+    },
+
     // Event Ratings
     async getEventRatings(eventId) {
         const response = await api.get(`/events/${eventId}/ratings`)

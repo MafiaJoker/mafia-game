@@ -180,6 +180,13 @@ export const GAME_RESULTS = {
   CANCELLED: 'cancelled'
 }
 
+// Результаты, означающие завершённую игру
+export const FINISHED_GAME_RESULTS = [
+  GAME_RESULTS.CIVILIANS_WIN,
+  GAME_RESULTS.MAFIA_WIN,
+  GAME_RESULTS.DRAW
+]
+
 // Команды
 export const TEAMS = {
   RED: 'red',

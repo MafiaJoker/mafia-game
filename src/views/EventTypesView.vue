@@ -68,7 +68,16 @@
             </el-table-column>
 
             <el-table-column
-              label="Действия" 
+              label="Система правил"
+              min-width="140"
+            >
+              <template #default="scope">
+                {{ scope.row.rule_system?.label || '—' }}
+              </template>
+            </el-table-column>
+
+            <el-table-column
+              label="Действия"
               width="150"
               align="center"
               fixed="right"
@@ -125,6 +134,20 @@
         <el-form-item label="Рейтинговая" prop="is_ranked">
           <el-switch v-model="formData.is_ranked" />
         </el-form-item>
+
+        <el-form-item label="Система правил" prop="rule_system">
+          <el-select v-model="formData.rule_system" style="width: 100%">
+            <el-option
+              v-for="ruleSystem in ruleSystems"
+              :key="ruleSystem.slug"
+              :label="ruleSystem.label"
+              :value="ruleSystem.slug"
+            />
+          </el-select>
+          <div v-if="selectedRuleSystemDescription" class="rule-system-description">
+            {{ selectedRuleSystemDescription }}
+          </div>
+        </el-form-item>
       </el-form>
       
       <template #footer>
@@ -166,8 +189,25 @@ const formRef = ref()
 const formData = reactive({
   label: '',
   color: '#409EFF',
-  is_ranked: false
+  is_ranked: false,
+  rule_system: 'fiim'
 })
+
+// Справочник систем правил
+const ruleSystems = ref([])
+
+const selectedRuleSystemDescription = computed(() => {
+  return ruleSystems.value.find(rs => rs.slug === formData.rule_system)?.description || ''
+})
+
+const loadRuleSystems = async () => {
+  try {
+    ruleSystems.value = await apiService.getRuleSystems()
+  } catch (error) {
+    console.error('Error loading rule systems:', error)
+    ruleSystems.value = []
+  }
+}
 
 // Предустановленные цвета
 const predefineColors = [
@@ -260,7 +300,8 @@ const handleEdit = (type) => {
   Object.assign(formData, {
     label: type.label,
     color: type.color || '#409EFF',
-    is_ranked: type.is_ranked || false
+    is_ranked: type.is_ranked || false,
+    rule_system: type.rule_system?.slug || 'fiim'
   })
   showDialog.value = true
 }
@@ -305,17 +346,16 @@ const handleSubmit = async () => {
     resetForm()
     await loadTypes()
   } catch (error) {
-    // Проверяем специфичную ошибку для рейтинговых категорий
-    if (error.response?.status === 400) {
-      try {
-        const errorData = await error.response.json()
-        if (errorData.detail === 'only one ranked event type available') {
-          ElMessage.error('Может быть только одна рейтинговая категория')
-          return
-        }
-      } catch (parseError) {
-        // Если не удалось распарсить JSON, используем стандартное сообщение
-      }
+    // Смена системы правил у категории, по которой уже есть игры
+    if (error.response?.status === 409) {
+      ElMessage.error('Нельзя менять систему правил: у категории уже есть игры')
+      return
+    }
+    // Специфичная ошибка для рейтинговых категорий
+    // (axios уже парсит тело ответа в error.response.data)
+    if (error.response?.status === 400 && error.response.data?.detail === 'only one ranked event type available') {
+      ElMessage.error('Может быть только одна рейтинговая категория')
+      return
     }
     ElMessage.error(UI_MESSAGES.ERRORS.SAVE_FAILED)
   } finally {
@@ -329,7 +369,8 @@ const resetForm = () => {
   Object.assign(formData, {
     label: '',
     color: '#409EFF',
-    is_ranked: false
+    is_ranked: false,
+    rule_system: 'fiim'
   })
   formRef.value?.resetFields()
 }
@@ -337,6 +378,7 @@ const resetForm = () => {
 // Хуки
 onMounted(() => {
   loadTypes()
+  loadRuleSystems()
 })
 
 // Открытие диалога создания
@@ -369,6 +411,14 @@ watch(showCreateDialog, (val) => {
   border-radius: 4px;
   border: 1px solid #dcdfe6;
   margin: 0 auto;
+}
+
+.rule-system-description {
+  width: 100%;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.4;
+  margin-top: 4px;
 }
 
 @media (max-width: 768px) {

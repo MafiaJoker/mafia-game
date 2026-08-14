@@ -55,17 +55,23 @@
                 <div class="day-number">{{ day.dayNumber }}</div>
                 
                 <div v-if="day.events.length > 0" class="day-events">
-                  <div 
-                    v-for="event in day.events.slice(0, 5)" 
+                  <el-tooltip
+                    v-for="event in day.events.slice(0, 5)"
                     :key="event.id"
-                    class="event-item"
-                    :class="getEventTypeClass(event.event_type)"
-                    :style="{ backgroundColor: getEventTypeColor(event.event_type) }"
-                    @click="openEvent(event)"
+                    :content="getEventChipTooltip(event)"
+                    :disabled="!getEventChipTooltip(event)"
+                    placement="top"
                   >
-                    <div class="event-title">{{ event.label }}</div>
-                    <div class="event-time">{{ formatTime(event.start_date) }}</div>
-                  </div>
+                    <div
+                      class="event-item"
+                      :class="getEventTypeClass(event.event_type)"
+                      :style="{ backgroundColor: getEventTypeColor(event.event_type) }"
+                      @click="openEvent(event)"
+                    >
+                      <div class="event-title">{{ event.label }}</div>
+                      <div class="event-time">{{ formatTime(event.start_date) }}</div>
+                    </div>
+                  </el-tooltip>
                   
                   <div 
                     v-if="day.events.length > 5" 
@@ -98,13 +104,22 @@
         >
           <div class="event-header">
             <h4>{{ event.label }}</h4>
-            <el-tag 
-              v-if="event.event_type" 
-              :type="getEventTypeTagType(event.event_type.label)"
-              size="small"
-            >
-              {{ event.event_type.label }}
-            </el-tag>
+            <div v-if="event.event_type" class="event-header-tags">
+              <el-tag
+                :type="getEventTypeTagType(event.event_type.label)"
+                size="small"
+              >
+                {{ event.event_type.label }}
+              </el-tag>
+              <el-tag
+                v-if="event.event_type.rule_system"
+                size="small"
+                type="info"
+                effect="plain"
+              >
+                {{ event.event_type.rule_system.label }}
+              </el-tag>
+            </div>
           </div>
           
           <div class="event-details">
@@ -293,6 +308,16 @@ const getEventTypeColor = (eventType) => {
   if (type.includes('фестиваль')) return '#d53f8c'
   if (type.includes('мастер-класс')) return '#0987a0'
   return '#3182ce'
+}
+
+// Тултип чипа события: категория и система правил
+const getEventChipTooltip = (event) => {
+  if (!event.event_type) return ''
+  const parts = [event.event_type.label]
+  if (event.event_type.rule_system) {
+    parts.push(event.event_type.rule_system.label)
+  }
+  return parts.join(' · ')
 }
 
 const getEventTypeTagType = (eventType) => {
@@ -541,6 +566,12 @@ onMounted(() => {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+}
+
+.event-header-tags {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .event-details {

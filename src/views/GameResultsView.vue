@@ -71,6 +71,12 @@
                   </span>
                 </div>
               </el-col>
+              <el-col :span="8">
+                <div class="info-item">
+                  <span class="info-label">Система правил:</span>
+                  <span class="info-value">{{ gameData.event?.rule_system?.label || '—' }}</span>
+                </div>
+              </el-col>
             </el-row>
           </el-card>
 
