@@ -37,6 +37,20 @@
                 />
               </el-select>
             </el-form-item>
+            <el-form-item label="Система правил">
+              <el-select
+                v-model="selectedRuleSystem"
+                @change="handleFilterChange"
+                style="width: 160px"
+              >
+                <el-option
+                  v-for="ruleSystem in ruleSystems"
+                  :key="ruleSystem.slug"
+                  :label="ruleSystem.label"
+                  :value="ruleSystem.slug"
+                />
+              </el-select>
+            </el-form-item>
           </el-form>
         </el-card>
 
@@ -159,6 +173,8 @@ const loading = ref(false)
 const ratings = ref([])
 const selectedYear = ref('')
 const selectedMonth = ref('')
+const selectedRuleSystem = ref('fiim')
+const ruleSystems = ref([])
 
 // Название месяцев на русском
 const monthNames = [
@@ -202,7 +218,8 @@ const loadRatings = async () => {
 
     const params = {
       start_date: `${year}-${String(month).padStart(2, '0')}-01`,
-      end_date: `${year}-${String(month).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`
+      end_date: `${year}-${String(month).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`,
+      rule_system: selectedRuleSystem.value
     }
 
     const data = await apiService.getRatings(params)
@@ -225,8 +242,18 @@ const formatPoints = (points) => {
   return Number(points).toFixed(2)
 }
 
+const loadRuleSystems = async () => {
+  try {
+    ruleSystems.value = await apiService.getRuleSystems()
+  } catch (error) {
+    console.error('Failed to load rule systems:', error)
+    ruleSystems.value = []
+  }
+}
+
 // Загрузка данных при монтировании
 onMounted(() => {
+  loadRuleSystems()
   loadRatings()
 })
 </script>

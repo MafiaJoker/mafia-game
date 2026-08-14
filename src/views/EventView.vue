@@ -123,19 +123,31 @@
                                 >
                                   {{ event.event_type.label }}
                                 </el-tag>
-                                <el-select 
-                                  v-else-if="isEditMode && eventTypes.length > 0" 
-                                  v-model="editForm.event_type_id" 
+                                <el-select
+                                  v-else-if="isEditMode && eventTypes.length > 0"
+                                  v-model="editForm.event_type_id"
                                   style="width: 100%"
                                   placeholder="Выберите категорию"
                                 >
-                                  <el-option 
-                                    v-for="eventType in eventTypes" 
-                                    :key="eventType.id" 
-                                    :label="eventType.label" 
-                                    :value="eventType.id" 
+                                  <el-option
+                                    v-for="eventType in eventTypes"
+                                    :key="eventType.id"
+                                    :label="eventType.label"
+                                    :value="eventType.id"
                                   />
                                 </el-select>
+                              </el-form-item>
+
+                              <el-form-item label="Система правил" v-if="displayedRuleSystem">
+                                <el-tooltip
+                                  :content="displayedRuleSystem.description"
+                                  :disabled="!displayedRuleSystem.description"
+                                  placement="top"
+                                >
+                                  <el-tag type="info" effect="plain">
+                                    {{ displayedRuleSystem.label }}
+                                  </el-tag>
+                                </el-tooltip>
                               </el-form-item>
                             </el-form>
                           </div>
@@ -521,6 +533,15 @@
 
 ---
 *Используйте Markdown для форматирования текста*`
+
+  // Система правил: в просмотре — из типа события, в редактировании — из выбранного в форме типа
+  const displayedRuleSystem = computed(() => {
+    if (isEditMode.value) {
+      const selectedType = eventTypes.value.find(type => type.id === editForm.event_type_id)
+      return selectedType?.rule_system || null
+    }
+    return event.value?.event_type?.rule_system || null
+  })
 
   const tables = computed(() => {
     const realTables = event.value?.tables || []

@@ -43,13 +43,16 @@
 
     <el-form-item label="Категория" prop="event_type_id" v-if="eventTypes.length > 0">
       <el-select v-model="form.event_type_id" style="width: 100%" placeholder="Выберите категорию">
-	<el-option 
-	  v-for="eventType in eventTypes" 
-	  :key="eventType.id" 
-	  :label="eventType.label" 
-	  :value="eventType.id" 
+	<el-option
+	  v-for="eventType in eventTypes"
+	  :key="eventType.id"
+	  :label="eventType.label"
+	  :value="eventType.id"
 	/>
       </el-select>
+      <div v-if="selectedTypeRuleSystemLabel" class="rule-system-hint">
+	Система правил: {{ selectedTypeRuleSystemLabel }}
+      </div>
     </el-form-item>
 
     <el-form-item label="Количество столов" prop="tables_count">
@@ -76,7 +79,7 @@
 </template>
 
 <script setup>
-  import { ref, reactive, onMounted } from 'vue'
+  import { ref, reactive, computed, onMounted } from 'vue'
   import { useEventsStore } from '@/stores/events'
   import { useEventTypesStore } from '@/stores/eventTypes'
   import { ElMessage } from 'element-plus'
@@ -98,6 +101,11 @@
       event_type_id: '',
       tables_count: 1,
       table_name_template: 'Стол {}'
+  })
+
+  // Краткий хинт: какая система правил унаследуется от выбранной категории
+  const selectedTypeRuleSystemLabel = computed(() => {
+      return eventTypes.value.find(type => type.id === form.event_type_id)?.rule_system?.label || ''
   })
 
   const rules = {
@@ -180,3 +188,12 @@
       }
   })
 </script>
+
+<style scoped>
+  .rule-system-hint {
+    width: 100%;
+    font-size: 12px;
+    color: #909399;
+    margin-top: 4px;
+  }
+</style>

@@ -75,6 +75,7 @@ import { ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { apiService } from '@/services/api.js'
 import { COUNTDOWN_PHASES } from '@/utils/constants.js'
+import { FINISHED_GAME_RESULTS } from '@/utils/gameConstants.js'
 import SeatingPlayers from '@/components/game/SeatingPlayers.vue'
 import RolesAssigne from '@/components/game/RolesAssigne.vue'
 import GameInProgress from '@/components/game/GameInProgress.vue'
@@ -181,7 +182,7 @@ const loadGame = async () => {
     }
 
     // Если игра завершена, перенаправляем на страницу результатов
-    if (['mafia_win', 'civilians_win', 'draw'].includes(gameData.value.result)) {
+    if (FINISHED_GAME_RESULTS.includes(gameData.value.result)) {
       router.push(`/game/${props.id}/results`)
     }
   } catch (error) {

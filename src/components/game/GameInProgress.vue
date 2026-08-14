@@ -15,7 +15,7 @@
               size="default"
               @click="handleNextRound"
             >
-              Следующий круг
+              {{ gameFinished ? 'Завершить игру' : 'Следующий круг' }}
             </el-button>
             <el-button
               v-else-if="showVotingButton"
@@ -172,6 +172,7 @@ import PPKDialog from './dialogs/PPKDialog.vue'
 import RemovePlayersDialog from './dialogs/RemovePlayersDialog.vue'
 import { apiService } from '@/services/api.js'
 import { GameRolesEnum } from '@/utils/constants.js'
+import { FINISHED_GAME_RESULTS } from '@/utils/gameConstants.js'
 const router = useRouter()
 
 const props = defineProps({
@@ -210,6 +211,9 @@ const votingCompleted = ref(false)
 
 // Флаг для показа кнопки "Следующий круг"
 const nextRoundButtonVisible = ref(false)
+
+// Игра уже завершена по данным сервера — кнопка превращается в «Завершить игру»
+const gameFinished = ref(false)
 
 // Объект для формирования данных фазы игры
 const phaseData = ref({
@@ -334,12 +338,23 @@ const openRemovePlayersDialog = () => {
 }
 
 // Обработчик завершения ночи/лучшего хода (вызывается из диалогов)
-const handleNightActionDialog = () => {
+const handleNightActionDialog = async () => {
   console.log('Night action dialog completed', phaseData.value)
   // Показываем кнопку "Следующий круг"
   nextRoundButtonVisible.value = true
   // Никаких голосований перед ночью
   handleVotingCompleted()
+
+  // Синхронизируем данные круга и узнаём у сервера, не завершилась ли игра:
+  // данные голосования/ночи живут только в phaseData до этого PUT
+  try {
+    await apiService.updateGamePhase(props.gameId, phaseData.value)
+    const gameState = await apiService.getGameState(props.gameId)
+    gameFinished.value = FINISHED_GAME_RESULTS.includes(gameState.result)
+  } catch (error) {
+    console.error('Failed to check game state after round:', error)
+    gameFinished.value = false
+  }
 }
 
 // Обработчик принятия ППК
@@ -358,6 +373,14 @@ const handleNextRound = async () => {
   try {
     // Обновляем данные фазы на сервере через PUT
     await apiService.updateGamePhase(props.gameId, phaseData.value)
+
+    // Игра могла завершиться раньше или по итогам этого круга —
+    // проверяем результат до создания новой фазы
+    const gameState = await apiService.getGameState(props.gameId)
+    if (FINISHED_GAME_RESULTS.includes(gameState.result)) {
+      router.push(`/game/${props.gameId}/results`)
+      return
+    }
 
     // Создаем новую пустую фазу для следующего круга
     await apiService.createGamePhase(props.gameId, {})
@@ -456,7 +479,7 @@ const loadGameData = async () => {
     const gameState = await apiService.getGameState(props.gameId)
 
     // Проверяем, завершена ли игра
-    if (['mafia_win', 'civilians_win', 'draw'].includes(gameState.result)) {
+    if (FINISHED_GAME_RESULTS.includes(gameState.result)) {
       // Перенаправляем на страницу результатов
       router.push(`/game/${props.gameId}/results`)
       return
@@ -489,6 +512,7 @@ const resetComponent = async () => {
   nominatedPlayers.value = []
   votingCompleted.value = false
   nextRoundButtonVisible.value = false
+  gameFinished.value = false
 
   // Сбрасываем phaseData
   phaseData.value = {
