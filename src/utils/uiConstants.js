@@ -54,8 +54,7 @@ export const UI_MESSAGES = {
     VOTE_RECORDED: 'Голос учтен',
     ACTION_COMPLETED: 'Действие выполнено',
     PLAYER_ELIMINATED: 'Игрок удален',
-    FOUL_ADDED: 'Фол добавлен',
-    
+
     // События
     EVENT_CREATED: 'Мероприятие создано',
     EVENT_UPDATED: 'Мероприятие обновлено',
@@ -71,9 +70,7 @@ export const UI_MESSAGES = {
     
     // Игроки
     ELIMINATE_PLAYER: 'Удалить игрока {name} из игры?',
-    ADD_FOUL: 'Добавить фол игроку {name}?',
-    REMOVE_FOUL: 'Снять фол с игрока {name}?',
-    
+
     // Действия
     CONFIRM_VOTE: 'Подтвердить голосование?',
     CONFIRM_KILL: 'Подтвердить убийство игрока {name}?',
@@ -89,7 +86,6 @@ export const UI_MESSAGES = {
   // Предупреждения
   WARNINGS: {
     UNSAVED_CHANGES: 'Есть несохраненные изменения',
-    FOUL_LIMIT: 'У игрока {name} максимальное количество фолов',
     CRITICAL_ROUNDS: 'Включен режим критических раундов',
     LOW_TIME: 'Осталось мало времени',
     NO_CANDIDATES: 'Нет кандидатов на выбывание'
@@ -140,15 +136,6 @@ export const COLORS = {
     DRAW: '#e6a23c',        // Ничья
     IN_PROGRESS: '#409eff', // В процессе
     CANCELLED: '#909399'    // Отменена
-  },
-  
-  // Цвета фолов
-  FOULS: {
-    0: '#67c23a',           // Нет фолов
-    1: '#e6a23c',           // 1 фол
-    2: '#ff9800',           // 2 фола
-    3: '#f56c6c',           // 3 фола
-    4: '#d32f2f'            // 4 фола
   },
   
   // UI цвета
@@ -215,7 +202,6 @@ export const TEXT_TEMPLATES = {
   // Игроки
   PLAYER_NUMBER: 'Игрок №{number}',
   PLAYER_ROLE: '{name} - {role}',
-  PLAYER_FOULS: 'Фолы: {count}',
   
   // Голосование
   VOTE_COUNT: 'Голосов: {count}',
@@ -246,7 +232,6 @@ export const PLACEHOLDERS = {
   // Комментарии
   COMMENT: 'Добавить комментарий...',
   SCORE_COMMENT: 'Комментарий к баллам (например: "Лучший ход в 3-м раунде")',
-  FOUL_REASON: 'Причина фола...',
   
   // События
   EVENT_NAME: 'Название мероприятия',

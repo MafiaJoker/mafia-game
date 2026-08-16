@@ -14,12 +14,6 @@ export const PLAYER_ROLES = {
     DON: 'Дон'
 }
 
-// Максимальные фолы
-export const MAX_FOULS = {
-    BEFORE_SILENCE: 3,
-    BEFORE_ELIMINATION: 4
-}
-
 // Статусы игры
 export const GAME_STATUSES = {
     CREATED: 'created',
