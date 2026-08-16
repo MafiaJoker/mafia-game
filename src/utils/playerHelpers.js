@@ -15,15 +15,9 @@ export const isPlayerAlive = (player) => {
   return player.status === 'alive' && !player.isEliminated && !player.isDead
 }
 
-// Проверка, может ли игрок говорить
-export const canPlayerSpeak = (player) => {
-  if (!player) return false
-  return isPlayerAlive(player) && player.fouls < GAME_RULES.FOULS.SILENCE_THRESHOLD
-}
-
 // Проверка, может ли игрок голосовать
 export const canPlayerVote = (player) => {
-  return canPlayerSpeak(player) // Те же условия, что и для речи
+  return isPlayerAlive(player)
 }
 
 // Получение отображаемого имени игрока
@@ -56,32 +50,14 @@ export const isPlayerCivilian = (player) => {
   return getPlayerTeam(role) === 'red'
 }
 
-// Получение количества фолов игрока
-export const getPlayerFouls = (player) => {
-  return player?.fouls || 0
-}
-
-// Проверка, удален ли игрок за фолы
-export const isPlayerEliminatedByFouls = (player) => {
-  return getPlayerFouls(player) >= GAME_RULES.FOULS.ELIMINATION_THRESHOLD
-}
-
-// Проверка, лишен ли игрок права голоса
-export const isPlayerSilenced = (player) => {
-  const fouls = getPlayerFouls(player)
-  return fouls >= GAME_RULES.FOULS.SILENCE_THRESHOLD && 
-         fouls < GAME_RULES.FOULS.ELIMINATION_THRESHOLD
-}
-
 // Получение статуса игрока
 export const getPlayerStatus = (player) => {
   if (!player) return 'unknown'
-  
+
   if (player.isDead) return 'dead'
-  if (player.isEliminated || isPlayerEliminatedByFouls(player)) return 'eliminated'
-  if (isPlayerSilenced(player)) return 'silenced'
+  if (player.isEliminated) return 'eliminated'
   if (player.status === 'alive') return 'alive'
-  
+
   return player.status || 'unknown'
 }
 

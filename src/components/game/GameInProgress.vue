@@ -10,7 +10,7 @@
           </div>
           <div class="header-right">
             <el-button
-              v-if="nextRoundButtonVisible"
+              v-if="nextRoundButtonVisible || gameFinished"
               type="primary"
               size="default"
               @click="handleNextRound"
@@ -41,20 +41,18 @@
       <GameTable :data="playersData" :row-class-name="getRowClassName">
         <el-table-column
           label="Фолы"
-          width="80"
+          width="120"
           align="center"
         >
           <template #default="{ row }">
-            <div
-              class="fouls-badge"
-              :class="{
-                'is-disabled': !row.is_in_game,
-                'is-warning': getCurrentFouls(row) > 2,
-              }"
-              @click.stop="handleFoulsClick(row)"
-            >
-              {{ getCurrentFouls(row) }}
-            </div>
+            <FoulBadges
+              :game-id="gameId"
+              :player="row"
+              :foul-types="foulTypes"
+              :fouls-summary="phaseData.fouls_summary"
+              @update:fouls-summary="phaseData.fouls_summary = $event"
+              @saved="refreshPlayersInGame"
+            />
           </template>
         </el-table-column>
 
@@ -75,9 +73,9 @@
           align="center"
         >
           <template #default="{ row }">
-            <div v-if="votingCompleted || (phaseData.removed_box_ids && phaseData.removed_box_ids.length > 0)">
+            <div v-if="votingCompleted || removedThisPhase">
               <span
-                v-if="phaseData.voted_box_ids.includes(row.box_id) || (phaseData.removed_box_ids && phaseData.removed_box_ids.includes(row.box_id))"
+                v-if="phaseData.voted_box_ids.includes(row.box_id) || phaseData.removed_box_ids.includes(row.box_id) || leftByFouls(row)"
                 class="left-game"
               >
                 покинул игру
@@ -117,9 +115,11 @@
       :nominated-players="nominatedPlayers"
       :players-data="playersData"
       :phase-data="phaseData"
+      :foul-types="foulTypes"
       @update:phase-data="phaseData = $event"
       @update:nominated-players="nominatedPlayers = $event"
       @voting-completed="handleVotingCompleted"
+      @fouls-saved="refreshPlayersInGame"
     />
 
     <NightActionsDialog
@@ -165,6 +165,7 @@ import { User, Close, Moon } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import GameTable from './GameTable.vue'
 import RoleColumn from './RoleColumn.vue'
+import FoulBadges from './FoulBadges.vue'
 import VotingDialog from './dialogs/VotingDialog.vue'
 import NightActionsDialog from './dialogs/NightActionsDialog.vue'
 import BestMoveDialog from './dialogs/BestMoveDialog.vue'
@@ -187,6 +188,9 @@ const emit = defineEmits(['round-completed'])
 const playersData = ref([])
 const phaseId = ref(null)
 const gameStatus = ref(null)
+
+// Типы фолов системы правил игры: [{ foul_type, removal_threshold }]
+const foulTypes = ref([{ foul_type: 'regular', removal_threshold: 4 }])
 
 // Массив для хранения box_id номинированных игроков в порядке выставления
 const nominatedPlayers = ref([])
@@ -242,10 +246,19 @@ const displayPhase = computed(() => {
   return phaseId.value
 })
 
+// Игрок выбыл по фолам в текущем круге: в снимке начала круга был в игре,
+// а после перечитывания состояния с сервера — уже нет
+const leftByFouls = (row) => row.was_in_game && !row.is_in_game
+
+// Есть ли выбывшие в текущем круге (ручное удаление или удаление по фолам)
+const removedThisPhase = computed(() => {
+  return phaseData.value.removed_box_ids.length > 0 || playersData.value.some(leftByFouls)
+})
+
 // Определяем, показывать ли кнопку "Начать голосование" или "Ночь"
 const showVotingButton = computed(() => {
   // Если есть удаленные игроки, не показываем кнопку голосования
-  if (phaseData.value.removed_box_ids && phaseData.value.removed_box_ids.length > 0) {
+  if (removedThisPhase.value) {
     return false
   }
   // Если phaseId == 1 и только один номинированный игрок - кнопка не показывается
@@ -396,81 +409,28 @@ const handleNextRound = async () => {
   }
 }
 
-// Получает текущее количество фолов для игрока
-const getCurrentFouls = (row) => {
-  // Ищем фолы в phaseData.fouls_summary
-  const foulEntry = phaseData.value.fouls_summary.find(f => f.box_id === row.box_id)
-  if (foulEntry) {
-    // Текущие фолы = исходные фолы + добавленные в этой фазе
-    return (row.fouls || 0) + foulEntry.count_fouls
-  }
-  return row.fouls || 0
-}
-
-// Обработчик клика по бейджу фолов
-const handleFoulsClick = async (row) => {
-  // Если игрок не в игре, ничего не делаем
-  if (!row.is_in_game) return
-
-  const currentFouls = getCurrentFouls(row)
-  const initialFouls = row.fouls || 0
-
-  // Вычисляем новое значение
-  let newTotalFouls
-  if (currentFouls === 4) {
-    // Если 4, сбрасываем на исходное значение
-    newTotalFouls = initialFouls
-  } else {
-    // Иначе увеличиваем до 4
-    newTotalFouls = currentFouls + 1
-  }
-
-  // Вычисляем count_fouls для phaseData.fouls_summary
-  const countFouls = newTotalFouls - initialFouls
-
-  // Обновляем или добавляем запись в fouls_summary
-  const existingIndex = phaseData.value.fouls_summary.findIndex(f => f.box_id === row.box_id)
-
-  if (countFouls === 0) {
-    // Если count_fouls равен 0, удаляем запись
-    if (existingIndex !== -1) {
-      phaseData.value.fouls_summary.splice(existingIndex, 1)
-    }
-  } else {
-    const foulEntry = {
-      box_id: row.box_id,
-      count_fouls: countFouls
-    }
-
-    if (existingIndex !== -1) {
-      // Обновляем существующую запись
-      phaseData.value.fouls_summary[existingIndex] = foulEntry
-    } else {
-      // Добавляем новую запись
-      phaseData.value.fouls_summary.push(foulEntry)
-    }
-  }
-
-  // Если игрок получил 4 фола, добавляем его в removed_box_ids
-  if (newTotalFouls === 4) {
-    if (!phaseData.value.removed_box_ids.includes(row.box_id)) {
-      phaseData.value.removed_box_ids.push(row.box_id)
-    }
-  } else {
-    // Если фолов меньше 4, удаляем из removed_box_ids
-    const removedIndex = phaseData.value.removed_box_ids.indexOf(row.box_id)
-    if (removedIndex !== -1) {
-      phaseData.value.removed_box_ids.splice(removedIndex, 1)
-    }
-  }
-
-  // Отправляем обновленные фолы на сервер
+// Удаление за фолы считает сервер: после сохранения фолов перечитываем
+// состояние игры и применяем is_in_game (фолы не трогаем — на клиенте они
+// равны снимку начала круга + дельте текущей фазы)
+let refreshSeq = 0
+const refreshPlayersInGame = async () => {
+  const seq = ++refreshSeq
   try {
-    await apiService.patchGamePhase(props.gameId, {
-      fouls_summary: [...phaseData.value.fouls_summary]
+    const gameState = await apiService.getGameState(props.gameId)
+    // Применяем только ответ последнего запроса
+    if (seq !== refreshSeq) return
+
+    const inGameByBox = new Map(gameState.players.map(p => [p.box_id, p.is_in_game]))
+    playersData.value.forEach(player => {
+      if (inGameByBox.has(player.box_id)) {
+        player.is_in_game = inGameByBox.get(player.box_id)
+      }
     })
+
+    // Удаление по фолам могло завершить игру (или откат фола — «раззавершить»)
+    gameFinished.value = FINISHED_GAME_RESULTS.includes(gameState.result)
   } catch (error) {
-    console.error('Failed to patch fouls_summary:', error)
+    console.error('Failed to refresh game state after fouls update:', error)
   }
 }
 
@@ -489,16 +449,27 @@ const loadGameData = async () => {
     phaseId.value = gameState.phase_id
     gameStatus.value = gameState.result
 
+    // Типы фолов и пороги удаления — из системы правил игры
+    if (gameState.rule_system?.removal_thresholds?.length) {
+      foulTypes.value = gameState.rule_system.removal_thresholds
+    }
+
     // Преобразуем данные игроков в формат для таблицы
     if (gameState.players && Array.isArray(gameState.players)) {
-      playersData.value = gameState.players.map(player => ({
-        id: player.id,
-        nickname: player.nickname,
-        box_id: player.box_id,
-        role: player.role || GameRolesEnum.civilian,
-        fouls: player.fouls || 0,
-        is_in_game: player.is_in_game !== undefined ? player.is_in_game : true
-      }))
+      playersData.value = gameState.players.map(player => {
+        const isInGame = player.is_in_game !== undefined ? player.is_in_game : true
+        return {
+          id: player.id,
+          nickname: player.nickname,
+          box_id: player.box_id,
+          role: player.role || GameRolesEnum.civilian,
+          // Снимок фолов по типам на начало круга: [{ type, count }]
+          fouls: player.fouls || [],
+          is_in_game: isInGame,
+          // Снимок для определения выбывших в текущем круге
+          was_in_game: isInGame
+        }
+      })
     }
   } catch (error) {
     console.error('Failed to load game state:', error)
@@ -579,44 +550,6 @@ defineExpose({
   font-weight: normal;
 }
 
-.fouls-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 8px;
-  background-color: #409eff;
-  color: white;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-  user-select: none;
-  position: relative;
-  z-index: 9999;
-}
-
-.fouls-badge:hover:not(.is-disabled) {
-  transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.4);
-}
-
-.fouls-badge.is-warning {
-  background-color: #e6a23c;
-}
-
-.fouls-badge.is-warning:hover {
-  box-shadow: 0 2px 8px rgba(230, 162, 60, 0.4);
-}
-
-.fouls-badge.is-disabled {
-  background-color: #dcdfe6;
-  color: #909399;
-  cursor: not-allowed;
-}
-
 :deep(.el-table .el-table__row) {
   height: 48px;
 }
@@ -628,6 +561,11 @@ defineExpose({
 :deep(.inactive-player) {
   opacity: 0.5;
   pointer-events: none;
+}
+
+/* Бейджи фолов кликабельны и у выбывшего — для отката фолов текущей фазы */
+:deep(.inactive-player .foul-badges) {
+  pointer-events: auto;
 }
 
 :deep(.inactive-player td) {

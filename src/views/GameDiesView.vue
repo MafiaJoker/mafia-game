@@ -92,7 +92,12 @@
             <span class="player-nickname" v-fit-text>{{ player.nickname }}</span>
             <span class="player-status">
               <template v-if="player.is_in_game">
-                <span v-if="player.fouls > 0" class="fouls">{{ '!'.repeat(player.fouls) }}</span>
+                <span
+                  v-for="foul in playerFouls(player)"
+                  :key="foul.type"
+                  class="fouls"
+                  :class="'fouls-' + foul.type"
+                >{{ foulMarks(foul) }}</span>
               </template>
               <template v-else>
                 <img
@@ -306,6 +311,17 @@ const roleComponentMap = {
 
 const roleIconComponent = (role) => {
   return roleComponentMap[role] || IconCivilian
+}
+
+// Фолы игрока по типам (только ненулевые): [{ type, count }]
+const playerFouls = (player) => {
+  return (player.fouls || []).filter(f => f.count > 0)
+}
+
+// Обычные фолы — «!», прочие типы — первая буква названия (t для tech)
+const foulMarks = (foul) => {
+  const mark = foul.type === 'regular' ? '!' : foul.type[0]
+  return mark.repeat(foul.count)
 }
 
 const leaveReasonIcons = {
@@ -641,6 +657,14 @@ html:has(.dies-overlay) #app {
 .fouls {
   color: #ff5252;
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+}
+
+.fouls-tech {
+  color: #b37feb;
+}
+
+.fouls + .fouls {
+  margin-left: 4px;
 }
 
 .leave-icon-img {

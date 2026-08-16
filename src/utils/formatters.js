@@ -132,12 +132,6 @@ export const formatVoteCount = (count) => {
   return `${count} ${voteWord}`
 }
 
-// Форматирование количества фолов
-export const formatFoulCount = (count) => {
-  const foulWord = pluralize(count, ['фол', 'фола', 'фолов'])
-  return `${count} ${foulWord}`
-}
-
 // Форматирование списка имен
 export const formatNamesList = (names, maxVisible = 3) => {
   if (!Array.isArray(names) || names.length === 0) return ''

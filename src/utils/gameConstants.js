@@ -17,15 +17,6 @@ export const GAME_RULES = {
     SHERIFF: 1
   },
   
-  // Правила фолов
-  FOULS: {
-    WARNING_THRESHOLD: 2,      // После 2 фолов - предупреждение
-    SILENCE_THRESHOLD: 3,      // После 3 фолов - лишение права голоса
-    ELIMINATION_THRESHOLD: 4,  // После 4 фолов - удаление из игры
-    MAX_ALLOWED: 4,           // Максимальное количество фолов
-    TECHNICAL_DEFEAT: 5       // Техническое поражение команды
-  },
-  
   // Раунды и фазы
   ROUNDS: {
     CRITICAL_ROUNDS_LIMIT: 3,    // После 3 раундов без выбывших - критические раунды
@@ -147,17 +138,6 @@ export const PLAYER_ACTIONS = {
   CHECK: 'check',
   BEST_MOVE: 'best_move',
   PASS: 'pass'
-}
-
-// Типы фолов
-export const FOUL_TYPES = {
-  SPEAKING_OUT_OF_TURN: 'speaking_out_of_turn',
-  GESTURES: 'gestures',
-  REVEALING_ROLE: 'revealing_role',
-  SWEARING: 'swearing',
-  DELAY_OF_GAME: 'delay_of_game',
-  TOUCHING_PLAYERS: 'touching_players',
-  OTHER: 'other'
 }
 
 // Результаты проверок

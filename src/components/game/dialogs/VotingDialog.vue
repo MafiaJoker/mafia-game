@@ -10,7 +10,9 @@
         :game-id="props.gameId"
         :players-data="props.playersData"
         :phase-data="props.phaseData"
+        :foul-types="props.foulTypes"
         @update:phase-data="emit('update:phaseData', $event)"
+        @saved="emit('fouls-saved')"
       />
 
       <el-divider />
@@ -134,10 +136,14 @@ const props = defineProps({
   phaseData: {
     type: Object,
     default: () => ({})
+  },
+  foulTypes: {
+    type: Array,
+    default: () => []
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'update:phaseData', 'update:nominatedPlayers', 'voting-completed'])
+const emit = defineEmits(['update:modelValue', 'update:phaseData', 'update:nominatedPlayers', 'voting-completed', 'fouls-saved'])
 
 const votes = reactive({})
 const votingRound = ref(1)
