@@ -235,20 +235,27 @@ const phaseData = ref({
   best_move: []
 })
 
-// Вычисляем отображаемую фазу дня
-const displayPhase = computed(() => {
-  if (phaseId.value === null) return null
+// PATCH затирает всё, что пришло в теле, а после перезагрузки страницы
+// phaseData пуст при уже сохранённом круге. Поэтому отправляем только
+// заполненное: отсутствие поля означает «не трогай», а не «обнули».
+// Обратная сторона — переигранный после перезагрузки круг не умеет снимать
+// отстрел: круг не читается с сервера (MafiaJoker/backend#183)
+const savePhaseData = async () => {
+  const filled = Object.fromEntries(
+    Object.entries(phaseData.value).filter(([, value]) => (
+      Array.isArray(value) ? value.length > 0 : value !== null
+    ))
+  )
 
-  if (phaseId.value === 1 && gameStatus.value === 'roles_assigned') {
-    return 1
-  }
+  // Круг, в котором ничего не произошло: сохранять нечего
+  if (Object.keys(filled).length === 0) return
 
-  if (gameStatus.value === 'in_progress') {
-    return phaseId.value + 1
-  }
+  await apiService.patchGamePhase(props.gameId, filled)
+}
 
-  return phaseId.value
-})
+// Номер дня — это номер круга с сервера: фазу текущего круга создаёт
+// «Следующий круг», а не открытие страницы, поэтому прибавлять к ней нечего
+const displayPhase = computed(() => phaseId.value)
 
 // Игрок выбыл по фолам в текущем круге: в снимке начала круга был в игре,
 // а после перечитывания состояния с сервера — уже нет
@@ -265,8 +272,9 @@ const showVotingButton = computed(() => {
   if (removedThisPhase.value) {
     return false
   }
-  // Если phaseId == 1 и только один номинированный игрок - кнопка не показывается
-  if (phaseId.value === 1 && nominatedPlayers.value.length === 1 && gameStatus.value === 'roles_assigned') {
+  // Первый день с единственным выставленным: по правилам голосования нет.
+  // Круг считаем по phase_id — статус после перезагрузки уже in_progress
+  if (phaseId.value === 1 && nominatedPlayers.value.length === 1) {
     return false
   }
   return !votingCompleted.value && nominatedPlayers.value.length > 0
@@ -323,8 +331,9 @@ const removeNomination = async (boxId) => {
 
 // Открывает модальное окно голосования
 const openVotingDialog = () => {
-  // in_progress означается любую фазу от 1 и выше когда нам нужно голосовать сразу
-  if (gameStatus.value === 'in_progress' && nominatedPlayers.value.length === 1 ) {
+  // Со второго дня единственный выставленный уходит без голосования.
+  // Статус тут не годится: после перезагрузки он in_progress и в первом дне
+  if (phaseId.value > 1 && nominatedPlayers.value.length === 1) {
     const votedPlayerId = nominatedPlayers.value[0]
     phaseData.value.voted_box_ids.push(votedPlayerId)
     votingCompleted.value = true
@@ -365,7 +374,7 @@ const handleNightActionDialog = async () => {
   // Синхронизируем данные круга и узнаём у сервера, не завершилась ли игра:
   // данные голосования/ночи живут только в phaseData до этого PATCH
   try {
-    await apiService.patchGamePhase(props.gameId, phaseData.value)
+    await savePhaseData()
     const gameState = await apiService.getGameState(props.gameId)
     gameFinished.value = FINISHED_GAME_RESULTS.includes(gameState.result)
   } catch (error) {
@@ -390,7 +399,7 @@ const handleNextRound = async () => {
   try {
     // Обновляем данные фазы на сервере: PATCH меняет только переданные поля
     // и не трогает фолы, разложенные по кругам сервером
-    await apiService.patchGamePhase(props.gameId, phaseData.value)
+    await savePhaseData()
 
     // Игра могла завершиться раньше или по итогам этого круга —
     // проверяем результат до создания новой фазы
@@ -516,7 +525,12 @@ const resetComponent = async () => {
 
 onMounted(async () => {
   await loadGameData()
-  // Создаем пустую фазу при открытии страницы
+  // Первый круг создаём только на старте игры: сервер отдаёт roles_assigned
+  // ровно тогда, когда фаз ещё нет (app/game/models.py: get_game_result).
+  // Иначе каждое открытие страницы дописывает игре пустой круг, а три пустых
+  // круга подряд — это ничья
+  if (gameStatus.value !== 'roles_assigned') return
+
   try {
     await apiService.createGamePhase(props.gameId, {})
   } catch (error) {
