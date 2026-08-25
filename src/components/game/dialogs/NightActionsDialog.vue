@@ -105,7 +105,7 @@
         type="primary"
         @click="handleNextRound"
       >
-        {{ phaseId === 1 ? 'Лучший ход' : 'Продолжить' }}
+        Продолжить
       </el-button>
     </template>
   </el-dialog>
@@ -158,6 +158,13 @@ const setKilledPlayer = (boxId) => {
     ...props.phaseData,
     killed_box_id: boxId
   }
+
+  // Промах после выбранной жертвы: ЛХ выдаётся только первому отстрелянному,
+  // без отстрела бек его в рейтинг не берёт
+  if (boxId === null) {
+    updatedPhaseData.best_move = []
+  }
+
   emit('update:phaseData', updatedPhaseData)
 }
 
@@ -222,10 +229,15 @@ const setSheriffCheck = (boxId) => {
   }
 }
 
+// Лучший ход спрашиваем только за первый отстрел
+const bestMoveRequired = computed(() => {
+  return props.phaseId === 1 && props.phaseData.killed_box_id != null
+})
+
 // Обработчик "Следующий круг" или "Лучший ход"
 const handleNextRound = () => {
-  if (props.phaseId === 1) {
-    // Если первый день, показываем модальное окно лучшего хода
+  if (bestMoveRequired.value) {
+    // Первая ночь с отстрелом — показываем модальное окно лучшего хода
     emit('show-best-move')
   } else {
     // Иначе переходим к следующему кругу
