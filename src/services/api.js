@@ -296,11 +296,6 @@ export const apiService = {
     },
 
     // Game Phases (v1 API - individual phases)
-    async updateGamePhase(gameId, phaseData) {
-	const response = await api.put(`/games/${gameId}/phases`, phaseData)
-	return response.data
-    },
-
     async patchGamePhase(gameId, phaseData) {
 	const response = await api.patch(`/games/${gameId}/phases`, phaseData)
 	return response.data
