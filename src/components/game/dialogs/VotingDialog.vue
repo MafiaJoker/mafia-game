@@ -10,6 +10,7 @@
         :game-id="props.gameId"
         :players-data="props.playersData"
         :foul-types="props.foulTypes"
+        :pending-fouls="props.pendingFouls"
         @saved="emit('fouls-saved', $event)"
       />
 
@@ -138,6 +139,10 @@ const props = defineProps({
   foulTypes: {
     type: Array,
     default: () => []
+  },
+  pendingFouls: {
+    type: Object,
+    required: true
   }
 })
 

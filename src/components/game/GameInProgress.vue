@@ -49,6 +49,7 @@
               :game-id="gameId"
               :player="row"
               :foul-types="foulTypes"
+              :pending-fouls="pendingFouls"
               @saved="applyGameState"
             />
           </template>
@@ -114,6 +115,7 @@
       :players-data="playersData"
       :phase-data="phaseData"
       :foul-types="foulTypes"
+      :pending-fouls="pendingFouls"
       @update:phase-data="phaseData = $event"
       @update:nominated-players="nominatedPlayers = $event"
       @voting-completed="handleVotingCompleted"
@@ -162,6 +164,7 @@ import { useRouter } from 'vue-router'
 import { User, Close, Moon } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import GameTable from './GameTable.vue'
+import { createPendingFouls } from '@/utils/pendingFouls.js'
 import RoleColumn from './RoleColumn.vue'
 import FoulBadges from './FoulBadges.vue'
 import VotingDialog from './dialogs/VotingDialog.vue'
@@ -216,6 +219,10 @@ const nextRoundButtonVisible = ref(false)
 
 // Игра уже завершена по данным сервера — кнопка превращается в «Завершить игру»
 const gameFinished = ref(false)
+
+// Отправленные, но не подтверждённые сервером фолы — общие для бейджей
+// таблицы и панели фолов диалога голосования: одного игрока рендерят оба
+const pendingFouls = createPendingFouls()
 
 // Объект для формирования данных фазы игры
 const phaseData = ref({
@@ -479,6 +486,7 @@ const loadGameData = async () => {
 // Полная перезагрузка компонента
 const resetComponent = async () => {
   // Сбрасываем все состояния к начальным значениям
+  pendingFouls.clear()
   nominatedPlayers.value = []
   votingCompleted.value = false
   nextRoundButtonVisible.value = false

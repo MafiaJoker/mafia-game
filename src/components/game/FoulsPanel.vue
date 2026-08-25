@@ -13,6 +13,7 @@
           :game-id="gameId"
           :player="player"
           :foul-types="foulTypes"
+          :pending-fouls="pendingFouls"
           @saved="emit('saved', $event)"
         />
       </div>
@@ -34,6 +35,10 @@ defineProps({
   },
   foulTypes: {
     type: Array,
+    required: true
+  },
+  pendingFouls: {
+    type: Object,
     required: true
   }
 })
