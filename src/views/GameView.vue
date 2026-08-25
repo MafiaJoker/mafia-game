@@ -40,8 +40,7 @@
             :game-id="props.id"
             v-model:roles-data="rolesData"
             :is-free-seat-phase="isFreeSeatPhase"
-            @negotiation-started="showTimer = true; isNegotiationStarted = true"
-            @negotiation-ended="showTimer = false; isNegotiationStarted = false; isFreeSeatPhase = false"
+            @negotiation-started="isNegotiationStarted = true"
             @game-started="handleGameStarted"
           />
 
@@ -91,7 +90,6 @@ const props = defineProps({
 const router = useRouter()
 const loading = ref(false)
 const gameData = ref(null)
-const showTimer = ref(false)
 const isNegotiationStarted = ref(false)
 const isFreeSeatPhase = ref(false)
 const rolesData = ref([])
@@ -102,8 +100,6 @@ const timerReset = ref(0) // Счетчик для сброса таймера
 const currentPhaseTemplate = computed(() => {
   // Если событие game-started было заэмичено, показываем игру
   if (gameStartedEventEmitted.value) {
-    showTimer.value = true
-    isNegotiationStarted.value = false
     return 'GameInProgress'
   }
 
@@ -111,8 +107,6 @@ const currentPhaseTemplate = computed(() => {
   switch (gameData.value?.result) {
     case 'in_progress':
     case 'roles_assigned':
-      showTimer.value = true
-      isNegotiationStarted.value = false
       return 'GameInProgress'
 
     case 'seating_ready':
@@ -126,6 +120,10 @@ const currentPhaseTemplate = computed(() => {
   }
 })
 
+const showTimer = computed(() =>
+  currentPhaseTemplate.value === 'GameInProgress' || isNegotiationStarted.value
+)
+
 const handlePhaseChanged = (phase) => {
   if (phase === COUNTDOWN_PHASES.FREE_SEATING) {
     isFreeSeatPhase.value = true
@@ -134,6 +132,8 @@ const handlePhaseChanged = (phase) => {
 
 const handleGameStarted = () => {
   gameStartedEventEmitted.value = true
+  // Договорка кончилась - таймер уходит в прямой отсчет
+  isNegotiationStarted.value = false
 }
 
 const handleRoundCompleted = () => {

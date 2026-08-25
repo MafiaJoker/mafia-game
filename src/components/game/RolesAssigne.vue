@@ -1,6 +1,5 @@
 <template>
   <div class="roles-assigne">
-    <!-- Показываем раздачу ролей если договорка еще не началась -->
     <el-card>
     <template #header>
       <div class="card-header">
@@ -20,13 +19,6 @@
           </template>
           <template v-else>
             <el-button
-              type="danger"
-              @click="handleBackToRoles"
-              :loading="loading"
-            >
-              Вернуться к раздаче
-            </el-button>
-            <el-button
               type="primary"
               @click="handleStartGame"
               :loading="loading"
@@ -40,8 +32,8 @@
 
     <GameTable :data="props.rolesData">
       <RoleColumn
-        :clickable="!isNegotiationStarted"
-        :is-default-hidden="isDefaultRolesHidden"
+        :clickable="true"
+        :is-default-hidden="isNegotiationStarted"
         @role-click="cycleRole"
       />
 
@@ -91,12 +83,11 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['negotiation-started', 'negotiation-ended', 'game-started', 'update:rolesData'])
+const emit = defineEmits(['negotiation-started', 'game-started', 'update:rolesData'])
 const loading = ref(false)
 const errorMessage = ref('')
 const isNegotiationStarted = ref(false)
 const isLabelHighlighted = ref(false)
-const isDefaultRolesHidden = ref(false)
 
 const headerLabel = computed(() => {
   if (!isNegotiationStarted.value) {
@@ -125,11 +116,6 @@ const rolesCycle = [
 ]
 
 const cycleRole = (player) => {
-  // Блокируем изменение ролей во время договорки
-  if (isNegotiationStarted.value) {
-    return
-  }
-
   const currentIndex = rolesCycle.indexOf(player.role)
   let nextIndex = (currentIndex + 1) % rolesCycle.length
   let nextRole = rolesCycle[nextIndex]
@@ -175,6 +161,9 @@ const cycleRole = (player) => {
 }
 
 const updatePlayerRole = (playerId, newRole) => {
+  // Судья правит расклад - прошлая ошибка больше не актуальна
+  errorMessage.value = ''
+
   // Создаем новый массив с обновленной ролью игрока
   const updatedData = props.rolesData.map(player =>
     player.id === playerId
@@ -185,40 +174,39 @@ const updatePlayerRole = (playerId, newRole) => {
   emit('update:rolesData', updatedData)
 }
 
-const handleStartNegotiation = async () => {
-  // Очищаем предыдущую ошибку
-  errorMessage.value = ''
-
+// Расклад проверяем только перед стартом игры - договорку можно вести с любым
+const hasValidRoles = () => {
   // Подсчитываем количество каждой роли
   const roleCount = props.rolesData.reduce((acc, player) => {
     acc[player.role] = (acc[player.role] || 0) + 1
     return acc
   }, {})
 
-  // Проверяем правильность распределения ролей
   const donCount = roleCount[GameRolesEnum.don] || 0
   const sheriffCount = roleCount[GameRolesEnum.sheriff] || 0
   const mafiaCount = roleCount[GameRolesEnum.mafia] || 0
 
-  if (donCount !== 1 || sheriffCount !== 1 || mafiaCount !== 2) {
-    errorMessage.value = GAME_ERROR_MESSAGES.INVALID_ROLES
-    return
-  }
-
-  isNegotiationStarted.value = true
-  isDefaultRolesHidden.value = true
-  emit('negotiation-started')
+  return donCount === 1 && sheriffCount === 1 && mafiaCount === 2
 }
 
-const handleBackToRoles = () => {
-  isNegotiationStarted.value = false
-  isDefaultRolesHidden.value = false
-  emit('negotiation-ended')
+const handleStartNegotiation = () => {
+  // Очищаем предыдущую ошибку
+  errorMessage.value = ''
+
+  // Роли прячем, чтобы их не видели игроки - глазок в шапке колонки открывает обратно
+  isNegotiationStarted.value = true
+  emit('negotiation-started')
 }
 
 const handleStartGame = async () => {
   // Очищаем предыдущую ошибку
   errorMessage.value = ''
+
+  if (!hasValidRoles()) {
+    errorMessage.value = GAME_ERROR_MESSAGES.INVALID_ROLES
+    return
+  }
+
   loading.value = true
 
   try {
