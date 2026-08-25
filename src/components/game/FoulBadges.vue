@@ -25,7 +25,6 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { apiService } from '@/services/api.js'
 
@@ -43,16 +42,15 @@ const props = defineProps({
   foulTypes: {
     type: Array,
     required: true
+  },
+  // Общее на все бейджи хранилище отправленных фолов (createPendingFouls)
+  pendingFouls: {
+    type: Object,
+    required: true
   }
 })
 
 const emit = defineEmits(['saved'])
-
-// Отправленные, но ещё не подтверждённые сервером значения: type -> count
-const pendingFouls = reactive({})
-// Номер последнего запроса по типу фола: ответы более ранних запросов устарели
-const lastRequests = {}
-let requestSeq = 0
 
 // Фолы игрока за игру из состояния игры
 const getSavedFouls = (type) => {
@@ -60,7 +58,7 @@ const getSavedFouls = (type) => {
 }
 
 const getCurrentFouls = (type) => {
-  return pendingFouls[type] ?? getSavedFouls(type)
+  return props.pendingFouls.get(props.player.box_id, type) ?? getSavedFouls(type)
 }
 
 // Выбывшему по фолам оставляем возможность откатить фолы
@@ -79,11 +77,10 @@ const handleClick = async (foulType) => {
   // Карусель по итогу за игру: 0 → 1 → … → порог → 0
   const count = (getCurrentFouls(type) + 1) % (foulType.removal_threshold + 1)
 
-  // Показываем новое значение сразу, чтобы следующий клик считался от него,
-  // не дожидаясь ответа сервера
-  pendingFouls[type] = count
-  const seq = ++requestSeq
-  lastRequests[type] = seq
+  // Показываем новое значение сразу, чтобы следующий клик — по этому бейджу
+  // или по второму бейджу того же игрока — считался от него, не дожидаясь
+  // ответа сервера
+  const request = props.pendingFouls.send(props.player.box_id, type, count)
 
   // Отправляем итоговое количество фолов на сервер
   try {
@@ -91,14 +88,14 @@ const handleClick = async (foulType) => {
       { box_id: props.player.box_id, type, count }
     ])
     // Состояние игры применяет только последний запрос по этому типу фола
-    if (lastRequests[type] !== seq) return
+    if (request.isStale()) return
     emit('saved', gameState)
-    delete pendingFouls[type]
+    request.settle()
   } catch (error) {
     console.error('Failed to update fouls:', error)
-    if (lastRequests[type] !== seq) return
+    if (request.isStale()) return
     // Возвращаем сохранённое значение: сервер фолы не изменил
-    delete pendingFouls[type]
+    request.settle()
     ElMessage.error('Не удалось изменить фолы')
   }
 }

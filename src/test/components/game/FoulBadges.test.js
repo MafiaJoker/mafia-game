@@ -3,6 +3,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import FoulBadges from '@/components/game/FoulBadges.vue'
+import { createPendingFouls } from '@/utils/pendingFouls.js'
 import { apiService } from '@/services/api.js'
 
 vi.mock('@/services/api.js', () => ({
@@ -42,16 +43,22 @@ const savedState = (player, fouls) => {
   return gameState(saved)
 }
 
+// Хранилище отправленных фолов, общее для бейджей одного игрока
+let pendingFouls
+
 const mountBadges = (player) => {
   // По умолчанию сервер принимает запрос: отвечает состоянием этого же игрока,
   // а не фикстурой, которая разошлась бы с фолами теста
   apiService.updateGameFouls.mockImplementation((gameId, fouls) =>
     Promise.resolve(savedState(player, fouls))
   )
-  return mount(FoulBadges, {
-    props: { gameId: GAME_ID, player, foulTypes: FOUL_TYPES }
-  })
+  return mountWith(player)
 }
+
+// Ещё один бейдж того же игрока, не трогающий текущий мок ответа
+const mountWith = (player) => mount(FoulBadges, {
+  props: { gameId: GAME_ID, player, foulTypes: FOUL_TYPES, pendingFouls }
+})
 
 const badgeAt = (wrapper, index) => wrapper.findAll('.foul-badge')[index]
 const countAt = (wrapper, index) => badgeAt(wrapper, index).find('.foul-badge-count').text()
@@ -61,6 +68,7 @@ describe('FoulBadges', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    pendingFouls = createPendingFouls()
   })
 
   afterEach(() => {
@@ -204,6 +212,50 @@ describe('FoulBadges', () => {
 
       expect(countAt(wrapper, REGULAR)).toBe('1')
       expect(wrapper.emitted('saved')).toBeUndefined()
+    })
+  })
+
+  // Одного игрока рендерят два бейджа сразу: в колонке «Фолы» таблицы
+  // и в панели фолов диалога голосования
+  describe('Два бейджа одного игрока', () => {
+    it('второй бейдж считает клик от значения, отправленного первым', async () => {
+      const player = createPlayer(1, 0)
+      wrapper = mountBadges(player)
+      const second = mountWith(player)
+      apiService.updateGameFouls.mockReturnValue(new Promise(() => {}))
+
+      await badgeAt(wrapper, REGULAR).trigger('click')
+      // Ответа ещё нет, но второй бейдж уже показывает отправленное значение
+      expect(countAt(second, REGULAR)).toBe('2')
+
+      await badgeAt(second, REGULAR).trigger('click')
+
+      expect(apiService.updateGameFouls.mock.calls.map(([, fouls]) => fouls[0].count))
+        .toEqual([2, 3])
+
+      second.unmount()
+    })
+
+    it('не применяет ответ, устаревший после клика по второму бейджу', async () => {
+      let resolveFirst
+      const player = createPlayer(1, 0)
+      wrapper = mountBadges(player)
+      const second = mountWith(player)
+      apiService.updateGameFouls
+        .mockReturnValueOnce(new Promise(resolve => { resolveFirst = resolve }))
+        .mockReturnValue(new Promise(() => {}))
+
+      await badgeAt(wrapper, REGULAR).trigger('click')
+      await badgeAt(second, REGULAR).trigger('click')
+
+      // Ответ на первый клик пришёл после второго — он уже не про текущее значение
+      resolveFirst(gameState(createPlayer(2, 0)))
+      await flushPromises()
+
+      expect(wrapper.emitted('saved')).toBeUndefined()
+      expect(countAt(second, REGULAR)).toBe('3')
+
+      second.unmount()
     })
   })
 })
