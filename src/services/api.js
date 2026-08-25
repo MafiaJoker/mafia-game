@@ -306,6 +306,14 @@ export const apiService = {
 	return response.data
     },
 
+    // Game Fouls
+    // count — итог фолов игрока за игру, а не дельта фазы.
+    // Ответ — то же состояние игры, что у GET /games/{id}/state
+    async updateGameFouls(gameId, fouls) {
+	const response = await api.patch(`/games/${gameId}/fouls`, fouls)
+	return response.data
+    },
+
     async createGamePhase(gameId, phaseData) {
 	const response = await api.post(`/games/${gameId}/phases`, phaseData)
 	return response.data

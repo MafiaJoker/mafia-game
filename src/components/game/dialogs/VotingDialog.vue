@@ -9,10 +9,8 @@
       <FoulsPanel
         :game-id="props.gameId"
         :players-data="props.playersData"
-        :phase-data="props.phaseData"
         :foul-types="props.foulTypes"
-        @update:phase-data="emit('update:phaseData', $event)"
-        @saved="emit('fouls-saved')"
+        @saved="emit('fouls-saved', $event)"
       />
 
       <el-divider />
