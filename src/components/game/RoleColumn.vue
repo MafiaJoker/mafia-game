@@ -22,7 +22,7 @@
       </div>
     </template>
     <template #default="{ row }">
-      <div class="icon-container" :style="clickable ? 'cursor: pointer;' : ''" @click="handleClick(row)">
+      <div class="icon-container" :style="isClickable ? 'cursor: pointer;' : ''" @click="handleClick(row)">
         <div v-if="rolesVisible">
           <CitizenIcon v-if="row.role === GameRolesEnum.civilian" />
           <SheriffIcon v-else-if="row.role === GameRolesEnum.sheriff" />
@@ -40,7 +40,7 @@
 </template>
 
 <script setup>
-import {ref, watch} from 'vue'
+import {ref, computed, watch} from 'vue'
 import { View, Hide } from '@element-plus/icons-vue'
 import CitizenIcon from './icons/CitizenIcon.vue'
 import SheriffIcon from './icons/SheriffIcon.vue'
@@ -62,6 +62,9 @@ const emit = defineEmits(['role-click'])
 
 const rolesVisible = ref(!props.isDefaultHidden)
 
+// По скрытой роли не кликаем: судья сначала открывает роли глазком
+const isClickable = computed(() => props.clickable && rolesVisible.value)
+
 // Следим за сменой isDefaultHidden
 watch(() => props.isDefaultHidden, () => {
   rolesVisible.value = !props.isDefaultHidden
@@ -72,7 +75,7 @@ const toggleRolesVisibility = () => {
 }
 
 const handleClick = (row) => {
-  if (props.clickable) {
+  if (isClickable.value) {
     emit('role-click', row)
   }
 }
