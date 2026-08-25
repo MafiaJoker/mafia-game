@@ -49,9 +49,7 @@
               :game-id="gameId"
               :player="row"
               :foul-types="foulTypes"
-              :fouls-summary="phaseData.fouls_summary"
-              @update:fouls-summary="phaseData.fouls_summary = $event"
-              @saved="refreshPlayersInGame"
+              @saved="applyGameState"
             />
           </template>
         </el-table-column>
@@ -119,7 +117,7 @@
       @update:phase-data="phaseData = $event"
       @update:nominated-players="nominatedPlayers = $event"
       @voting-completed="handleVotingCompleted"
-      @fouls-saved="refreshPlayersInGame"
+      @fouls-saved="applyGameState"
     />
 
     <NightActionsDialog
@@ -227,7 +225,6 @@ const phaseData = ref({
   removed_box_ids: [],
   voted_box_ids: [],
   ppk_box_id: null,
-  fouls_summary: [],
   best_move: []
 })
 
@@ -359,9 +356,9 @@ const handleNightActionDialog = async () => {
   handleVotingCompleted()
 
   // Синхронизируем данные круга и узнаём у сервера, не завершилась ли игра:
-  // данные голосования/ночи живут только в phaseData до этого PUT
+  // данные голосования/ночи живут только в phaseData до этого PATCH
   try {
-    await apiService.updateGamePhase(props.gameId, phaseData.value)
+    await apiService.patchGamePhase(props.gameId, phaseData.value)
     const gameState = await apiService.getGameState(props.gameId)
     gameFinished.value = FINISHED_GAME_RESULTS.includes(gameState.result)
   } catch (error) {
@@ -384,8 +381,9 @@ const handleRemovePlayersAccept = () => {
 // Обработчик клика по кнопке "Следующий круг"
 const handleNextRound = async () => {
   try {
-    // Обновляем данные фазы на сервере через PUT
-    await apiService.updateGamePhase(props.gameId, phaseData.value)
+    // Обновляем данные фазы на сервере: PATCH меняет только переданные поля
+    // и не трогает фолы, разложенные по кругам сервером
+    await apiService.patchGamePhase(props.gameId, phaseData.value)
 
     // Игра могла завершиться раньше или по итогам этого круга —
     // проверяем результат до создания новой фазы
@@ -409,29 +407,19 @@ const handleNextRound = async () => {
   }
 }
 
-// Удаление за фолы считает сервер: после сохранения фолов перечитываем
-// состояние игры и применяем is_in_game (фолы не трогаем — на клиенте они
-// равны снимку начала круга + дельте текущей фазы)
-let refreshSeq = 0
-const refreshPlayersInGame = async () => {
-  const seq = ++refreshSeq
-  try {
-    const gameState = await apiService.getGameState(props.gameId)
-    // Применяем только ответ последнего запроса
-    if (seq !== refreshSeq) return
+// Фолы и удаление за них считает сервер: ручка фолов возвращает состояние
+// игры целиком, поэтому просто применяем его к таблице
+const applyGameState = (gameState) => {
+  const playersByBox = new Map(gameState.players.map(p => [p.box_id, p]))
+  playersData.value.forEach(player => {
+    const statePlayer = playersByBox.get(player.box_id)
+    if (!statePlayer) return
+    player.is_in_game = statePlayer.is_in_game
+    player.fouls = statePlayer.fouls || []
+  })
 
-    const inGameByBox = new Map(gameState.players.map(p => [p.box_id, p.is_in_game]))
-    playersData.value.forEach(player => {
-      if (inGameByBox.has(player.box_id)) {
-        player.is_in_game = inGameByBox.get(player.box_id)
-      }
-    })
-
-    // Удаление по фолам могло завершить игру (или откат фола — «раззавершить»)
-    gameFinished.value = FINISHED_GAME_RESULTS.includes(gameState.result)
-  } catch (error) {
-    console.error('Failed to refresh game state after fouls update:', error)
-  }
+  // Удаление по фолам могло завершить игру (или откат фола — «раззавершить»)
+  gameFinished.value = FINISHED_GAME_RESULTS.includes(gameState.result)
 }
 
 const loadGameData = async () => {
@@ -463,7 +451,7 @@ const loadGameData = async () => {
           nickname: player.nickname,
           box_id: player.box_id,
           role: player.role || GameRolesEnum.civilian,
-          // Снимок фолов по типам на начало круга: [{ type, count }]
+          // Фолы по типам за всю игру: [{ type, count }]
           fouls: player.fouls || [],
           is_in_game: isInGame,
           // Снимок для определения выбывших в текущем круге
@@ -493,7 +481,6 @@ const resetComponent = async () => {
     removed_box_ids: [],
     voted_box_ids: [],
     ppk_box_id: null,
-    fouls_summary: [],
     best_move: []
   }
 

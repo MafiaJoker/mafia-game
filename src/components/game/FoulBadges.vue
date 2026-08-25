@@ -25,6 +25,8 @@
 </template>
 
 <script setup>
+import { reactive } from 'vue'
+import { ElMessage } from 'element-plus'
 import { apiService } from '@/services/api.js'
 
 const props = defineProps({
@@ -32,7 +34,7 @@ const props = defineProps({
     type: String,
     required: true
   },
-  // Игрок из состояния игры: box_id, is_in_game, fouls: [{ type, count }] на начало круга
+  // Игрок из состояния игры: box_id, is_in_game, fouls: [{ type, count }] — итог за игру
   player: {
     type: Object,
     required: true
@@ -41,36 +43,29 @@ const props = defineProps({
   foulTypes: {
     type: Array,
     required: true
-  },
-  // Дельта фолов текущей фазы: [{ box_id, count_fouls, type }]
-  foulsSummary: {
-    type: Array,
-    required: true
   }
 })
 
-const emit = defineEmits(['update:foulsSummary', 'saved'])
+const emit = defineEmits(['saved'])
 
-// Фолы игрока на начало круга (из состояния игры)
-const getInitialFouls = (type) => {
+// Отправленные, но ещё не подтверждённые сервером значения: type -> count
+const pendingFouls = reactive({})
+// Номер последнего запроса по типу фола: ответы более ранних запросов устарели
+const lastRequests = {}
+let requestSeq = 0
+
+// Фолы игрока за игру из состояния игры
+const getSavedFouls = (type) => {
   return props.player.fouls?.find(f => f.type === type)?.count || 0
 }
 
-// Фолы, добавленные в текущей фазе
-const getPhaseDelta = (type) => {
-  const entry = props.foulsSummary.find(
-    f => f.box_id === props.player.box_id && f.type === type
-  )
-  return entry?.count_fouls || 0
-}
-
 const getCurrentFouls = (type) => {
-  return getInitialFouls(type) + getPhaseDelta(type)
+  return pendingFouls[type] ?? getSavedFouls(type)
 }
 
-// Выбывшему по фолам оставляем возможность откатить фолы текущей фазы
+// Выбывшему по фолам оставляем возможность откатить фолы
 const isClickable = (type) => {
-  return props.player.is_in_game || getPhaseDelta(type) > 0
+  return props.player.is_in_game || getCurrentFouls(type) > 0
 }
 
 const isWarning = (foulType) => {
@@ -81,35 +76,30 @@ const handleClick = async (foulType) => {
   const type = foulType.foul_type
   if (!isClickable(type)) return
 
-  const initialFouls = getInitialFouls(type)
-  const currentFouls = getCurrentFouls(type)
+  // Карусель по итогу за игру: 0 → 1 → … → порог → 0
+  const count = (getCurrentFouls(type) + 1) % (foulType.removal_threshold + 1)
 
-  // По достижении порога клик сбрасывает фолы, добавленные в этой фазе
-  const newTotalFouls = currentFouls >= foulType.removal_threshold
-    ? initialFouls
-    : currentFouls + 1
-  const countFouls = newTotalFouls - initialFouls
+  // Показываем новое значение сразу, чтобы следующий клик считался от него,
+  // не дожидаясь ответа сервера
+  pendingFouls[type] = count
+  const seq = ++requestSeq
+  lastRequests[type] = seq
 
-  const foulsSummary = props.foulsSummary.filter(
-    f => !(f.box_id === props.player.box_id && f.type === type)
-  )
-  if (countFouls > 0) {
-    foulsSummary.push({
-      box_id: props.player.box_id,
-      count_fouls: countFouls,
-      type
-    })
-  }
-  emit('update:foulsSummary', foulsSummary)
-
-  // Отправляем обновленные фолы на сервер
+  // Отправляем итоговое количество фолов на сервер
   try {
-    await apiService.patchGamePhase(props.gameId, {
-      fouls_summary: foulsSummary
-    })
-    emit('saved')
+    const gameState = await apiService.updateGameFouls(props.gameId, [
+      { box_id: props.player.box_id, type, count }
+    ])
+    // Состояние игры применяет только последний запрос по этому типу фола
+    if (lastRequests[type] !== seq) return
+    emit('saved', gameState)
+    delete pendingFouls[type]
   } catch (error) {
-    console.error('Failed to patch fouls_summary:', error)
+    console.error('Failed to update fouls:', error)
+    if (lastRequests[type] !== seq) return
+    // Возвращаем сохранённое значение: сервер фолы не изменил
+    delete pendingFouls[type]
+    ElMessage.error('Не удалось изменить фолы')
   }
 }
 </script>

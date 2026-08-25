@@ -13,9 +13,7 @@
           :game-id="gameId"
           :player="player"
           :foul-types="foulTypes"
-          :fouls-summary="phaseData.fouls_summary || []"
-          @update:fouls-summary="handleFoulsSummaryUpdate"
-          @saved="emit('saved')"
+          @saved="emit('saved', $event)"
         />
       </div>
     </div>
@@ -25,7 +23,7 @@
 <script setup>
 import FoulBadges from './FoulBadges.vue'
 
-const props = defineProps({
+defineProps({
   gameId: {
     type: String,
     required: true
@@ -34,24 +32,14 @@ const props = defineProps({
     type: Array,
     required: true
   },
-  phaseData: {
-    type: Object,
-    required: true
-  },
   foulTypes: {
     type: Array,
     required: true
   }
 })
 
-const emit = defineEmits(['update:phaseData', 'saved'])
-
-const handleFoulsSummaryUpdate = (foulsSummary) => {
-  emit('update:phaseData', {
-    ...props.phaseData,
-    fouls_summary: foulsSummary
-  })
-}
+// Фолы сохраняет FoulBadges, наружу отдаём состояние игры из ответа сервера
+const emit = defineEmits(['saved'])
 </script>
 
 <style scoped>
