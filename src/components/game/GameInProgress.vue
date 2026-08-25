@@ -410,10 +410,21 @@ const handleNextRound = async () => {
 // Фолы и удаление за них считает сервер: ручка фолов возвращает состояние
 // игры целиком, поэтому просто применяем его к таблице
 const applyGameState = (gameState) => {
+  // Ручка могла ответить не состоянием игры (пустое тело, ошибка шлюза):
+  // перечитываем состояние с сервера, иначе таблица молча разойдётся с ним
+  if (!Array.isArray(gameState?.players)) {
+    console.error('Unexpected game state in fouls response:', gameState)
+    loadGameData()
+    return
+  }
+
   const playersByBox = new Map(gameState.players.map(p => [p.box_id, p]))
   playersData.value.forEach(player => {
     const statePlayer = playersByBox.get(player.box_id)
     if (!statePlayer) return
+    // Возвращённый в игру откатом фола снова участвует в текущем круге:
+    // его повторное удаление должно опять считаться выбытием в этом круге
+    player.was_in_game = player.was_in_game || statePlayer.is_in_game
     player.is_in_game = statePlayer.is_in_game
     player.fouls = statePlayer.fouls || []
   })
