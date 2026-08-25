@@ -33,9 +33,25 @@ const createPlayer = (regular = 0, tech = 0, isInGame = true) => ({
 
 const gameState = (player) => ({ players: [player], result: 'in_progress' })
 
-const mountBadges = (player) => mount(FoulBadges, {
-  props: { gameId: GAME_ID, player, foulTypes: FOUL_TYPES }
-})
+// Состояние игры, каким его вернёт сервер, приняв запрос от этого игрока
+const savedState = (player, fouls) => {
+  const saved = { ...player, fouls: player.fouls.map(foul => ({ ...foul })) }
+  fouls.forEach(({ type, count }) => {
+    saved.fouls.find(foul => foul.type === type).count = count
+  })
+  return gameState(saved)
+}
+
+const mountBadges = (player) => {
+  // По умолчанию сервер принимает запрос: отвечает состоянием этого же игрока,
+  // а не фикстурой, которая разошлась бы с фолами теста
+  apiService.updateGameFouls.mockImplementation((gameId, fouls) =>
+    Promise.resolve(savedState(player, fouls))
+  )
+  return mount(FoulBadges, {
+    props: { gameId: GAME_ID, player, foulTypes: FOUL_TYPES }
+  })
+}
 
 const badgeAt = (wrapper, index) => wrapper.findAll('.foul-badge')[index]
 const countAt = (wrapper, index) => badgeAt(wrapper, index).find('.foul-badge-count').text()
@@ -45,12 +61,14 @@ describe('FoulBadges', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    apiService.updateGameFouls.mockResolvedValue(gameState(createPlayer()))
   })
 
   afterEach(() => {
     if (wrapper) {
       wrapper.unmount()
+      // Иначе падение внутри mountBadges размонтирует обёртку прошлого теста
+      // второй раз и превратит одну ошибку в каскад
+      wrapper = null
     }
   })
 
@@ -102,9 +120,9 @@ describe('FoulBadges', () => {
     })
 
     it('считает быстрые клики от отправленного значения, не дожидаясь ответа', async () => {
+      wrapper = mountBadges(createPlayer(2, 0))
       // Ответ не приходит, пока судья кликает
       apiService.updateGameFouls.mockReturnValue(new Promise(() => {}))
-      wrapper = mountBadges(createPlayer(2, 0))
 
       await badgeAt(wrapper, REGULAR).trigger('click')
       await badgeAt(wrapper, REGULAR).trigger('click')
@@ -140,9 +158,9 @@ describe('FoulBadges', () => {
 
   describe('Ответ сервера', () => {
     it('отдаёт наружу состояние игры из ответа ручки', async () => {
+      wrapper = mountBadges(createPlayer(1, 0))
       const state = gameState(createPlayer(2, 0))
       apiService.updateGameFouls.mockResolvedValue(state)
-      wrapper = mountBadges(createPlayer(1, 0))
 
       await badgeAt(wrapper, REGULAR).trigger('click')
       await flushPromises()
@@ -150,23 +168,33 @@ describe('FoulBadges', () => {
       expect(wrapper.emitted('saved')).toEqual([[state]])
     })
 
-    it('показывает фолы из состояния игры, когда их применил родитель', async () => {
-      apiService.updateGameFouls.mockResolvedValue(gameState(createPlayer(2, 0)))
+    it('показывает значение сервера, когда оно разошлось с оптимистичным', async () => {
+      let resolveRequest
       wrapper = mountBadges(createPlayer(1, 0))
+      apiService.updateGameFouls.mockReturnValue(new Promise(resolve => {
+        resolveRequest = resolve
+      }))
 
+      // Судья кликнул один раз: 1 → 2, значение показано до ответа сервера
       await badgeAt(wrapper, REGULAR).trigger('click')
-      await wrapper.setProps({ player: createPlayer(2, 0) })
+      expect(countAt(wrapper, REGULAR)).toBe('2')
+
+      // А сервер вернул 3: тот же фол уже поставили из панели фолов в диалоге.
+      // Отправленное значение должно уступить состоянию игры, а не победить его
+      resolveRequest(gameState(createPlayer(3, 0)))
+      await wrapper.setProps({ player: createPlayer(3, 0) })
       await flushPromises()
 
-      expect(countAt(wrapper, REGULAR)).toBe('2')
+      expect(countAt(wrapper, REGULAR)).toBe('3')
+      expect(wrapper.emitted('saved')).toHaveLength(1)
     })
 
     it('возвращает сохранённое значение, если сервер отказал', async () => {
       let rejectRequest
+      wrapper = mountBadges(createPlayer(1, 0))
       apiService.updateGameFouls.mockReturnValue(new Promise((resolve, reject) => {
         rejectRequest = reject
       }))
-      wrapper = mountBadges(createPlayer(1, 0))
 
       await badgeAt(wrapper, REGULAR).trigger('click')
       expect(countAt(wrapper, REGULAR)).toBe('2')
