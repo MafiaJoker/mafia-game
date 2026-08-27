@@ -40,6 +40,10 @@ const fullRoles = () => [
   ...[5, 6, 7, 8, 9, 10].map(boxId => player(boxId, GameRolesEnum.civilian))
 ]
 
+// Чистый расклад: все роли еще свободны
+const allCivilians = () => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  .map(boxId => player(boxId, GameRolesEnum.civilian))
+
 // Не хватает второй мафии - с таким раскладом игру начинать нельзя
 const incompleteRoles = () => {
   const roles = fullRoles()
@@ -122,10 +126,28 @@ describe('RolesAssigne', () => {
 
     await startNegotiation(wrapper)
     await wrapper.find('.eye-icon').trigger('click')
-    // Дон -> мафия занята двумя игроками, поэтому по кругу выпадает мирный
+    // Дон -> мафия и шериф разобраны, поэтому по кругу выпадает мирный
     await roleCell(wrapper, 1).trigger('click')
 
     expect(wrapper.props('rolesData')[0].role).toBe(GameRolesEnum.civilian)
+  })
+
+  it('ставит шерифа последним в карусели ролей', async () => {
+    const wrapper = await mountRoles(allCivilians())
+
+    const cycledRoles = []
+    for (let click = 0; click < 4; click++) {
+      await roleCell(wrapper, 1).trigger('click')
+      await flushPromises()
+      cycledRoles.push(wrapper.props('rolesData')[0].role)
+    }
+
+    expect(cycledRoles).toEqual([
+      GameRolesEnum.don,
+      GameRolesEnum.mafia,
+      GameRolesEnum.sheriff,
+      GameRolesEnum.civilian
+    ])
   })
 
   it('не начинает игру с неполным раскладом', async () => {
