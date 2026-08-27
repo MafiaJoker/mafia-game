@@ -107,12 +107,14 @@ watch(() => props.isFreeSeatPhase, (newValue) => {
   }
 })
 
-// Порядок смены ролей по кругу
+// Порядок смены ролей по кругу.
+// Шериф идет последним: на договорке судья сперва расставляет черные роли,
+// а шерифа добавляет, когда мафия уже заснула
 const rolesCycle = [
   GameRolesEnum.civilian,
-  GameRolesEnum.sheriff,
   GameRolesEnum.don,
-  GameRolesEnum.mafia
+  GameRolesEnum.mafia,
+  GameRolesEnum.sheriff
 ]
 
 const cycleRole = (player) => {
