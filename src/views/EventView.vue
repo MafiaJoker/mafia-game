@@ -233,13 +233,20 @@
                       <span class="tab-title">Игровые столы</span>
                       <div class="header-actions">
                         <el-button 
-                          v-if="canGenerateSeating"
                           type="success" 
                           size="small"
                           @click="showSeatingDialog = true"
                           >
                           <el-icon><Grid /></el-icon>
-                          Сгенерировать рассадку ({{ confirmedPlayersCount }} игроков)
+                          Сгенерировать рассадку
+                        </el-button>
+                        <el-button 
+                          size="small"
+                          :loading="copyingSeating"
+                          @click="copySeatingText"
+                          >
+                          <el-icon><CopyDocument /></el-icon>
+                          Скопировать рассадку как текст
                         </el-button>
                         <el-button 
                           type="primary" 
@@ -436,9 +443,9 @@
     <GenerateSeatingDialog
       v-if="event"
       v-model="showSeatingDialog"
-      :confirmed-players="registrationsStore.confirmedRegistrations"
       :event-id="event.id"
-      @generated="handleSeatingGenerated"
+      :table-name-template="event.table_name_template"
+      @created="handleSeatingCreated"
     />
 
 
@@ -449,10 +456,10 @@
   import { ref, computed, reactive, onMounted } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useEventsStore } from '@/stores/events'
-  import { useRegistrationsStore } from '@/stores/registrations'
   import { useEventTypesStore } from '@/stores/eventTypes'
   import { useAuthStore } from '@/stores/auth'
   import { apiService } from '@/services/api'
+  import { getSeatingExportErrorMessage } from '@/utils/errorMessages.js'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import EventFinances from '@/components/events/EventFinances.vue'
   import EventPlayers from '@/components/events/EventPlayers.vue'
@@ -476,7 +483,6 @@
   const route = useRoute()
   const router = useRouter()
   const eventsStore = useEventsStore()
-  const registrationsStore = useRegistrationsStore()
   const eventTypesStore = useEventTypesStore()
   const authStore = useAuthStore()
 
@@ -486,6 +492,7 @@
   const virtualTables = ref([])
   const activeTab = ref('info')
   const showSeatingDialog = ref(false)
+  const copyingSeating = ref(false)
   const isEditMode = ref(false)
   const saving = ref(false)
   const eventTypes = ref([])
@@ -550,14 +557,6 @@
 
   const tableCount = computed(() => {
     return tables.value.length
-  })
-
-  const confirmedPlayersCount = computed(() => {
-    return registrationsStore.confirmedRegistrations.length
-  })
-
-  const canGenerateSeating = computed(() => {
-    return event.value && confirmedPlayersCount.value >= 10
   })
 
   const selectTable = (table) => {
@@ -759,13 +758,6 @@
 	      })
 	  }
 	  
-	  // Загружаем регистрации для подсчета игроков
-	  try {
-	    await registrationsStore.fetchEventRegistrations(eventId)
-	  } catch (error) {
-	    console.warn('Failed to load registrations:', error)
-	  }
-	  
 	  // Автоматически выбираем первый стол только если ни один стол не выбран
 	  if (tables.value.length > 0 && !selectedTable.value) {
 	    selectTable(tables.value[0])
@@ -945,93 +937,31 @@
       }, 0)
   })
 
-  const handleSeatingGenerated = async (result) => {
-      console.log('Seating generated:', result)
-      
+  // Игры создал сервер вместе с рассадкой - остается перечитать мероприятие
+  const handleSeatingCreated = async () => {
+      virtualTables.value = []
+      selectedTable.value = null
+      games.value = []
+      await loadEvent()
+  }
+
+  const copySeatingText = async () => {
+      copyingSeating.value = true
       try {
-          const { games, distribution } = result
-          const eventId = route.params.id
-          
-          // Получаем количество столов из результата генерации
-          const tablesCount = distribution.length
-          const currentTables = tables.value.filter(t => !t.isVirtual).length
-          
-          // НЕ создаем виртуальные столы, так как они будут созданы автоматически
-          // при создании игр на бэкенде
-          
-          // Создаем игры с рассадкой
-          let createdGames = 0
-          
-          // Получаем существующие столы для расчета смещения
-          const existingTablesCount = event.value?.tables?.length || 0
-          
-          // Группируем игры по столам для правильной нумерации
-          const gamesPerTable = {}
-          
-          // Создаем игры последовательно для сохранения правильного порядка
-          for (let gameIndex = 0; gameIndex < games.length; gameIndex++) {
-              const gameInfo = games[gameIndex]
-              const gamePlayers = gameInfo.playing || gameInfo // Поддержка обоих форматов
-              
-              // Распределяем игры по столам равномерно
-              // Если у нас N столов и M игр, то на каждый стол приходится M/N игр
-              const gamesPerTableCount = Math.ceil(games.length / tablesCount)
-              const tableIndex = Math.floor(gameIndex / gamesPerTableCount)
-              
-              // Добавляем смещение для новых столов
-              const tableNumber = existingTablesCount + tableIndex + 1
-              
-              console.log(`Game ${gameIndex + 1}/${games.length} -> Table ${tableNumber} (new table, offset: ${existingTablesCount})`)
-              
-              // Формируем имя стола
-              const template = event.value?.table_name_template || 'Стол {}'
-              const tableName = template.replace('{}', tableNumber)
-              
-              // Считаем количество игр на этом столе (используем относительный индекс)
-              const relativeTableNumber = tableIndex + 1
-              if (!gamesPerTable[relativeTableNumber]) {
-                  gamesPerTable[relativeTableNumber] = 0
-              }
-              gamesPerTable[relativeTableNumber]++
-              
-              // Используем общий номер игры (gameIndex + 1) для последовательной нумерации
-              const gameData = {
-                  label: `Игра ${gameIndex + 1}`,
-                  event_id: eventId,
-                  table_id: tableNumber
-              }
-              
-              console.log('Creating game with data:', gameData, 'Table name:', tableName)
-              
-              try {
-                  // Создаем игру и ждем завершения перед созданием следующей
-                  const createdGame = await apiService.createGameWithPlayers(gameData, gamePlayers)
-                  console.log('Game created:', createdGame)
-                  createdGames++
-                  
-                  // Логируем информацию о пропускающих игроках
-                  if (gameInfo.sittingOut && gameInfo.sittingOut.length > 0) {
-                      console.log(`Игра ${gameIndex + 1}: пропускают ${gameInfo.sittingOut.map(p => p.nickname).join(', ')}`)
-                  }
-              } catch (error) {
-                  console.error('Ошибка создания игры:', error)
-                  ElMessage.error(`Ошибка создания игры ${gameIndex + 1}`)
-              }
+          const seatingText = await apiService.exportSeating(route.params.id)
+          try {
+              await navigator.clipboard.writeText(seatingText)
+          } catch (clipboardError) {
+              console.error('Буфер обмена недоступен:', clipboardError)
+              ElMessage.error('Браузер не дал доступ к буферу обмена')
+              return
           }
-          
-          ElMessage.success(`Создано ${createdGames} игр с автоматической рассадкой`)
-          
-          // Очищаем виртуальные столы перед перезагрузкой
-          virtualTables.value = []
-          
-          // Перезагрузить данные события
-          await loadEvent()
-          
-          console.log('Event tables after reload:', event.value?.tables)
-          
+          ElMessage.success('Рассадка скопирована в буфер обмена')
       } catch (error) {
-          console.error('Ошибка генерации рассадки:', error)
-          ElMessage.error('Ошибка при создании игр с рассадкой')
+          console.error('Ошибка при выгрузке рассадки:', error)
+          ElMessage.error(getSeatingExportErrorMessage(error))
+      } finally {
+          copyingSeating.value = false
       }
   }
 
