@@ -191,6 +191,23 @@ export const apiService = {
 	await api.delete(`/events/${eventId}`)
     },
 
+    // Event Seating
+    // apply=false — только расчет, apply=true — расчет и создание игр
+    async generateSeating(eventId, seatingData, apply = false) {
+	const response = await api.post(`/events/${eventId}/seating`, seatingData, {
+	    params: { apply }
+	})
+	return response.data
+    },
+
+    // Рассадка текстом, как ее читают в мессенджере.
+    // responseType не задаем: тело ответа приходит текстом как есть, а тело
+    // ошибки axios разбирает как JSON, и обработчики читают detail
+    async exportSeating(eventId) {
+	const response = await api.get(`/events/${eventId}/seating/export`)
+	return response.data
+    },
+
     // Event Types
     async getEventTypes() {
 	const response = await api.get('/event-types')
@@ -230,26 +247,6 @@ export const apiService = {
     async createGame(gameData) {
 	const response = await api.post('/games', gameData)
 	return response.data
-    },
-
-    async createGameWithPlayers(gameData, players) {
-        // Создаем игру
-        const game = await this.createGame(gameData)
-
-        // Добавляем игроков с рассадкой
-        if (players && players.length > 0) {
-            const playersData = players.map((player, index) => ({
-                user_id: player.user_id,
-                name: player.user_nickname,
-                box_id: index + 1, // Места от 1 до 10
-                role: null // Роли будут назначены позже
-            }))
-
-            // Передаем массив напрямую
-            await this.addPlayersToGame(game.id, playersData)
-        }
-
-        return game
     },
 
     async updateGame(gameId, gameData) {
