@@ -1,9 +1,12 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="Лучший ход"
     width="800px"
   >
+    <template #header>
+      <DialogTimerHeader title="Лучший ход" />
+    </template>
+
     <div class="voting-container">
       <div v-if="phaseData.killed_box_id" class="killed-player-info">
         <el-alert
@@ -50,6 +53,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import DialogTimerHeader from './DialogTimerHeader.vue'
 
 const props = defineProps({
   modelValue: Boolean,
