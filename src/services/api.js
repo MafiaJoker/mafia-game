@@ -254,10 +254,6 @@ export const apiService = {
 	return response.data
     },
 
-    async deleteGame(gameId) {
-	await api.delete(`/games/${gameId}`)
-    },
-
     // Game State
     async getGameState(gameId) {
 	const response = await api.get(`/games/${gameId}/state`)

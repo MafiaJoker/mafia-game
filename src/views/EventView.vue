@@ -346,12 +346,13 @@
                             @click="openGame(game.id)"
                             >
                             <el-button
-                              class="game-delete-btn"
+                              class="game-hide-btn"
                               link
                               size="small"
-                              @click.stop="deleteGame(game.id)"
+                              title="Скрыть игру"
+                              @click.stop="hideGame(game)"
                               >
-                              <el-icon><Close /></el-icon>
+                              <el-icon><Hide /></el-icon>
                             </el-button>
 
                             <div class="game-main-content">
@@ -472,6 +473,7 @@
       Delete,
       Close,
       Grid,
+      Hide,
       Calendar,
       User,
       Money,
@@ -588,12 +590,30 @@
     ElMessage.success('OBS ссылка скопирована!')
   }
 
-  const deleteGame = async (gameId) => {
+  // Игра не удаляется, а прячется, и снять этот флаг из интерфейса нечем -
+  // поэтому спрашиваем до, а не жалеем после промаха мышью
+  const hideGame = async (game) => {
     try {
-      await apiService.updateGame(gameId, { is_hidden: true })
+      await ElMessageBox.confirm(
+        `Игра "${game.label}" пропадет из мероприятия, и вернуть ее из интерфейса будет нельзя.`,
+        'Скрыть игру?',
+        {
+          confirmButtonText: 'Скрыть',
+          cancelButtonText: 'Отмена',
+          type: 'warning',
+          confirmButtonClass: 'el-button--danger'
+        }
+      )
+    } catch {
+      // Судья передумал - тут и закончим
+      return
+    }
+
+    try {
+      await apiService.updateGame(game.id, { is_hidden: true })
       // Удаляем игру из локального состояния
       if (selectedTable.value && selectedTable.value.games) {
-        selectedTable.value.games = selectedTable.value.games.filter(game => game.id !== gameId)
+        selectedTable.value.games = selectedTable.value.games.filter(item => item.id !== game.id)
         games.value = selectedTable.value.games
       }
       ElMessage.success('Игра скрыта!')
@@ -1200,11 +1220,11 @@
       transform: translateY(-1px);
   }
 
-  .game-item:hover .game-delete-btn {
+  .game-item:hover .game-hide-btn {
       opacity: 1;
   }
 
-  .game-delete-btn {
+  .game-hide-btn {
       position: absolute;
       top: 8px;
       right: 8px;
@@ -1216,7 +1236,7 @@
       height: 24px;
   }
 
-  .game-delete-btn:hover {
+  .game-hide-btn:hover {
       color: #f56c6c;
       background-color: #fee;
   }
