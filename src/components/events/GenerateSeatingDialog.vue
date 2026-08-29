@@ -84,32 +84,14 @@
 
       <div class="player-row player-search">
         <span class="player-position">{{ form.players.length + 1 }}.</span>
-        <el-autocomplete
+        <PlayerSearchInput
           v-model="playerQuery"
-          :fetch-suggestions="querySearch"
+          :exclude-ids="addedPlayerIds"
           placeholder="Введите ник игрока"
-          value-key="nickname"
-          :debounce="300"
-          clearable
-          class="player-field player-autocomplete"
-          @select="addFoundPlayer"
-          @keydown.enter="handleQueryEnter"
-          @keydown.up="startNavigation"
-          @keydown.down="startNavigation"
-        >
-          <template #default="{ item }">
-            <span>{{ item.nickname }}</span>
-          </template>
-        </el-autocomplete>
-        <el-button
-          v-if="canCreatePlayer"
-          type="primary"
-          class="player-action"
-          :loading="creatingPlayer"
-          @click="createPlayer"
-        >
-          Создать
-        </el-button>
+          class="player-field"
+          @select="addPlayer"
+          @error="showError"
+        />
       </div>
     </div>
 
@@ -180,6 +162,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import { apiService } from '@/services/api'
+import PlayerSearchInput from '@/components/common/PlayerSearchInput.vue'
 import { DEFAULT_PLAYERS_COUNT } from '@/utils/constants.js'
 import { getSeatingErrorMessage } from '@/utils/errorMessages.js'
 
@@ -225,10 +208,6 @@ const form = reactive({
 })
 
 const playerQuery = ref('')
-const suggestions = ref([])
-// Стрелками судья ходит по подсказкам, и Enter тогда за автокомплитом
-const isNavigating = ref(false)
-const creatingPlayer = ref(false)
 const generating = ref(false)
 const applying = ref(false)
 const errorMessage = ref('')
@@ -236,7 +215,7 @@ const seating = ref(null)
 
 const requiredPlayersCount = computed(() => DEFAULT_PLAYERS_COUNT * form.tablesCount)
 
-const canCreatePlayer = computed(() => playerQuery.value.trim().length > 0)
+const addedPlayerIds = computed(() => form.players.map(player => player.id))
 
 // Рассадка приходит списком игр, а судья читает ее по столам
 const previewTables = computed(() => {
@@ -295,32 +274,12 @@ const resetDialog = () => {
   form.fromRegistrations = false
   form.players = []
   playerQuery.value = ''
-  suggestions.value = []
-  isNavigating.value = false
   errorMessage.value = ''
   seating.value = null
 }
 
-const querySearch = async (queryString, callback) => {
-  const query = (queryString || '').trim()
-  if (!query) {
-    suggestions.value = []
-    callback([])
-    return
-  }
-
-  isNavigating.value = false
-  try {
-    const users = await apiService.getUsers({ nickname: query })
-    const addedIds = form.players.map(player => player.id)
-    suggestions.value = (users.items || [])
-      .filter(user => !addedIds.includes(user.id))
-      .map(user => ({ id: user.id, nickname: user.nickname }))
-  } catch (error) {
-    console.error('Ошибка при поиске игроков:', error)
-    suggestions.value = []
-  }
-  callback(suggestions.value)
+const showError = (message) => {
+  errorMessage.value = message
 }
 
 const addPlayer = (player) => {
@@ -330,60 +289,11 @@ const addPlayer = (player) => {
   }
   form.players.push(player)
   playerQuery.value = ''
-  suggestions.value = []
-  isNavigating.value = false
   errorMessage.value = ''
-}
-
-const addFoundPlayer = (item) => {
-  addPlayer({ id: item.id, nickname: item.nickname })
 }
 
 const removePlayer = (playerId) => {
   form.players = form.players.filter(player => player.id !== playerId)
-}
-
-const startNavigation = () => {
-  if (suggestions.value.length > 0) isNavigating.value = true
-}
-
-// Enter либо берет точное совпадение из подсказок, либо заводит нового игрока.
-// Выбор стрелками остается за автокомплитом: он вызовет select сам
-const handleQueryEnter = () => {
-  const query = playerQuery.value.trim()
-  if (!query || isNavigating.value) return
-
-  const exactMatch = suggestions.value.find(item => item.nickname === query)
-  if (exactMatch) {
-    addFoundPlayer(exactMatch)
-    return
-  }
-  createPlayer()
-}
-
-const createPlayer = async () => {
-  const nickname = playerQuery.value.trim()
-  if (!nickname || creatingPlayer.value) return
-
-  // Тезка из подсказок - это тот же игрок, второго такого заводить незачем
-  const exactMatch = suggestions.value.find(item => item.nickname === nickname)
-  if (exactMatch) {
-    addFoundPlayer(exactMatch)
-    return
-  }
-
-  creatingPlayer.value = true
-  errorMessage.value = ''
-  try {
-    const newUser = await apiService.createUser({ nickname })
-    // Ник нового игрока api не возвращает, поэтому берем введенный
-    addPlayer({ id: newUser.id, nickname })
-  } catch (error) {
-    console.error('Ошибка при создании игрока:', error)
-    errorMessage.value = 'Не удалось создать игрока. Попробуйте еще раз'
-  } finally {
-    creatingPlayer.value = false
-  }
 }
 
 const seatingPayload = (seed) => {
