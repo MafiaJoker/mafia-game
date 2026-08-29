@@ -21,6 +21,9 @@ import { ElectronManager } from './utils/electron'
 const i18n = createI18n({
   locale: 'ru',
   fallbackLocale: 'en',
+  // Страницы регистрации берут переводы через useI18n(): в legacy-режиме
+  // без этого флага composition API недоступен и страница падает
+  allowComposition: true,
   messages
 })
 

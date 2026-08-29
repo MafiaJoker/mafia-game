@@ -29,7 +29,7 @@
       <GameTable :data="players">
         <el-table-column
           label="Игрок"
-          min-width="250"
+          :min-width="isMobile ? 160 : 250"
         >
           <template #default="{ row }">
             <PlayerSearchInput
@@ -64,6 +64,7 @@ import { UserFilled } from '@element-plus/icons-vue'
 import { apiService } from '@/services/api'
 import PlayerSearchInput from '@/components/common/PlayerSearchInput.vue'
 import GameTable from './GameTable.vue'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 import { GAME_ERROR_MESSAGES } from '@/utils/errorMessages.js'
 
 const props = defineProps({
@@ -79,6 +80,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['seating-complete'])
+const { isMobile } = useBreakpoints()
 
 // Проверяем режим закрытой рассадки
 const isClosedSeating = computed(() => {
@@ -240,4 +242,18 @@ const handleSeatingComplete = async () => {
   margin-left: 24px;
 }
 
+/* Телефон: заголовок и кнопка не помещаются в одну строку */
+@media (max-width: 767px) {
+  .card-header {
+    flex-wrap: wrap;
+  }
+
+  .header-right {
+    flex: 1 0 100%;
+  }
+
+  .header-right .el-button {
+    width: 100%;
+  }
+}
 </style>

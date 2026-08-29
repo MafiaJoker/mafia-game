@@ -122,6 +122,7 @@ const handleClick = async (foulType) => {
   cursor: pointer;
   transition: all 0.3s;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .foul-badge--regular {
@@ -152,5 +153,33 @@ const handleClick = async (foulType) => {
   background-color: #dcdfe6;
   color: #909399;
   cursor: not-allowed;
+}
+
+/* Планшет и телефон: бейдж жмут пальцем во время игры - цель крупнее */
+@media (max-width: 1023px) {
+  .foul-badge {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: 16px;
+    font-size: 14px;
+  }
+
+  .foul-badge:hover:not(.is-disabled) {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .foul-badge:active:not(.is-disabled) {
+    transform: scale(0.95);
+  }
+}
+
+/* Телефон: два бейджа на игрока в строке списка - чуть уже */
+@media (max-width: 767px) {
+  .foul-badge {
+    min-width: 30px;
+    padding: 0 6px;
+  }
 }
 </style>

@@ -3,9 +3,17 @@
     <el-container>
       <el-header>
         <div class="page-header">
-          <el-button 
-            @click="goBack"
+          <el-button
+            v-if="isMobile"
             :icon="ArrowLeft"
+            circle
+            :aria-label="$t('common.back')"
+            @click="goBack"
+          />
+          <el-button
+            v-else
+            :icon="ArrowLeft"
+            @click="goBack"
           >
             {{ $t('common.back') }}
           </el-button>
@@ -17,7 +25,7 @@
 
       <el-main>
         <el-row :gutter="20" justify="center">
-          <el-col :lg="16" :xl="12">
+          <el-col :xs="24" :lg="16" :xl="12">
             <!-- Event Info Card -->
             <el-card v-if="event" class="mb-4" shadow="never">
               <template #header>
@@ -82,11 +90,13 @@ import { apiService } from '@/services/api'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import PlayerRegistration from '@/components/events/PlayerRegistration.vue'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 import { ArrowLeft, InfoFilled } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
+const { isMobile } = useBreakpoints()
 
 const event = ref(null)
 
@@ -213,13 +223,25 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-@media (max-width: 768px) {
-  .page-header {
-    gap: 15px;
+@media (max-width: 1023px) {
+  .event-registration-view {
+    min-height: auto;
   }
-  
+
   .page-header h1 {
     font-size: 18px;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .page-header {
+    gap: 10px;
+  }
+
+  .page-header h1 {
+    font-size: 16px;
+    line-height: 1.3;
   }
   
   .info-row {

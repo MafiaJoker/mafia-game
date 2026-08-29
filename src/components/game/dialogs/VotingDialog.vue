@@ -3,6 +3,7 @@
     v-model="visible"
     :title="dialogTitle"
     width="800px"
+    :fullscreen="isMobile"
     :before-close="handleClose"
   >
     <div class="voting-container">
@@ -117,6 +118,7 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
 import FoulsPanel from '../FoulsPanel.vue'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -148,6 +150,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'update:phaseData', 'update:nominatedPlayers', 'voting-completed', 'fouls-saved'])
 
+const { isMobile } = useBreakpoints()
 const votes = reactive({})
 const votingRound = ref(1)
 const currentCandidates = ref([])
@@ -544,5 +547,60 @@ watch(() => props.modelValue, (newValue) => {
   padding: 12px 16px;
   font-size: 18px;
   font-weight: 600;
+}
+/* Планшет: кнопки голосов крупнее, под палец */
+@media (max-width: 1023px) {
+  .vote-btn {
+    min-width: 40px;
+    height: 36px;
+  }
+}
+
+/* Телефон: имя кандидата строкой, кнопки голосов переносятся под неё */
+@media (max-width: 767px) {
+  .candidate-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .candidate-info {
+    flex: none;
+    align-items: center;
+  }
+
+  .nickname {
+    padding-bottom: 0;
+  }
+
+  .vote-buttons {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .vote-btn {
+    min-width: 44px;
+    height: 40px;
+    padding: 8px;
+    font-size: 15px;
+  }
+
+  .vote-btn + .vote-btn {
+    border-left: 1px solid var(--el-button-border-color, #dcdfe6);
+  }
+
+  .vote-btn-large {
+    min-width: 52px;
+    height: 48px;
+    font-size: 18px;
+  }
+
+  .vote-buttons-centered {
+    justify-content: center;
+    padding: 12px 0;
+  }
 }
 </style>

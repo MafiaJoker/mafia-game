@@ -11,7 +11,49 @@
     </div>
 
     <div class="history-content">
+      <!-- Телефон и планшет: карточка на игру - шесть колонок с фиксированной шириной
+           в 360px не помещаются, а в 768px ломают заголовки по буквам -->
+      <div v-if="isCompact" class="history-cards">
+        <el-empty v-if="history.length === 0" description="История игр пуста" :image-size="60" />
+        <div v-for="row in history" :key="row.id" class="history-card">
+          <div class="history-card-top">
+            <span class="date-cell">
+              <el-icon><Calendar /></el-icon>
+              {{ formatDate(row.date) }}
+            </span>
+            <el-tag 
+              :type="row.result === 'Победа' ? 'success' : 'danger'" 
+              size="small"
+              effect="dark"
+            >
+              {{ row.result }}
+            </el-tag>
+          </div>
+          <div class="history-card-tournament">{{ row.tournament }}</div>
+          <div class="history-card-bottom">
+            <el-tag :type="getRoleType(row.role)" size="small" effect="dark">
+              {{ row.role }}
+            </el-tag>
+            <span class="duration-cell">
+              <el-icon><Timer /></el-icon>
+              {{ row.duration }}
+            </span>
+            <el-button 
+              size="small" 
+              type="primary" 
+              text 
+              :icon="View"
+              class="history-card-view"
+              @click="viewGame(row.id)"
+            >
+              Подробно
+            </el-button>
+          </div>
+        </div>
+      </div>
+
       <el-table 
+        v-else
         :data="history" 
         stripe 
         class="history-table"
@@ -102,6 +144,7 @@
 
 <script setup>
   import { ElMessage } from 'element-plus'
+  import { useBreakpoints } from '@/composables/useBreakpoints'
   import { 
     Clock, 
     Download, 
@@ -112,6 +155,8 @@
     Timer, 
     View 
   } from '@element-plus/icons-vue'
+
+  const { isCompact } = useBreakpoints()
 
   const props = defineProps({
     history: {
@@ -253,5 +298,45 @@
     .history-table :deep(.el-table__cell) {
       padding: 6px 2px;
     }
+  }
+  /* Карточки истории (телефон) */
+  .history-cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  /* Планшет: карточки в две колонки */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .history-cards {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .history-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    background: white;
+    border: 1px solid #ebeef5;
+    border-radius: 8px;
+  }
+
+  .history-card-top,
+  .history-card-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .history-card-tournament {
+    font-weight: 600;
+    color: #303133;
+  }
+
+  .history-card-view {
+    margin-left: auto;
   }
 </style>

@@ -90,11 +90,26 @@
     gap: 16px;
   }
 
-  @media (max-width: 768px) {
+  /* Планшет и телефон: подвал в высоту не растёт, всё в одну-две строки */
+  @media (max-width: 1023px) {
+    .app-footer {
+      height: auto;
+      padding: 12px 16px;
+      padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    }
+
     .footer-content {
-      flex-direction: column;
-      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px 16px;
       text-align: center;
+    }
+  }
+
+  /* Телефон: время сборки - служебная мелочь, на узком экране лишняя */
+  @media (max-width: 767px) {
+    .build-time {
+      display: none;
     }
   }
 </style>

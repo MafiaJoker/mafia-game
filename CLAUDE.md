@@ -89,6 +89,20 @@ The application expects a backend API at `http://localhost:3000/api` with RESTfu
 - Critical rounds: Triggered after 3 rounds without eliminations
 - Shoot-outs: Tie-breaking mechanism during voting
 
+## Responsive Layout
+
+The app must work on desktop, tablet and mobile phones (issue #74). Three ranges, defined once:
+
+- mobile: <= 767px, tablet: 768-1023px, desktop: >= 1024px
+- in templates: `useBreakpoints()` from `src/composables/useBreakpoints.js` (`isMobile`, `isTablet`, `isDesktop`, `isCompact`)
+- in styles: media queries with the same borders; shared rules (dialogs, forms, touch targets, page shell) live in `src/assets/global.css`
+
+Rules:
+
+- Adapt the pattern, not the size: on mobile a wide table becomes a card list, a calendar grid becomes an agenda, a long header becomes a drawer, primary game actions go to a bottom action bar. On tablet keep tables but drop secondary columns.
+- **Every new or changed UI element must be checked visually on all three screens** - desktop (>= 1024px), tablet (768-1023px) and mobile (<= 767px) - before it is considered done. Open the page in a real browser (dev server + test login) at those widths, not only in unit tests.
+- Exception: `/game/:id/dies` (`GameDiesView.vue`) is an OBS browser-source overlay - desktop only by design, do not add mobile/tablet layout to it.
+
 ## Development Notes
 
 - The application uses auto-imports for Vue, Vue Router, and Pinia - no need to import these explicitly

@@ -1,9 +1,9 @@
 <template>
-  <div class="pagination-filter">
-    <!-- Фильтры -->
-    <el-row :gutter="20" class="filter-row">
+  <div class="pagination-filter" :class="{ 'is-mobile': isMobile }">
+    <!-- Компьютер и планшет: фильтры в одну строку, при нехватке места переносятся -->
+    <el-row v-if="!isMobile" :gutter="20" class="filter-row">
       <!-- Поиск -->
-      <el-col :span="8">
+      <el-col :xs="24" :sm="10" :md="8">
         <el-input
           v-model="searchQuery"
           :placeholder="searchPlaceholder"
@@ -15,7 +15,7 @@
       </el-col>
 
       <!-- Дополнительные фильтры -->
-      <el-col :span="16">
+      <el-col :xs="24" :sm="14" :md="16">
         <el-space wrap>
           <!-- Фильтр по статусу -->
           <el-select
@@ -23,6 +23,7 @@
             v-model="selectedStatus"
             placeholder="Все статусы"
             clearable
+            class="filter-select"
             @change="handleFilterChange"
           >
             <el-option
@@ -39,6 +40,7 @@
             v-model="selectedType"
             placeholder="Все типы"
             clearable
+            class="filter-select"
             @change="handleFilterChange"
           >
             <el-option
@@ -82,6 +84,100 @@
       </el-col>
     </el-row>
 
+    <!-- Телефон: поиск всегда под рукой, остальные фильтры раскрываются кнопкой -->
+    <div v-else class="filter-mobile">
+      <div class="filter-search-row">
+        <el-input
+          v-model="searchQuery"
+          :placeholder="searchPlaceholder"
+          :prefix-icon="Search"
+          clearable
+          class="filter-search"
+          @clear="handleSearch"
+          @keyup.enter="handleSearch"
+        />
+        <el-button
+          type="primary"
+          :icon="Search"
+          aria-label="Найти"
+          @click="handleSearch"
+        />
+        <el-button
+          v-if="hasExtraFilters"
+          :icon="Filter"
+          :type="activeFiltersCount > 0 ? 'primary' : 'default'"
+          :plain="activeFiltersCount > 0"
+          class="filter-toggle"
+          aria-label="Фильтры"
+          @click="filtersExpanded = !filtersExpanded"
+        >
+          <span v-if="activeFiltersCount > 0">{{ activeFiltersCount }}</span>
+        </el-button>
+      </div>
+
+      <el-collapse-transition>
+        <div v-show="filtersExpanded && hasExtraFilters" class="filter-panel">
+          <el-select
+            v-if="statusOptions.length > 0"
+            v-model="selectedStatus"
+            placeholder="Все статусы"
+            clearable
+            @change="handleFilterChange"
+          >
+            <el-option
+              v-for="status in statusOptions"
+              :key="status.value"
+              :label="status.label"
+              :value="status.value"
+            />
+          </el-select>
+
+          <el-select
+            v-if="typeOptions.length > 0"
+            v-model="selectedType"
+            placeholder="Все типы"
+            clearable
+            @change="handleFilterChange"
+          >
+            <el-option
+              v-for="type in typeOptions"
+              :key="type.value"
+              :label="type.label"
+              :value="type.value"
+            />
+          </el-select>
+
+          <!-- Панель диапазона дат шире телефона: две отдельные даты -->
+          <div v-if="showDateFilter" class="filter-dates">
+            <el-date-picker
+              v-model="dateStart"
+              type="date"
+              placeholder="Начало"
+              format="DD.MM.YYYY"
+              value-format="YYYY-MM-DD"
+              @change="handleMobileDateChange"
+            />
+            <el-date-picker
+              v-model="dateEnd"
+              type="date"
+              placeholder="Конец"
+              format="DD.MM.YYYY"
+              value-format="YYYY-MM-DD"
+              @change="handleMobileDateChange"
+            />
+          </div>
+
+          <el-button
+            :icon="RefreshLeft"
+            class="filter-reset"
+            @click="handleReset"
+          >
+            Сбросить фильтры
+          </el-button>
+        </div>
+      </el-collapse-transition>
+    </div>
+
     <!-- Информация и пагинация в одной строке -->
     <div class="results-pagination-row" v-if="totalItems > 0">
       <div class="results-info">
@@ -96,6 +192,8 @@
         :total="totalItems"
         :background="true"
         :layout="paginationLayout"
+        :pager-count="isMobile ? 5 : 7"
+        :size="isMobile ? 'small' : 'default'"
         @size-change="handleSizeChange"
         @current-change="handlePageChange"
       />
@@ -105,7 +203,8 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Search, RefreshLeft } from '@element-plus/icons-vue'
+import { Search, RefreshLeft, Filter } from '@element-plus/icons-vue'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 
 // Props
 const props = defineProps({
@@ -142,6 +241,8 @@ const props = defineProps({
 // Emits
 const emit = defineEmits(['filter-change', 'page-change', 'size-change'])
 
+const { isMobile, isTablet } = useBreakpoints()
+
 // Состояние
 const searchQuery = ref('')
 const selectedStatus = ref('')
@@ -149,6 +250,11 @@ const selectedType = ref('')
 const dateRange = ref(null)
 const currentPage = ref(1)
 const pageSize = ref(props.defaultPageSize)
+
+// Телефон: диапазон дат собирается из двух отдельных полей
+const dateStart = ref(null)
+const dateEnd = ref(null)
+const filtersExpanded = ref(false)
 
 // Вычисляемые свойства
 const currentPageItems = computed(() => {
@@ -158,8 +264,19 @@ const currentPageItems = computed(() => {
 })
 
 const paginationLayout = computed(() => {
+  if (isMobile.value) return 'prev, pager, next'
+  if (isTablet.value) return 'prev, pager, next, sizes'
   return 'sizes, prev, pager, next'
 })
+
+const hasExtraFilters = computed(() => (
+  props.statusOptions.length > 0 || props.typeOptions.length > 0 || props.showDateFilter
+))
+
+// Сколько фильтров включено - видно на свёрнутой кнопке
+const activeFiltersCount = computed(() => (
+  [selectedStatus.value, selectedType.value, dateRange.value].filter(Boolean).length
+))
 
 // Методы
 const handleSearch = () => {
@@ -172,11 +289,21 @@ const handleFilterChange = () => {
   emitFilterChange()
 }
 
+// Диапазон отправляем только целиком: одна дата - ещё не период
+const handleMobileDateChange = () => {
+  dateRange.value = dateStart.value && dateEnd.value
+    ? [dateStart.value, dateEnd.value]
+    : null
+  handleFilterChange()
+}
+
 const handleReset = () => {
   searchQuery.value = ''
   selectedStatus.value = ''
   selectedType.value = ''
   dateRange.value = null
+  dateStart.value = null
+  dateEnd.value = null
   currentPage.value = 1
   emitFilterChange()
 }
@@ -213,6 +340,12 @@ watch(() => props.totalItems, (newVal) => {
   }
 })
 
+// Поворот экрана: диапазон из настольного пикера переезжает в два поля и обратно
+watch(dateRange, (range) => {
+  dateStart.value = range?.[0] || null
+  dateEnd.value = range?.[1] || null
+})
+
 // Экспорт функций для родительского компонента
 defineExpose({
   reset: handleReset,
@@ -227,6 +360,10 @@ defineExpose({
 
 .filter-row {
   margin-bottom: 20px;
+}
+
+.filter-select {
+  min-width: 160px;
 }
 
 .results-pagination-row {
@@ -246,19 +383,84 @@ defineExpose({
   flex-shrink: 0;
 }
 
-@media (max-width: 768px) {
+/* Планшет: поиск и фильтры в две строки, пагинация переносится под счётчик */
+@media (max-width: 1023px) {
   .filter-row .el-col {
     margin-bottom: 10px;
   }
-  
+
   .results-pagination-row {
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 12px;
-    align-items: flex-start;
   }
-  
-  .el-pagination {
-    align-self: center;
-  }
+}
+
+/* Телефон */
+.filter-mobile {
+  margin-bottom: 12px;
+}
+
+.filter-search-row {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-search {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-search-row .el-button {
+  margin-left: 0;
+  flex-shrink: 0;
+}
+
+.filter-toggle {
+  min-width: 44px;
+}
+
+.filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 12px;
+  background-color: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+}
+
+.filter-panel .el-select,
+.filter-panel .el-date-editor {
+  width: 100%;
+}
+
+.filter-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.filter-dates :deep(.el-date-editor) {
+  width: 100%;
+}
+
+.filter-reset {
+  width: 100%;
+}
+
+.is-mobile .results-pagination-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.is-mobile .results-info {
+  font-size: 13px;
+}
+
+.is-mobile .el-pagination {
+  justify-content: center;
 }
 </style>

@@ -117,10 +117,45 @@
       color: white !important;
   }
 
-  /* Адаптивность */
-  @media (max-width: 768px) {
+  /* Адаптивность: планшет и телефон.
+     Страницу прокручивает сам документ, а не el-main внутри окна фиксированной
+     высоты - так адресная строка мобильного браузера сворачивается при
+     прокрутке, работает pull-to-refresh, а 100vh не режет низ страницы */
+  @media (max-width: 1023px) {
+      html, body {
+          height: auto;
+          min-height: 100%;
+      }
+
+      #app {
+          height: auto;
+          min-height: 100vh;
+          min-height: 100dvh;
+          overflow-x: hidden;
+      }
+
+      .app-container {
+          height: auto;
+          min-height: 100vh;
+          min-height: 100dvh;
+      }
+
       .app-main {
-	  padding: 8px;
+          overflow: visible;
+      }
+
+      /* Шапка всегда под рукой: меню и профиль не уезжают при прокрутке */
+      .app-header {
+          position: sticky;
+          top: 0;
+          z-index: 100;
+          --el-header-height: 56px;
+      }
+
+      .toast-container {
+          top: 12px;
+          right: 12px;
+          left: 12px;
       }
   }
 </style>

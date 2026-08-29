@@ -285,12 +285,26 @@
   }
 
   @media (max-width: 480px) {
+    .login-view {
+      padding: 0;
+      align-items: stretch;
+    }
+
     .login-container {
       max-width: 100%;
     }
 
     .login-card {
-      border-radius: 12px;
+      border-radius: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: none;
+    }
+
+    .login-content {
+      flex: 1;
     }
 
     .login-header {

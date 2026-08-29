@@ -1,10 +1,19 @@
 <template>
-  <div class="event-types-view">
+  <div class="event-types-view" :class="{ 'is-mobile': isMobile }">
     <el-container>
       <el-header>
         <div class="header-content">
           <h1>Категории мероприятий</h1>
           <el-button 
+            v-if="isMobile"
+            type="primary"
+            :icon="Plus"
+            circle
+            aria-label="Создать категорию"
+            @click="showCreateDialog = true"
+          />
+          <el-button 
+            v-else
             type="primary"
             :icon="Plus"
             @click="showCreateDialog = true"
@@ -24,8 +33,40 @@
           @filter-change="handleFilterChange"
         />
 
+        <!-- Телефон: карточки категорий -->
+        <div v-if="isMobile" v-loading="loading" class="types-cards">
+          <el-empty v-if="!loading && paginatedTypes.length === 0" description="Категорий не найдено" />
+
+          <div v-for="type in paginatedTypes" :key="type.id" class="type-card">
+            <span class="color-dot" :style="{ backgroundColor: type.color || '#dcdfe6' }"></span>
+            <div class="type-card-body">
+              <div class="type-card-title">{{ type.label }}</div>
+              <div class="type-card-meta">
+                <span>{{ type.rule_system?.label || 'Система правил не задана' }}</span>
+                <el-tag v-if="type.is_ranked" type="success" size="small">Рейтинговая</el-tag>
+              </div>
+            </div>
+            <el-button-group class="type-card-actions">
+              <el-button 
+                size="small"
+                type="primary"
+                :icon="Edit"
+                aria-label="Редактировать"
+                @click="handleEdit(type)"
+              />
+              <el-button
+                size="small"
+                type="danger"
+                :icon="Delete"
+                aria-label="Удалить"
+                @click="handleDelete(type)"
+              />
+            </el-button-group>
+          </div>
+        </div>
+
         <!-- Таблица категорий -->
-        <el-card>
+        <el-card v-else>
           <el-table 
             :data="paginatedTypes" 
             :loading="loading"
@@ -36,9 +77,22 @@
               label="Название" 
               min-width="200"
               sortable
-            />
+            >
+              <template #default="scope">
+                <div class="type-name-cell">
+                  <!-- Планшет: колонки цвета нет, цвет - точкой перед названием -->
+                  <span
+                    v-if="isTablet"
+                    class="color-dot"
+                    :style="{ backgroundColor: scope.row.color || '#dcdfe6' }"
+                  ></span>
+                  <span>{{ scope.row.label }}</span>
+                </div>
+              </template>
+            </el-table-column>
             
             <el-table-column
+              v-if="!isTablet"
               prop="color"
               label="Цвет"
               width="100"
@@ -56,7 +110,7 @@
             <el-table-column
               prop="is_ranked"
               label="Рейтинговая"
-              width="120"
+              :width="isTablet ? 136 : 120"
               align="center"
               sortable
             >
@@ -78,7 +132,7 @@
 
             <el-table-column
               label="Действия"
-              width="150"
+              :width="isTablet ? 120 : 150"
               align="center"
               fixed="right"
             >
@@ -167,10 +221,13 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { apiService } from '@/services/api'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 import PaginationFilter from '@/components/common/PaginationFilter.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import { UI_MESSAGES } from '@/utils/uiConstants'
+
+const { isMobile, isTablet } = useBreakpoints()
 
 // Состояние
 const loading = ref(false)
@@ -403,6 +460,7 @@ watch(showCreateDialog, (val) => {
   align-items: center;
   height: 100%;
   width: 100%;
+  gap: 12px;
 }
 
 .color-preview {
@@ -413,6 +471,20 @@ watch(showCreateDialog, (val) => {
   margin: 0 auto;
 }
 
+.type-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-dot {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
 .rule-system-description {
   width: 100%;
   font-size: 12px;
@@ -421,15 +493,73 @@ watch(showCreateDialog, (val) => {
   margin-top: 4px;
 }
 
-@media (max-width: 768px) {
+/* Планшет и телефон */
+@media (max-width: 1023px) {
+  .event-types-view {
+    min-height: auto;
+  }
+
   .header-content {
-    flex-direction: column;
-    gap: 16px;
-    padding: 16px 0;
+    flex-wrap: wrap;
   }
-  
-  .header-content h1 {
-    margin: 0;
-  }
+}
+
+/* Телефон */
+.is-mobile .header-content {
+  flex-wrap: nowrap;
+}
+
+.is-mobile .header-content h1 {
+  flex: 1;
+  font-size: 1.15rem;
+  line-height: 1.25;
+  margin: 0;
+  min-width: 0;
+}
+
+.types-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 120px;
+}
+
+.type-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background-color: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+}
+
+.type-card .color-dot {
+  width: 14px;
+  height: 14px;
+}
+
+.type-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.type-card-title {
+  font-weight: 600;
+  color: #303133;
+}
+
+.type-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.type-card-actions {
+  flex-shrink: 0;
 }
 </style>

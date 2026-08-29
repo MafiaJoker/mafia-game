@@ -1,9 +1,17 @@
 <template>
-  <div class="events-calendar-view">
+  <div class="events-calendar-view" :class="{ 'is-mobile': isMobile, 'is-tablet': isTablet }">
     <el-container>
       <el-header>
         <div class="calendar-header">
           <el-button 
+            v-if="isMobile"
+            :icon="ArrowLeft"
+            circle
+            aria-label="Назад к мероприятиям"
+            @click="$router.push('/')"
+          />
+          <el-button 
+            v-else
             @click="$router.push('/')"
             :icon="ArrowLeft"
           >
@@ -15,19 +23,60 @@
               @click="previousMonth"
               :icon="ArrowLeft"
               circle
+              aria-label="Предыдущий месяц"
             />
             <span class="current-period">{{ formatMonthYear(currentDate) }}</span>
             <el-button 
               @click="nextMonth"
               :icon="ArrowRight"
               circle
+              aria-label="Следующий месяц"
             />
           </div>
         </div>
       </el-header>
 
       <el-main>
-        <el-card class="calendar-card">
+        <!-- Телефон: сетка на семь колонок в 360px не читается - повестка по дням -->
+        <div v-if="isMobile" class="agenda">
+          <el-empty
+            v-if="agendaDays.length === 0"
+            description="В этом месяце мероприятий нет"
+          />
+
+          <div v-for="day in agendaDays" :key="day.date" class="agenda-day">
+            <div class="agenda-day-header" :class="{ today: day.isToday }">
+              <span class="agenda-day-number">{{ day.dayNumber }}</span>
+              <span class="agenda-day-name">{{ formatWeekday(day.date) }}</span>
+              <el-tag v-if="day.isToday" size="small" type="primary">Сегодня</el-tag>
+            </div>
+
+            <div class="agenda-events">
+              <div
+                v-for="event in day.events"
+                :key="event.id"
+                class="agenda-event"
+                @click="openEvent(event)"
+              >
+                <span
+                  class="agenda-event-color"
+                  :style="{ backgroundColor: getEventTypeColor(event.event_type) }"
+                ></span>
+                <div class="agenda-event-body">
+                  <div class="agenda-event-title">{{ event.label }}</div>
+                  <div class="agenda-event-meta">
+                    <span>{{ formatTime(event.start_date) }}</span>
+                    <span v-if="event.event_type">· {{ event.event_type.label }}</span>
+                    <span v-if="event.tables?.length">· {{ event.tables.length }} {{ getTableNoun(event.tables.length) }}</span>
+                  </div>
+                </div>
+                <el-icon class="agenda-event-arrow"><ArrowRight /></el-icon>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <el-card v-else class="calendar-card">
           <div class="calendar-grid">
             <!-- Заголовки дней недели -->
             <div class="weekdays-header">
@@ -56,7 +105,7 @@
                 
                 <div v-if="day.events.length > 0" class="day-events">
                   <el-tooltip
-                    v-for="event in day.events.slice(0, 5)"
+                    v-for="event in day.events.slice(0, visibleEventsPerDay)"
                     :key="event.id"
                     :content="getEventChipTooltip(event)"
                     :disabled="!getEventChipTooltip(event)"
@@ -74,11 +123,11 @@
                   </el-tooltip>
                   
                   <div 
-                    v-if="day.events.length > 5" 
+                    v-if="day.events.length > visibleEventsPerDay" 
                     class="more-events"
                     @click="showDayEvents(day)"
                   >
-                    +{{ day.events.length - 5 }} еще
+                    +{{ day.events.length - visibleEventsPerDay }} еще
                   </div>
                 </div>
               </div>
@@ -147,6 +196,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEventsStore } from '@/stores/events'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 import { ElMessage } from 'element-plus'
 import { 
   ArrowLeft, 
@@ -157,12 +207,16 @@ import {
 
 const router = useRouter()
 const eventsStore = useEventsStore()
+const { isMobile, isTablet } = useBreakpoints()
 
 const currentDate = ref(new Date())
 const showDayDialog = ref(false)
 const selectedDay = ref(null)
 
 const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+
+// В ячейке планшета помещается три плашки, дальше - «+N еще»
+const visibleEventsPerDay = computed(() => (isTablet.value ? 3 : 5))
 
 const events = computed(() => eventsStore.events || [])
 
@@ -207,6 +261,11 @@ const calendarDays = computed(() => {
   return days
 })
 
+// Повестка телефона: только дни текущего месяца, в которых что-то есть
+const agendaDays = computed(() => (
+  calendarDays.value.filter(day => day.isCurrentMonth && day.events.length > 0)
+))
+
 const getEventsForDate = (date) => {
   return events.value.filter(event => {
     const eventDate = new Date(event.start_date)
@@ -234,6 +293,10 @@ const formatDate = (date) => {
   })
 }
 
+const formatWeekday = (date) => {
+  return date.toLocaleDateString('ru-RU', { weekday: 'long' })
+}
+
 const formatTime = (dateString) => {
   const date = new Date(dateString)
   return date.toLocaleTimeString('ru-RU', {
@@ -250,6 +313,16 @@ const formatDateTime = (dateString) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+const getTableNoun = (count) => {
+  const n = Math.abs(count) % 100
+  if (n >= 5 && n <= 20) return 'столов'
+
+  const lastDigit = n % 10
+  if (lastDigit === 1) return 'стол'
+  if (lastDigit >= 2 && lastDigit <= 4) return 'стола'
+  return 'столов'
 }
 
 const previousMonth = () => {
@@ -350,6 +423,7 @@ onMounted(() => {
   align-items: center;
   height: 100%;
   padding: 0 20px;
+  gap: 12px;
 }
 
 .calendar-header h1 {
@@ -369,6 +443,7 @@ onMounted(() => {
   font-weight: 500;
   min-width: 200px;
   text-align: center;
+  text-transform: capitalize;
 }
 
 .calendar-card {
@@ -381,7 +456,7 @@ onMounted(() => {
 
 .weekdays-header {
   display: grid;
-  grid-template-columns: repeat(7, minmax(160px, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 1px;
   margin-bottom: 1px;
 }
@@ -396,7 +471,7 @@ onMounted(() => {
 
 .calendar-days {
   display: grid;
-  grid-template-columns: repeat(7, minmax(160px, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 1px;
   background-color: #e9ecef;
 }
@@ -459,7 +534,7 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.2s ease;
   margin-bottom: 2px;
-  width: 120px;
+  width: 100%;
   min-height: 18px;
   display: block;
   box-sizing: border-box;
@@ -594,57 +669,168 @@ onMounted(() => {
   line-height: 1.4;
 }
 
-/* Адаптивность */
-@media (max-width: 768px) {
+/* Планшет и телефон: шапка переносится, карточка без внешних полей */
+@media (max-width: 1023px) {
+  .events-calendar-view {
+    min-height: auto;
+  }
+
   .calendar-header {
-    flex-direction: column;
-    gap: 16px;
-    padding: 16px;
+    flex-wrap: wrap;
+    padding: 0;
+  }
+
+  .calendar-header h1 {
+    flex: 1;
+    font-size: 20px;
+    text-align: center;
   }
 
   .calendar-controls {
-    order: -1;
+    flex: 1 0 100%;
+    justify-content: center;
+    gap: 12px;
   }
 
-  .calendar-day {
-    height: 90px;
-    min-height: 90px;
-    max-height: 90px;
-    padding: 4px;
-    overflow: hidden;
+  .calendar-card {
+    margin: 0;
   }
+}
 
-  .day-number {
-    font-size: 11px;
-    margin-bottom: 4px;
-  }
-
-  .event-item {
-    font-size: 9px;
-    padding: 2px 4px;
-    width: 100px;
-    min-height: 16px;
-  }
-
-  .event-title {
-    font-size: 9px;
-  }
-
-  .event-time {
-    font-size: 7px;
-  }
-
+/* Планшет: семь колонок делят ширину поровну, плашки во всю ячейку */
+@media (min-width: 768px) and (max-width: 1023px) {
   .weekday-header {
     padding: 8px 4px;
     font-size: 12px;
   }
 
-  .weekdays-header {
-    grid-template-columns: repeat(7, minmax(120px, 1fr));
+  .calendar-day {
+    height: 112px;
+    min-height: 112px;
+    max-height: 112px;
+    padding: 4px;
   }
 
-  .calendar-days {
-    grid-template-columns: repeat(7, minmax(120px, 1fr));
+  .calendar-day.has-events {
+    border-left-width: 3px;
   }
+
+  .event-item {
+    padding: 2px 4px;
+  }
+}
+
+/* Телефон: шапка в две строки, повестка вместо сетки */
+@media (max-width: 767px) {
+  .calendar-header {
+    gap: 8px 12px;
+  }
+
+  .calendar-header h1 {
+    flex: 1;
+    min-width: 0;
+    font-size: 18px;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .current-period {
+    min-width: 0;
+    flex: 1;
+    font-size: 17px;
+  }
+
+  .event-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+.agenda {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.agenda-day-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 0 2px;
+}
+
+.agenda-day-number {
+  font-size: 22px;
+  font-weight: 700;
+  color: #303133;
+  line-height: 1;
+}
+
+.agenda-day-header.today .agenda-day-number {
+  color: #409eff;
+}
+
+.agenda-day-name {
+  font-size: 13px;
+  color: #909399;
+  text-transform: capitalize;
+}
+
+.agenda-events {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agenda-event {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background-color: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.agenda-event:active {
+  background-color: #f5f7fa;
+}
+
+.agenda-event-color {
+  flex-shrink: 0;
+  width: 4px;
+  align-self: stretch;
+  border-radius: 2px;
+}
+
+.agenda-event-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.agenda-event-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: #303133;
+  line-height: 1.3;
+}
+
+.agenda-event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.agenda-event-arrow {
+  color: #c0c4cc;
+  flex-shrink: 0;
 }
 </style>

@@ -1,12 +1,20 @@
 <template>
-  <div class="event-view">
+  <div class="event-view" :class="{ 'is-mobile': isMobile }">
     <el-container>
       <el-header>
         <div class="event-header">
-          <el-button 
-            @click="$router.push('/')"
+          <el-button
+            v-if="isMobile"
             :icon="ArrowLeft"
-            >
+            circle
+            aria-label="Назад к мероприятиям"
+            @click="$router.push('/')"
+          />
+          <el-button
+            v-else
+            :icon="ArrowLeft"
+            @click="$router.push('/')"
+          >
             Назад к мероприятиям
           </el-button>
           <h1>{{ event?.label || 'Загрузка мероприятия...' }}</h1>
@@ -26,12 +34,12 @@
         <el-row>
           <!-- Основной контент с вкладками на всю ширину -->
           <el-col :span="24">
-            <el-card>
-              <el-tabs v-model="activeTab" type="border-card">
+            <el-card class="event-card-shell">
+              <el-tabs v-model="activeTab" type="border-card" class="event-tabs">
                 <!-- Вкладка Информация -->
                 <el-tab-pane label="Информация" name="info">
                   <template #label>
-                    <span style="display: flex; align-items: center; gap: 4px;">
+                    <span class="tab-label">
                       <el-icon><InfoFilled /></el-icon>
                       Информация
                     </span>
@@ -195,7 +203,7 @@
                             language="ru"
                             preview-theme="default"
                             code-theme="atom"
-                            :toolbars="markdownToolbars"
+                            :toolbars="isMobile ? mobileMarkdownToolbars : markdownToolbars"
                           />
                         </div>
                       </div>
@@ -221,7 +229,7 @@
                 <!-- Вкладка Столы -->
                 <el-tab-pane label="Столы" name="tables">
                   <template #label>
-                    <span style="display: flex; align-items: center; gap: 4px;">
+                    <span class="tab-label">
                       <el-icon><Grid /></el-icon>
                       Столы
                     </span>
@@ -238,7 +246,7 @@
                           @click="showSeatingDialog = true"
                           >
                           <el-icon><Grid /></el-icon>
-                          Сгенерировать рассадку
+                          {{ isMobile ? 'Рассадка' : 'Сгенерировать рассадку' }}
                         </el-button>
                         <el-button 
                           size="small"
@@ -246,7 +254,7 @@
                           @click="copySeatingText"
                           >
                           <el-icon><CopyDocument /></el-icon>
-                          Скопировать рассадку как текст
+                          {{ isMobile ? 'Копировать текст' : 'Скопировать рассадку как текст' }}
                         </el-button>
                         <el-button 
                           type="primary" 
@@ -383,7 +391,7 @@
                                   @click.stop="copyObsLink(game.id)"
                                 >
                                   <el-icon><CopyDocument /></el-icon>
-                                  Копировать ссылку на OBS
+                                  {{ isMobile ? 'OBS' : 'Копировать ссылку на OBS' }}
                                 </el-button>
                               </div>
                             </div>
@@ -397,7 +405,7 @@
                 <!-- Вкладка Финансы -->
                 <el-tab-pane label="Финансы" name="finances">
                   <template #label>
-                    <span style="display: flex; align-items: center; gap: 4px;">
+                    <span class="tab-label">
                       <el-icon><Money /></el-icon>
                       Финансы
                     </span>
@@ -410,7 +418,7 @@
                 <!-- Вкладка Игроки -->
                 <el-tab-pane label="Игроки" name="players">
                   <template #label>
-                    <span style="display: flex; align-items: center; gap: 4px;">
+                    <span class="tab-label">
                       <el-icon><User /></el-icon>
                       Игроки
                     </span>
@@ -423,7 +431,7 @@
                 <!-- Вкладка Результаты -->
                 <el-tab-pane label="Результаты" name="results">
                   <template #label>
-                    <span style="display: flex; align-items: center; gap: 4px;">
+                    <span class="tab-label">
                       <el-icon><Trophy /></el-icon>
                       Результаты
                     </span>
@@ -459,6 +467,7 @@
   import { useEventsStore } from '@/stores/events'
   import { useEventTypesStore } from '@/stores/eventTypes'
   import { useAuthStore } from '@/stores/auth'
+  import { useBreakpoints } from '@/composables/useBreakpoints'
   import { apiService } from '@/services/api'
   import { getSeatingExportErrorMessage } from '@/utils/errorMessages.js'
   import { ElMessage, ElMessageBox } from 'element-plus'
@@ -487,6 +496,7 @@
   const eventsStore = useEventsStore()
   const eventTypesStore = useEventTypesStore()
   const authStore = useAuthStore()
+  const { isMobile } = useBreakpoints()
 
   const event = ref(null)
   const selectedTable = ref(null)
@@ -516,6 +526,13 @@
     'revoke', 'next', 'save', '=', 'pageFullscreen', 'fullscreen', 'preview', 'previewOnly'
   ]
   
+  // Телефон: полная панель редактора шире экрана, остаётся самое ходовое
+  const mobileMarkdownToolbars = [
+    'bold', 'italic', '-',
+    'title', 'quote', 'unorderedList', 'orderedList', '-',
+    'link', '=', 'preview'
+  ]
+
   const markdownPlaceholder = `# Информация о мероприятии
 
 ## Описание
@@ -1342,6 +1359,12 @@
       gap: 8px;
   }
 
+  .tab-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+  }
+
   .event-detailed-info {
       max-width: 100%;
   }
@@ -1422,6 +1445,11 @@
   .event-detailed-info :deep(.el-form-item__label) {
       font-weight: 600;
       color: #606266;
+      /* Длинная подпись переносится и не наезжает на соседнее поле */
+      height: auto;
+      min-height: 32px;
+      line-height: 1.35;
+      padding-top: 7px;
   }
 
   .event-detailed-info :deep(.el-form-item__content) {
@@ -1542,5 +1570,199 @@
   .description-markdown :deep(th) {
     background-color: #f5f7fa;
     font-weight: 600;
+  }
+  /* Планшет и телефон */
+  @media (max-width: 1023px) {
+      .event-view {
+          min-height: auto;
+      }
+
+      .event-header {
+          flex-wrap: wrap;
+          gap: 8px 12px;
+      }
+
+      .event-header h1 {
+          flex: 1;
+          min-width: 0;
+          font-size: 1.25rem;
+      }
+
+      /* Столов немного - на широком экране их видно все сразу, сеткой */
+      .tables-list {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 8px;
+      }
+
+      .table-item {
+          margin-bottom: 0;
+      }
+
+      /* Крестики удаления живут по наведению, а пальцем навести нельзя */
+      .table-delete-btn,
+      .game-hide-btn {
+          opacity: 1;
+      }
+
+      .markdown-editor :deep(.md-editor) {
+          height: 420px;
+      }
+
+      /* Заголовок вкладки и три кнопки в одну строку не помещаются */
+      .tab-header {
+          flex-wrap: wrap;
+          gap: 8px;
+      }
+
+      .tab-header .header-actions {
+          flex-wrap: wrap;
+      }
+
+      .event-tabs :deep(.el-tabs__content) {
+          padding: 12px;
+      }
+  }
+
+  @media (hover: none) {
+      .table-delete-btn,
+      .game-hide-btn {
+          opacity: 1;
+      }
+  }
+
+  /* Телефон */
+  @media (max-width: 767px) {
+      .event-header h1 {
+          font-size: 1.1rem;
+          line-height: 1.3;
+      }
+
+      .event-header .header-actions {
+          flex: 1 0 100%;
+      }
+
+      .event-header .header-actions .el-button {
+          width: 100%;
+      }
+
+      /* Карточка не нужна: рамку даёт сам блок вкладок */
+      .event-card-shell {
+          border: none;
+          box-shadow: none;
+          background: transparent;
+      }
+
+      .event-card-shell :deep(.el-card__body) {
+          padding: 0;
+      }
+
+      /* Вкладки как панель разделов: иконка над подписью, все пять в 320px.
+         Высоту задаём через переменную Element Plus: от неё считаются и сами
+         вкладки, и их обёртка - иначе вкладка 54px вылезает из шапки 40px,
+         и подпись ложится на нижнюю линию */
+      .event-tabs {
+          --el-tabs-header-height: 56px;
+      }
+
+      .event-tabs :deep(.el-tabs__nav-scroll) {
+          overflow: visible;
+      }
+
+      .event-tabs :deep(.el-tabs__nav) {
+          display: flex;
+          width: 100%;
+          float: none;
+      }
+
+      .event-tabs :deep(.el-tabs__header .el-tabs__item) {
+          flex: 1;
+          padding: 0 4px;
+          font-size: 11px;
+      }
+
+      .event-tabs :deep(.el-tabs__content) {
+          padding: 10px;
+      }
+
+      .tab-label {
+          flex-direction: column;
+          gap: 3px;
+          line-height: 1.1;
+      }
+
+      .tab-label .el-icon {
+          font-size: 18px;
+      }
+
+      .tab-content {
+          padding: 8px 0;
+      }
+
+      .tab-header {
+          flex-wrap: wrap;
+          gap: 8px;
+      }
+
+      .tab-header .header-actions {
+          flex-wrap: wrap;
+          width: 100%;
+      }
+
+      .tab-header .header-actions .el-button {
+          flex: 1 1 auto;
+          margin-left: 0;
+      }
+
+      .edit-mode-controls,
+      .edit-mode-controls div {
+          width: 100%;
+      }
+
+      .edit-mode-controls .el-button {
+          flex: 1;
+      }
+
+      .tables-list {
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      }
+
+      .table-item {
+          padding: 10px 28px 10px 12px;
+      }
+
+      .info-section h4 {
+          font-size: 15px;
+      }
+
+      .event-description {
+          margin: 20px 0;
+      }
+
+      .event-description h3 {
+          font-size: 17px;
+      }
+
+      .markdown-editor :deep(.md-editor) {
+          height: 360px;
+      }
+
+      .description-markdown :deep(.md-preview) {
+          font-size: 15px;
+      }
+
+      .game-item {
+          padding: 12px 32px 12px 12px;
+      }
+
+      .game-header {
+          flex-wrap: wrap;
+          gap: 6px;
+      }
+
+      .game-info {
+          flex-wrap: wrap;
+          gap: 6px 12px;
+      }
   }
 </style>

@@ -26,7 +26,7 @@
         <el-tab-pane label="Добавить игроков" name="add">
           <div class="registration-content">
         <el-row :gutter="16">
-          <el-col :span="16">
+          <el-col :xs="24" :sm="24" :md="16">
             <div class="player-selection">
               <div class="section-title">
                 Добавить игроков ({{ playerSelections.filter(p => p.selectedUserId).length }})
@@ -148,7 +148,7 @@
               </div>
             </div>
           </el-col>
-          <el-col :span="8">
+          <el-col :xs="24" :sm="24" :md="8">
             <div class="registration-settings">
               <div class="section-title">Настройки</div>
               
@@ -196,7 +196,47 @@
             </div>
 
             <!-- Таблица регистраций -->
-            <el-table 
+            <!-- Телефон: заявки карточками, таблица на четыре колонки не помещается -->
+            <div v-if="isMobile" v-loading="registrationsStore.loading" class="registrations-cards">
+              <el-empty
+                v-if="!registrationsStore.loading && registrationsStore.registrations.length === 0"
+                description="Заявок пока нет"
+                :image-size="60"
+              />
+              <div
+                v-for="row in registrationsStore.registrations"
+                :key="row.id"
+                class="registration-card"
+              >
+                <div class="registration-card-main">
+                  <div class="registration-card-name">{{ row.user_nickname }}</div>
+                  <div class="registration-card-date">{{ formatDate(row.created_at) }}</div>
+                </div>
+                <el-tag :type="getRegistrationStatusType(row.status)" size="small">
+                  {{ getRegistrationStatusLabel(row.status) }}
+                </el-tag>
+                <el-button
+                  v-if="row.status === 'confirmed'"
+                  type="warning"
+                  size="small"
+                  plain
+                  @click="confirmRejectRegistration(row)"
+                >
+                  Отклонить
+                </el-button>
+                <el-button
+                  v-else
+                  :type="row.status === 'cancelled' ? 'success' : 'primary'"
+                  size="small"
+                  plain
+                  @click="confirmConfirmRegistration(row)"
+                >
+                  Подтвердить
+                </el-button>
+              </div>
+            </div>
+            <el-table
+              v-else
               :data="registrationsStore.registrations" 
               v-loading="registrationsStore.loading"
               stripe
@@ -273,7 +313,7 @@
 
     <!-- Статистика участников -->
     <el-row :gutter="16" class="mb-4">
-      <el-col :span="6">
+      <el-col :xs="12" :sm="6">
         <el-card class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ totalPlayers }}</div>
@@ -281,7 +321,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="6">
         <el-card class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ totalGames }}</div>
@@ -289,7 +329,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="6">
         <el-card class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ averageGamesPerPlayer.toFixed(1) }}</div>
@@ -297,7 +337,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="6">
         <el-card class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ activePlayers }}</div>
@@ -321,7 +361,7 @@
               placeholder="Поиск игроков..."
               :prefix-icon="Search"
               size="small"
-              style="width: 200px;"
+              class="players-search"
               clearable
             />
           </div>
@@ -337,7 +377,43 @@
       </div>
 
       <div v-else class="players-table">
-        <el-table 
+        <!-- Телефон: карточка на игрока вместо таблицы на шесть колонок -->
+        <div v-if="isMobile" class="players-cards">
+          <div v-for="row in paginatedPlayers" :key="row.id" class="player-stat-card">
+            <div class="player-stat-top">
+              <span class="player-nickname">{{ row.nickname }}</span>
+              <el-tag :type="getGameCountType(row.gamesCount)" size="small">
+                {{ row.gamesCount }} {{ getGameNoun(row.gamesCount) }}
+              </el-tag>
+            </div>
+            <div class="player-stat-winrate">
+              <el-progress
+                :percentage="row.winRate"
+                :color="getWinRateColor(row.winRate)"
+                :stroke-width="8"
+                :show-text="false"
+              />
+              <span class="win-rate-text">{{ row.winRate }}% побед</span>
+            </div>
+            <div class="roles-stats">
+              <el-tag
+                v-for="role in row.roles"
+                :key="role.name"
+                :type="getRoleTagType(role.name)"
+                size="small"
+                class="role-tag"
+              >
+                {{ role.name }}: {{ role.count }}
+              </el-tag>
+            </div>
+            <div class="player-stat-footer">
+              <span>Последняя игра: {{ formatDate(row.lastGameDate) }}</span>
+              <span v-if="row.tables.length">Столы: {{ row.tables.join(', ') }}</span>
+            </div>
+          </div>
+        </div>
+        <el-table
+          v-else
           :data="paginatedPlayers" 
           stripe 
           style="width: 100%"
@@ -388,13 +464,13 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="Последняя игра" width="140" align="center">
+          <el-table-column v-if="!isTablet" label="Последняя игра" width="140" align="center">
             <template #default="{ row }">
               {{ formatDate(row.lastGameDate) }}
             </template>
           </el-table-column>
 
-          <el-table-column label="Столы" min-width="150">
+          <el-table-column v-if="!isTablet" label="Столы" min-width="150">
             <template #default="{ row }">
               <div class="tables-list">
                 <el-tag 
@@ -425,7 +501,8 @@
             v-model:page-size="pageSize"
             :page-sizes="[10, 20, 50]"
             :total="filteredPlayers.length"
-            layout="total, sizes, prev, pager, next, jumper"
+            :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+            :size="isMobile ? 'small' : 'default'"
             @size-change="handleSizeChange"
             @current-change="handleCurrentChange"
           />
@@ -440,6 +517,7 @@
   import { ref, computed, onMounted, watch } from 'vue'
   import { apiService } from '@/services/api'
   import { useRegistrationsStore } from '@/stores/registrations'
+  import { useBreakpoints } from '@/composables/useBreakpoints'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import { 
       User,
@@ -459,6 +537,7 @@
   })
 
   const registrationsStore = useRegistrationsStore()
+  const { isMobile, isTablet } = useBreakpoints()
   const players = ref([])
   const playerSelections = ref([
     { selectedUserId: null, searchQuery: '' },
@@ -685,6 +764,16 @@
   })
 
   // Вспомогательные функции
+  // Число игр в карточке: 1 игра, 2 игры, 5 игр
+  const getGameNoun = (count) => {
+      const n = Math.abs(count) % 100
+      if (n >= 5 && n <= 20) return 'игр'
+      const lastDigit = n % 10
+      if (lastDigit === 1) return 'игра'
+      if (lastDigit >= 2 && lastDigit <= 4) return 'игры'
+      return 'игр'
+  }
+
   const getGameCountType = (count) => {
       if (count >= 5) return 'success'
       if (count >= 3) return 'warning'
@@ -1245,6 +1334,143 @@
   }
 
   .stat-label {
+      font-size: 12px;
+      color: #909399;
+  }
+  .players-search {
+      width: 200px;
+  }
+
+  /* Настройки под списком игроков, когда колонки встали друг под друга */
+  @media (max-width: 991px) {
+      .registration-settings {
+          margin-top: 16px;
+          padding-left: 0;
+          padding-top: 16px;
+          border-left: none;
+          border-top: 1px solid #ebeef5;
+      }
+  }
+
+  /* Телефон */
+  @media (max-width: 767px) {
+      .card-header {
+          flex-wrap: wrap;
+      }
+
+      .card-header .header-actions {
+          flex: 1 0 100%;
+      }
+
+      .players-search {
+          width: 100%;
+      }
+
+      .stat-number {
+          font-size: 22px;
+      }
+
+      .stat-value {
+          font-size: 20px;
+      }
+
+      .registrations-stats {
+          padding: 12px 8px;
+      }
+
+      .players-grid {
+          grid-template-columns: 1fr;
+      }
+
+      .save-section .el-button,
+      .test-section .el-button {
+          width: 100%;
+          height: auto;
+          min-height: 32px;
+          padding: 8px 12px;
+          white-space: normal;
+          line-height: 1.3;
+      }
+
+      .pagination-wrapper {
+          margin-top: 12px;
+      }
+  }
+
+  /* Карточки заявок (телефон) */
+  .registrations-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 80px;
+  }
+
+  .registration-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background-color: #fafafa;
+      border: 1px solid #ebeef5;
+      border-radius: 6px;
+  }
+
+  .registration-card-main {
+      flex: 1;
+      min-width: 0;
+  }
+
+  .registration-card-name {
+      font-weight: 500;
+      color: #303133;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+  }
+
+  .registration-card-date {
+      font-size: 12px;
+      color: #909399;
+  }
+
+  /* Карточки участников (телефон) */
+  .players-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+  }
+
+  .player-stat-card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px;
+      background-color: #fff;
+      border: 1px solid #ebeef5;
+      border-radius: 8px;
+  }
+
+  .player-stat-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+  }
+
+  .player-stat-winrate {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+  }
+
+  .player-stat-winrate .el-progress {
+      flex: 1;
+  }
+
+  .player-stat-footer {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
       font-size: 12px;
       color: #909399;
   }

@@ -39,7 +39,7 @@
 
       <el-table-column
         label="Игрок"
-        min-width="200"
+        :min-width="isMobile ? 120 : 200"
       >
         <template #default="{ row }">
           {{ row.nickname }}
@@ -64,6 +64,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { User } from '@element-plus/icons-vue'
 import GameTable from './GameTable.vue'
 import RoleColumn from './RoleColumn.vue'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 import { apiService } from '@/services/api.js'
 import { GameRolesEnum } from '@/utils/constants.js'
 import { GAME_ERROR_MESSAGES } from '@/utils/errorMessages.js'
@@ -84,6 +85,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['negotiation-started', 'game-started', 'update:rolesData'])
+const { isMobile } = useBreakpoints()
 const loading = ref(false)
 const errorMessage = ref('')
 const isNegotiationStarted = ref(false)
@@ -292,6 +294,20 @@ onUnmounted(() => {
     color: #faad14;
     padding: 4px 8px;
     border-radius: 4px;
+  }
+}
+/* Телефон: заголовок и кнопка не помещаются в одну строку */
+@media (max-width: 767px) {
+  .card-header {
+    flex-wrap: wrap;
+  }
+
+  .header-right {
+    flex: 1 0 100%;
+  }
+
+  .header-right .el-button {
+    width: 100%;
   }
 }
 </style>

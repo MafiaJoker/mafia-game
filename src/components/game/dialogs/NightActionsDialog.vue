@@ -3,6 +3,7 @@
     v-model="visible"
     title="Ночь"
     width="800px"
+    :fullscreen="isMobile"
   >
     <div class="night-container">
       <!-- Отстрел мафии -->
@@ -115,6 +116,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { GameRolesEnum } from '@/utils/constants.js'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -134,6 +136,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'update:phaseData', 'show-best-move', 'next-round'])
 
+const { isMobile } = useBreakpoints()
 const showNightResults = ref(true)
 
 const visible = computed({
@@ -315,6 +318,53 @@ const handleNextRound = () => {
 
 :deep(.el-divider) {
   margin: 16px 0;
+}
+/* Планшет: кнопки номеров крупнее, под палец */
+@media (max-width: 1023px) {
+  .action-btn {
+    min-width: 44px;
+    height: 36px;
+  }
+}
+
+/* Телефон: подпись действия сверху, номера игроков сеткой под ней */
+@media (max-width: 767px) {
+  .action-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .action-label {
+    flex: none;
+  }
+
+  .action-buttons {
+    justify-content: flex-start;
+    gap: 6px;
+  }
+
+  .action-btn {
+    min-width: 48px;
+    height: 44px;
+    padding: 8px;
+    font-size: 16px;
+  }
+
+  .action-btn-miss {
+    flex: 1 1 auto;
+    height: 44px;
+    margin-left: 0;
+  }
+
+  .settings-row {
+    padding: 8px 0 0;
+  }
+
+  :deep(.el-divider) {
+    margin: 12px 0;
+  }
 }
 </style>
 

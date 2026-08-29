@@ -60,3 +60,183 @@ h6 {
   font-weight: 600;
   color: #303133;
 }
+
+/* =====================================================================
+   Адаптивность. Три диапазона на всё приложение:
+     телефон   - до 767px
+     планшет   - 768-1023px (и телефон в альбомной ориентации)
+     компьютер - от 1024px
+   Те же границы в JS: src/composables/useBreakpoints.js
+   ===================================================================== */
+
+/* ---------- Планшет и телефон ---------- */
+@media (max-width: 1023px) {
+  /* Шапки страниц (el-header внутри контента) растут по содержимому:
+     заголовок и кнопки на узком экране переносятся в несколько строк */
+  .app-main .el-header {
+    height: auto;
+    padding: 12px 16px;
+  }
+
+  .app-main .el-main {
+    padding: 12px 16px;
+  }
+
+  /* Диалог не шире и не выше экрана: длинное тело прокручивается внутри */
+  .el-dialog:not(.is-fullscreen) {
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 48px);
+    margin: 24px auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .el-dialog:not(.is-fullscreen) .el-dialog__body,
+  .el-dialog.is-fullscreen .el-dialog__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .el-dialog.is-fullscreen {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Пальцем в кнопку высотой 24px не попасть: маленькие кнопки подрастают */
+  .el-button--small {
+    --el-button-size: 32px;
+    padding: 6px 12px;
+  }
+
+  .el-button--small.is-circle {
+    padding: 6px;
+  }
+
+  /* Кнопки в группах и в ячейках таблиц не жмутся друг к другу */
+  .el-button-group > .el-button--small {
+    padding: 6px 10px;
+  }
+}
+
+/* ---------- Планшет ---------- */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Карточка во вкладке в карточке: с полями 20px три уровня съедают
+     120px ширины у таблиц, а 768px и так впритык */
+  .el-card {
+    --el-card-padding: 16px;
+  }
+}
+
+/* ---------- Телефон ---------- */
+@media (max-width: 767px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .app-main .el-header {
+    padding: 10px 12px;
+  }
+
+  .app-main .el-main {
+    padding: 10px 12px;
+  }
+
+  .el-card {
+    --el-card-padding: 12px;
+  }
+
+  /* Диалоги почти во весь экран, без большого верхнего отступа */
+  .el-dialog:not(.is-fullscreen) {
+    --el-dialog-margin-top: 8px;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    margin: 8px auto;
+  }
+
+  /* Кнопки в подвале диалога делят строку поровну и не вылезают за край */
+  .el-dialog__footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .el-dialog__footer > .el-button,
+  .el-dialog__footer > span > .el-button,
+  .el-dialog__footer > div > .el-button {
+    flex: 1 1 auto;
+    margin-left: 0;
+  }
+
+  .el-dialog__footer > span,
+  .el-dialog__footer > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  /* Подпись поля над полем: в одну строку с подписью 140px поле не помещается */
+  .el-form:not(.el-form--label-top):not(.el-form--inline) .el-form-item {
+    display: block;
+  }
+
+  .el-form:not(.el-form--label-top):not(.el-form--inline) .el-form-item__label {
+    display: block;
+    width: auto !important;
+    height: auto;
+    line-height: 1.4;
+    padding: 0 0 6px;
+    text-align: left;
+  }
+
+  .el-form:not(.el-form--label-top):not(.el-form--inline) .el-form-item__content {
+    margin-left: 0 !important;
+  }
+
+  /* Строчная форма фильтров превращается в столбик полей на всю ширину */
+  .el-form--inline .el-form-item {
+    display: flex;
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .el-form--inline .el-form-item__content {
+    flex: 1;
+  }
+
+  .el-form--inline .el-form-item .el-select,
+  .el-form--inline .el-form-item .el-date-editor,
+  .el-form--inline .el-form-item .el-input {
+    width: 100% !important;
+  }
+
+  /* Поля ввода на всю ширину: узкий экран не место для фиксированных 200px */
+  .el-form-item__content > .el-select,
+  .el-form-item__content > .el-date-editor,
+  .el-form-item__content > .el-input-number {
+    width: 100%;
+  }
+
+  /* Таблицы, которые остались таблицами, становятся плотнее */
+  .el-table {
+    font-size: 13px;
+  }
+
+  .el-table .cell {
+    padding: 0 6px;
+  }
+
+  /* Сообщения не перекрывают весь экран сплошной лентой */
+  .el-message {
+    max-width: calc(100vw - 24px);
+  }
+
+  /* Всплывающие панели (селекты, автодополнение) не шире экрана */
+  .el-select__popper,
+  .el-autocomplete-suggestion,
+  .el-picker__popper {
+    max-width: calc(100vw - 24px);
+  }
+}

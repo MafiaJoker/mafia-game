@@ -1,5 +1,5 @@
 <template>
-  <div class="game-results-view">
+  <div class="game-results-view" :class="{ 'is-mobile': isMobile }">
     <el-container v-loading="loading">
       <el-main>
         <div class="results-header">
@@ -42,34 +42,31 @@
             </template>
 
             <el-row :gutter="16">
-              <el-col :span="8">
+              <el-col :xs="12" :sm="8">
                 <div class="info-item">
                   <span class="info-label">Событие:</span>
                   <span class="info-value">{{ gameData.event?.label || '—' }}</span>
                 </div>
               </el-col>
-              <el-col :span="8">
+              <el-col :xs="12" :sm="8">
                 <div class="info-item">
                   <span class="info-label">Стол:</span>
                   <span class="info-value">{{ gameData.table_name || '—' }}</span>
                 </div>
               </el-col>
-              <el-col :span="8">
+              <el-col :xs="12" :sm="8">
                 <div class="info-item">
                   <span class="info-label">Судья:</span>
                   <span class="info-value">{{ gameData.game_master?.nickname || '—' }}</span>
                 </div>
               </el-col>
-            </el-row>
-
-            <el-row :gutter="16" class="mt-3">
-              <el-col :span="8">
+              <el-col :xs="12" :sm="8">
                 <div class="info-item">
                   <span class="info-label">Дата начала:</span>
                   <span class="info-value">{{ formatDateTime(gameData.started_at) }}</span>
                 </div>
               </el-col>
-              <el-col :span="8">
+              <el-col :xs="12" :sm="8">
                 <div class="info-item">
                   <span class="info-label">Этап:</span>
                   <span class="info-value">
@@ -77,7 +74,7 @@
                   </span>
                 </div>
               </el-col>
-              <el-col :span="8">
+              <el-col :xs="12" :sm="8">
                 <div class="info-item">
                   <span class="info-label">Система правил:</span>
                   <span class="info-value">{{ gameData.event?.rule_system?.label || '—' }}</span>
@@ -94,7 +91,8 @@
                   <el-icon><User /></el-icon>
                   <span>Результаты игроков</span>
                 </div>
-                <div class="header-actions">
+                <!-- На телефоне кнопка сохранения прибита к низу экрана -->
+                <div v-if="!isMobile" class="header-actions">
                   <el-button
                     type="primary"
                     size="small"
@@ -108,7 +106,75 @@
               </div>
             </template>
 
+            <!-- Телефон: карточка на игрока - поля баллов и комментарий
+                 в таблице на семь колонок в экран не встанут -->
+            <div v-if="isMobile" class="players-cards">
+              <div
+                v-for="row in sortedPlayers"
+                :key="row.id"
+                class="player-result-card"
+              >
+                <div class="player-result-top">
+                  <span class="player-result-number">{{ row.box_id }}</span>
+                  <span class="player-result-name">{{ row.nickname }}</span>
+                  <el-tag
+                    :type="getRoleTagType(row.role)"
+                    :class="{ 'role-tag-black': isBlackRole(row.role) }"
+                    size="small"
+                  >
+                    {{ getRoleLabel(row.role) }}
+                  </el-tag>
+                </div>
+
+                <div class="player-result-points">
+                  <div class="points-field">
+                    <span class="points-label">Авто</span>
+                    <span class="points-auto" :class="getScoreClass(row.auto_points)">
+                      {{ formatScore(row.auto_points) }}
+                    </span>
+                  </div>
+                  <div class="points-field">
+                    <span class="points-label">Доп. баллы</span>
+                    <el-input-number
+                      v-model="row.extra_points"
+                      :min="0"
+                      :max="10"
+                      :step="0.1"
+                      :precision="1"
+                      size="small"
+                      controls-position="right"
+                      @change="handlePlayerChange(row)"
+                    />
+                  </div>
+                  <div class="points-field">
+                    <span class="points-label">Штрафы</span>
+                    <el-input-number
+                      v-model="row.penalty_points"
+                      :min="0"
+                      :max="10"
+                      :step="0.1"
+                      :precision="1"
+                      size="small"
+                      controls-position="right"
+                      @change="handlePlayerChange(row)"
+                    />
+                  </div>
+                </div>
+
+                <el-input
+                  v-model="row.comment"
+                  type="textarea"
+                  :autosize="{ minRows: 1, maxRows: 6 }"
+                  placeholder="Добавить комментарий..."
+                  size="small"
+                  clearable
+                  @change="handlePlayerChange(row)"
+                />
+              </div>
+            </div>
+
             <el-table
+              v-else
               :data="sortedPlayers"
               stripe
               border
@@ -116,7 +182,7 @@
             >
               <el-table-column
                 label="№"
-                width="60"
+                :width="isTablet ? 50 : 60"
                 align="center"
               >
                 <template #default="{ row }">
@@ -126,14 +192,26 @@
 
               <el-table-column
                 label="Игрок"
-                min-width="150"
+                :min-width="isTablet ? 130 : 150"
               >
                 <template #default="{ row }">
-                  {{ row.nickname }}
+                  <div class="player-cell">
+                    <span>{{ row.nickname }}</span>
+                    <!-- Планшет: колонке роли места нет, роль уходит под ник -->
+                    <el-tag
+                      v-if="isTablet"
+                      :type="getRoleTagType(row.role)"
+                      :class="{ 'role-tag-black': isBlackRole(row.role) }"
+                      size="small"
+                    >
+                      {{ getRoleLabel(row.role) }}
+                    </el-tag>
+                  </div>
                 </template>
               </el-table-column>
 
               <el-table-column
+                v-if="!isTablet"
                 label="Роль"
                 width="140"
                 align="center"
@@ -149,8 +227,8 @@
               </el-table-column>
 
               <el-table-column
-                label="Авто баллы"
-                width="110"
+                :label="isTablet ? 'Авто' : 'Авто баллы'"
+                :width="isTablet ? 80 : 110"
                 align="center"
               >
                 <template #default="{ row }">
@@ -162,7 +240,7 @@
 
               <el-table-column
                 label="Доп. баллы"
-                width="150"
+                :width="isTablet ? 120 : 150"
                 align="center"
               >
                 <template #default="{ row }">
@@ -174,6 +252,7 @@
                     :precision="1"
                     size="small"
                     controls-position="right"
+                    class="points-input"
                     @change="handlePlayerChange(row)"
                   />
                 </template>
@@ -181,7 +260,7 @@
 
               <el-table-column
                 label="Штрафы"
-                width="150"
+                :width="isTablet ? 120 : 150"
                 align="center"
               >
                 <template #default="{ row }">
@@ -193,6 +272,7 @@
                     :precision="1"
                     size="small"
                     controls-position="right"
+                    class="points-input"
                     @change="handlePlayerChange(row)"
                   />
                 </template>
@@ -200,7 +280,7 @@
 
               <el-table-column
                 label="Комментарий"
-                min-width="250"
+                :min-width="isTablet ? 160 : 250"
                 class-name="comment-column"
               >
                 <template #default="{ row }">
@@ -220,6 +300,19 @@
         </div>
       </el-main>
     </el-container>
+
+    <!-- Телефон: сохранение всегда под рукой, десять карточек с полями длинные -->
+    <div v-if="isMobile && gameData && !error" class="mobile-save-bar">
+      <el-button
+        type="primary"
+        class="mobile-save-btn"
+        :loading="saving"
+        :disabled="!hasChanges"
+        @click="saveChanges"
+      >
+        Сохранить изменения
+      </el-button>
+    </div>
   </div>
 </template>
 
@@ -230,6 +323,7 @@ import { ElMessage } from 'element-plus'
 import { ArrowLeft, InfoFilled, User } from '@element-plus/icons-vue'
 import { apiService } from '@/services/api'
 import { LABELS } from '@/utils/uiConstants'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 
 const props = defineProps({
   id: {
@@ -239,6 +333,7 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const { isMobile, isTablet } = useBreakpoints()
 const gameData = ref(null)
 const loading = ref(false)
 const saving = ref(false)
@@ -452,8 +547,15 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.mt-3 {
-  margin-top: 12px;
+.player-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.points-input {
+  width: 100%;
 }
 
 .positive-score {
@@ -499,31 +601,144 @@ onMounted(() => {
   white-space: pre-wrap;
 }
 
-@media (max-width: 768px) {
+/* Планшет и телефон */
+@media (max-width: 1023px) {
+  .game-results-view {
+    min-height: auto;
+  }
+
   .card-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .header-left {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .header-right {
-    align-self: flex-end;
+    flex-wrap: wrap;
+    gap: 8px 12px;
   }
 
   .game-title {
     font-size: 18px;
   }
 
+  .header-right {
+    display: none;
+  }
+}
+
+/* Телефон */
+@media (max-width: 767px) {
+  /* Место под прибитую снизу кнопку сохранения */
+  .game-results-view.is-mobile {
+    padding-bottom: 76px;
+  }
+
+  .header-left {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .result-tag {
     font-size: 12px;
     padding: 4px 10px;
   }
+
+  .info-item {
+    padding: 4px 0;
+  }
+
+  .game-info-card,
+  .players-table-card {
+    margin-bottom: 12px;
+  }
+}
+
+.players-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.player-result-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background-color: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+}
+
+.player-result-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-result-number {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: #f5f7fa;
+  font-weight: 700;
+  color: #303133;
+}
+
+.player-result-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  color: #303133;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-result-points {
+  display: grid;
+  grid-template-columns: 56px 1fr 1fr;
+  gap: 8px;
+  align-items: end;
+}
+
+.points-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.points-field .el-input-number {
+  width: 100%;
+}
+
+.points-label {
+  font-size: 11px;
+  color: #909399;
+}
+
+.points-auto {
+  height: 24px;
+  line-height: 24px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mobile-save-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  padding: 10px 12px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  background-color: #fff;
+  border-top: 1px solid #e4e7ed;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.mobile-save-btn {
+  width: 100%;
+  height: 44px;
+  font-size: 15px;
 }
 </style>

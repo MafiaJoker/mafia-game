@@ -1,45 +1,43 @@
 <template>
-  <div class="app-header-content">
+  <div class="app-header-content" :class="{ 'is-mobile': isMobile, 'is-tablet': isTablet }">
+    <!-- Телефон: меню прячется в выдвижную панель, в шапке остаётся кнопка -->
+    <el-button
+      v-if="isMobile"
+      class="menu-toggle"
+      data-testid="mobile-menu-button"
+      text
+      :icon="Menu"
+      aria-label="Открыть меню"
+      @click="drawerVisible = true"
+    />
+
     <div class="logo-section">
-      <router-link to="/" class="logo-link">
+      <router-link to="/" class="logo-link" data-testid="app-logo">
         <h2 class="app-title">
           <el-icon><Trophy /></el-icon>
-          Мафия Helper
+          <span class="app-title-text">Мафия Helper</span>
         </h2>
       </router-link>
     </div>
 
-    <div class="nav-section">
+    <div v-if="!isMobile" class="nav-section" data-testid="main-navigation">
       <el-menu
         :default-active="activeIndex"
         mode="horizontal"
         @select="handleSelect"
         class="app-menu"
+        :class="{ 'app-menu--compact': isTablet }"
+        data-testid="desktop-menu"
         :ellipsis="false"
 	>
-        <el-menu-item v-if="showRatings" index="/ratings">
-          <el-icon><Medal /></el-icon>
-          <span>Рейтинг</span>
-        </el-menu-item>
-
-        <el-menu-item v-if="showEvents" index="/">
-          <el-icon><Calendar /></el-icon>
-          <span>Мероприятия</span>
-        </el-menu-item>
-
-        <el-menu-item v-if="showEventType" index="/event-types">
-          <el-icon><Collection /></el-icon>
-          <span>Категории</span>
-        </el-menu-item>
-
-        <el-menu-item v-if="showUsers" index="/users">
-          <el-icon><UserFilled /></el-icon>
-          <span>Пользователи</span>
-        </el-menu-item>
-
-        <el-menu-item v-if="showTariffs" index="/tariffs">
-          <el-icon><CreditCard /></el-icon>
-          <span>Тарифы</span>
+        <el-menu-item
+          v-for="item in menuItems"
+          :key="item.index"
+          :index="item.index"
+          :title="item.label"
+        >
+          <el-icon><component :is="item.icon" /></el-icon>
+          <span>{{ item.label }}</span>
         </el-menu-item>
       </el-menu>
     </div>
@@ -51,7 +49,7 @@
             {{ userInitials }}
           </el-avatar>
           <span class="user-name">{{ authStore.user?.nickname }}</span>
-          <el-icon><ArrowDown /></el-icon>
+          <el-icon class="user-caret"><ArrowDown /></el-icon>
         </div>
         <template #dropdown>
           <el-dropdown-menu>
@@ -72,13 +70,55 @@
       </el-dropdown>
     </div>
 
+    <!-- Выдвижное меню для телефона -->
+    <el-drawer
+      v-if="isMobile"
+      v-model="drawerVisible"
+      direction="ltr"
+      size="280px"
+      :with-header="false"
+      class="app-nav-drawer"
+      append-to-body
+    >
+      <div class="drawer-user" @click="goToProfile">
+        <el-avatar :size="44" :src="authStore.user?.photo_url">
+          {{ userInitials }}
+        </el-avatar>
+        <div class="drawer-user-text">
+          <div class="drawer-user-name">{{ authStore.user?.nickname || 'Гость' }}</div>
+          <div class="drawer-user-hint">Открыть профиль</div>
+        </div>
+      </div>
+
+      <el-menu
+        :default-active="activeIndex"
+        class="drawer-menu"
+        @select="handleDrawerSelect"
+      >
+        <el-menu-item
+          v-for="item in menuItems"
+          :key="item.index"
+          :index="item.index"
+        >
+          <el-icon><component :is="item.icon" /></el-icon>
+          <span>{{ item.label }}</span>
+        </el-menu-item>
+      </el-menu>
+
+      <div class="drawer-footer">
+        <el-button class="drawer-logout" :icon="SwitchButton" @click="handleUserCommand('logout')">
+          Выйти
+        </el-button>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
-  import { computed } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useAuthStore } from '@/stores/auth'
+  import { useBreakpoints } from '@/composables/useBreakpoints'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import {
       Trophy,
@@ -90,13 +130,16 @@
       SwitchButton,
       ArrowDown,
       CreditCard,
-      Medal
+      Medal,
+      Menu
   } from '@element-plus/icons-vue'
 
   const route = useRoute()
   const router = useRouter()
   const authStore = useAuthStore()
+  const { isMobile, isTablet } = useBreakpoints()
 
+  const drawerVisible = ref(false)
 
   const activeIndex = computed(() => route.path)
 
@@ -140,9 +183,33 @@
       return hasRole('cashier')
   })
 
+  // Один список пунктов на горизонтальное меню и на выдвижную панель
+  const menuItems = computed(() => [
+      { index: '/ratings', label: 'Рейтинг', icon: Medal, visible: showRatings.value },
+      { index: '/', label: 'Мероприятия', icon: Calendar, visible: showEvents.value },
+      { index: '/event-types', label: 'Категории', icon: Collection, visible: showEventType.value },
+      { index: '/users', label: 'Пользователи', icon: UserFilled, visible: showUsers.value },
+      { index: '/tariffs', label: 'Тарифы', icon: CreditCard, visible: showTariffs.value }
+  ].filter(item => item.visible))
+
   const handleSelect = (index) => {
       router.push(index)
   }
+
+  const handleDrawerSelect = (index) => {
+      drawerVisible.value = false
+      router.push(index)
+  }
+
+  const goToProfile = () => {
+      drawerVisible.value = false
+      router.push('/profile')
+  }
+
+  // Переход по ссылке из шапки или «Назад» в браузере: панель закрывается
+  watch(() => route.path, () => {
+      drawerVisible.value = false
+  })
 
   const handleUserCommand = async (command) => {
       switch (command) {
@@ -155,6 +222,7 @@
               break
               
           case 'logout':
+              drawerVisible.value = false
               try {
                   await ElMessageBox.confirm(
                       'Вы уверены, что хотите выйти из системы?',
@@ -248,17 +316,158 @@
       color: #303133;
   }
 
-  @media (max-width: 768px) {
+  .menu-toggle {
+      display: none;
+  }
+
+  /* Узкий компьютер и альбомный планшет: пять пунктов с подписями и имя
+     пользователя в 1024px не помещаются - меню плотнее, имя уходит */
+  @media (min-width: 1024px) and (max-width: 1199px) {
       .app-header-content {
-	  padding: 0 16px;
+          padding: 0 16px;
       }
-      
-      .nav-section {
-	  display: none;
+
+      .app-menu :deep(.el-menu-item) {
+          padding: 0 10px;
       }
-      
+
       .user-name {
           display: none;
       }
+  }
+
+  /* Планшет: меню остаётся в шапке, но плотнее, имя пользователя уходит */
+  @media (min-width: 768px) and (max-width: 1023px) {
+      .app-header-content {
+          padding: 0 16px;
+          gap: 12px;
+      }
+
+      .app-menu--compact :deep(.el-menu-item) {
+          padding: 0 10px;
+      }
+
+      .user-name {
+          display: none;
+      }
+
+      .user-info {
+          padding: 8px;
+      }
+  }
+
+  /* Планшет в портрете: пять пунктов с подписями в 768px не влезают,
+     остаются иконки, подпись - во всплывающей подсказке (title) */
+  @media (min-width: 768px) and (max-width: 899px) {
+      .app-menu--compact :deep(.el-menu-item span) {
+          display: none;
+      }
+
+      .app-menu--compact :deep(.el-menu-item .el-icon) {
+          margin-right: 0;
+          font-size: 20px;
+      }
+
+      .app-menu--compact :deep(.el-menu-item) {
+          padding: 0 12px;
+      }
+  }
+
+  /* Телефон: кнопка меню, логотип и аватар в одну строку высотой 56px */
+  @media (max-width: 767px) {
+      .app-header-content {
+          height: 56px;
+          padding: 0 8px 0 4px;
+          gap: 4px;
+      }
+
+      .menu-toggle {
+          display: inline-flex;
+          width: 44px;
+          height: 44px;
+          padding: 0;
+          font-size: 22px;
+          color: #303133;
+      }
+
+      .logo-section {
+          flex: 1;
+          min-width: 0;
+      }
+
+      .app-title {
+          font-size: 18px;
+      }
+
+      .app-title-text {
+          overflow: hidden;
+          text-overflow: ellipsis;
+      }
+
+      .user-name,
+      .user-caret {
+          display: none;
+      }
+
+      .user-info {
+          padding: 6px;
+      }
+  }
+
+  /* Содержимое выдвижной панели */
+  .drawer-user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 4px 16px;
+      border-bottom: 1px solid #ebeef5;
+      cursor: pointer;
+  }
+
+  .drawer-user-text {
+      min-width: 0;
+  }
+
+  .drawer-user-name {
+      font-weight: 600;
+      color: #303133;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+  }
+
+  .drawer-user-hint {
+      font-size: 12px;
+      color: #909399;
+  }
+
+  .drawer-menu {
+      border-right: none;
+      margin: 8px -4px 0;
+  }
+
+  .drawer-menu :deep(.el-menu-item) {
+      height: 48px;
+      line-height: 48px;
+      border-radius: 6px;
+  }
+
+  .drawer-footer {
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: 1px solid #ebeef5;
+  }
+
+  .drawer-logout {
+      width: 100%;
+  }
+</style>
+
+<style>
+  /* Панель добавляется в body, поэтому стили ей нужны глобальные */
+  .app-nav-drawer .el-drawer__body {
+      display: flex;
+      flex-direction: column;
+      padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
   }
 </style>

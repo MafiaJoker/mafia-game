@@ -4,13 +4,15 @@
     <el-card class="mb-4">
       <template #header>
         <div class="card-header">
-          <el-icon><Money /></el-icon>
-          <span>Стоимость участия</span>
+          <div class="header-left">
+            <el-icon><Money /></el-icon>
+            <span>Стоимость участия</span>
+          </div>
         </div>
       </template>
 
       <div v-if="eventTariff" class="tariff-info">
-        <el-descriptions :column="2" border>
+        <el-descriptions :column="isMobile ? 1 : 2" border>
           <el-descriptions-item label="Тариф">
             {{ eventTariff.label }}
           </el-descriptions-item>
@@ -27,8 +29,10 @@
     <el-card>
       <template #header>
         <div class="card-header">
-          <el-icon><Document /></el-icon>
-          <span>Счета участников</span>
+          <div class="header-left">
+            <el-icon><Document /></el-icon>
+            <span>Счета участников</span>
+          </div>
           <el-button 
             type="primary" 
             size="small"
@@ -49,7 +53,60 @@
       </div>
 
       <div v-else class="invoices-list">
-        <el-table :data="invoices" stripe style="width: 100%">
+        <!-- Телефон: счёт карточкой, семь колонок таблицы в экран не встанут -->
+        <div v-if="isMobile" class="invoices-cards">
+          <div v-for="row in invoices" :key="row.id" class="invoice-card">
+            <div class="invoice-card-top">
+              <span class="invoice-card-name">{{ row.user.nickname }}</span>
+              <el-tag :type="row.closed_at ? 'success' : 'warning'" size="small">
+                {{ row.closed_at ? 'Закрыт' : 'Открыт' }}
+              </el-tag>
+            </div>
+            <div class="invoice-card-grid">
+              <div class="invoice-cell">
+                <span class="invoice-label">Игр</span>
+                <span>{{ getPlayerGameCount(row.user.id) }}</span>
+              </div>
+              <div class="invoice-cell">
+                <span class="invoice-label">К доплате</span>
+                <el-tag :type="getPaymentStatusType(row)" size="small">
+                  {{ formatPrice(calculateAmountToPay(row), eventTariff?.iso_4217_code || 'RUB') }}
+                </el-tag>
+              </div>
+              <div class="invoice-cell">
+                <span class="invoice-label">Уплачено</span>
+                <span>{{ formatPrice(row.sum, row.currency || 'RUB') }}</span>
+              </div>
+              <div class="invoice-cell">
+                <span class="invoice-label">Создан</span>
+                <span>{{ formatDate(row.created_at) }}</span>
+              </div>
+            </div>
+            <div class="invoice-card-actions">
+              <el-button
+                v-if="!row.closed_at"
+                type="success"
+                size="small"
+                plain
+                @click="closeInvoice(row)"
+              >
+                <el-icon><Check /></el-icon>
+                Закрыть счет
+              </el-button>
+              <el-button
+                type="danger"
+                size="small"
+                plain
+                @click="deleteInvoice(row)"
+              >
+                <el-icon><Delete /></el-icon>
+                Удалить
+              </el-button>
+            </div>
+          </div>
+        </div>
+
+        <el-table v-else :data="invoices" stripe style="width: 100%">
           <el-table-column prop="user.nickname" label="Игрок" width="200" />
           <el-table-column label="Количество игр" width="120" align="center">
             <template #default="{ row }">
@@ -140,6 +197,7 @@
   import { ref, computed, onMounted, watch } from 'vue'
   import { apiService } from '@/services/api'
   import { ElMessage, ElMessageBox } from 'element-plus'
+  import { useBreakpoints } from '@/composables/useBreakpoints'
   import { 
       Money, 
       Document, 
@@ -156,6 +214,7 @@
       }
   })
 
+  const { isMobile } = useBreakpoints()
   const invoices = ref([])
   const eventTariff = ref(null)
   const allPlayers = ref([])
@@ -366,5 +425,76 @@
 
   .mb-4 {
       margin-bottom: 16px;
+  }
+  .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+  }
+
+  /* Карточки счетов (телефон) */
+  .invoices-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+  }
+
+  .invoice-card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px;
+      background-color: #fff;
+      border: 1px solid #ebeef5;
+      border-radius: 8px;
+  }
+
+  .invoice-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+  }
+
+  .invoice-card-name {
+      font-weight: 600;
+      color: #303133;
+  }
+
+  .invoice-card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 12px;
+  }
+
+  .invoice-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 13px;
+      color: #303133;
+  }
+
+  .invoice-label {
+      font-size: 11px;
+      color: #909399;
+  }
+
+  .invoice-card-actions {
+      display: flex;
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #f0f2f5;
+  }
+
+  .invoice-card-actions .el-button {
+      flex: 1;
+      margin-left: 0;
+  }
+
+  @media (max-width: 767px) {
+      .card-header {
+          flex-wrap: wrap;
+      }
   }
 </style>
