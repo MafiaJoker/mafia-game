@@ -17,8 +17,10 @@ vi.mock('@/services/api.js', () => ({
 }))
 
 // Компонент уходит на страницу результатов, как только игра завершилась
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }))
+
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: vi.fn() })
+  useRouter: () => router
 }))
 
 const GAME_ID = 'game-1'
@@ -169,6 +171,34 @@ describe('GameInProgress: номер дня и правила первого д�
     // Диалог не понадобился: игрок выбыл сразу, дальше только ночь
     expect(wrapper.findComponent(VotingDialog).props('modelValue')).toBe(false)
     expect(headerButton(wrapper)).toBe('Ночь')
+  })
+})
+
+describe('GameInProgress: уход завершённой игры на результаты', () => {
+  it('открытая завершённая игра не оставляет себя в истории браузера', async () => {
+    wrapper = await mountGame(gameState({ result: 'civilians_win' }))
+
+    // push оставил бы позади ведение игры, а оно снова уводит на результаты
+    expect(router.replace).toHaveBeenCalledWith(`/game/${GAME_ID}/results`)
+    expect(router.push).not.toHaveBeenCalled()
+    expect(apiService.createGamePhase).not.toHaveBeenCalled()
+  })
+
+  it('игра, кончившаяся по итогам круга, тоже уходит заменой', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    // Проверка после ночи отвечает идущей игрой, проверка перед новым кругом — концом
+    apiService.getGameState
+      .mockResolvedValueOnce(gameState({ result: 'in_progress', phase_id: 2 }))
+      .mockResolvedValueOnce(gameState({ result: 'mafia_win', phase_id: 2 }))
+    await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 3 })
+    await wrapper.find('.header-right button').trigger('click')
+    await flushPromises()
+
+    expect(router.replace).toHaveBeenCalledWith(`/game/${GAME_ID}/results`)
+    expect(router.push).not.toHaveBeenCalled()
+    // Кончившейся игре круг больше не нужен
+    expect(apiService.createGamePhase).not.toHaveBeenCalled()
   })
 })
 

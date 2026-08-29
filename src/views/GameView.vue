@@ -181,9 +181,11 @@ const loadGame = async () => {
       }))
     }
 
-    // Если игра завершена, перенаправляем на страницу результатов
+    // Если игра завершена, перенаправляем на страницу результатов.
+    // replace, а не push: иначе «Назад» возвращает на страницу игры,
+    // а она снова уводит на результаты - выйти к мероприятию нечем
     if (FINISHED_GAME_RESULTS.includes(gameData.value.result)) {
-      router.push(`/game/${props.id}/results`)
+      router.replace(`/game/${props.id}/results`)
     }
   } catch (error) {
     console.error('Failed to load game:', error)
