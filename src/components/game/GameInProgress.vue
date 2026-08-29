@@ -405,7 +405,8 @@ const handleNextRound = async () => {
     // проверяем результат до создания новой фазы
     const gameState = await apiService.getGameState(props.gameId)
     if (FINISHED_GAME_RESULTS.includes(gameState.result)) {
-      router.push(`/game/${props.gameId}/results`)
+      // replace: ведение завершённой игры - не то место, куда возвращает «Назад»
+      router.replace(`/game/${props.gameId}/results`)
       return
     }
 
@@ -455,8 +456,8 @@ const loadGameData = async () => {
 
     // Проверяем, завершена ли игра
     if (FINISHED_GAME_RESULTS.includes(gameState.result)) {
-      // Перенаправляем на страницу результатов
-      router.push(`/game/${props.gameId}/results`)
+      // Перенаправляем на страницу результатов, не оставляя записи в истории
+      router.replace(`/game/${props.gameId}/results`)
       return
     }
 

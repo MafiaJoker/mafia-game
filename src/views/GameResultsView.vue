@@ -2,6 +2,12 @@
   <div class="game-results-view">
     <el-container v-loading="loading">
       <el-main>
+        <div class="results-header">
+          <el-button :icon="ArrowLeft" @click="goToEvent">
+            К мероприятию
+          </el-button>
+        </div>
+
         <div v-if="error" class="error">
           <el-alert
             title="Ошибка загрузки"
@@ -221,7 +227,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { InfoFilled, User } from '@element-plus/icons-vue'
+import { ArrowLeft, InfoFilled, User } from '@element-plus/icons-vue'
 import { apiService } from '@/services/api'
 import { LABELS } from '@/utils/uiConstants'
 
@@ -245,6 +251,13 @@ const sortedPlayers = computed(() => {
 })
 
 const hasChanges = computed(() => changedPlayers.value.size > 0)
+
+// Завершённая игра уводит сюда через replace, поэтому «Назад» браузера ведёт
+// к мероприятию - но искать выход в браузере судья не обязан
+const goToEvent = () => {
+  const eventId = gameData.value?.event?.id
+  router.push(eventId ? `/event/${eventId}` : '/')
+}
 
 const loadGame = async () => {
   loading.value = true
@@ -362,6 +375,10 @@ onMounted(() => {
 .game-results-view {
   min-height: 100vh;
   background-color: #f5f7fa;
+}
+
+.results-header {
+  margin-bottom: 16px;
 }
 
 .card-header {
