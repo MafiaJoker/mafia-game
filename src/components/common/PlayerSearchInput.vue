@@ -161,22 +161,15 @@ const handleClear = () => {
   emit('clear')
 }
 
-// Enter либо берет точное совпадение из подсказок, либо заводит нового игрока.
+// Enter только выбирает уже существующего игрока: нового заводит осознанный
+// клик по кнопке, иначе лишний игрок появляется случайным нажатием.
 // Выбор стрелками остается за автокомплитом: он вызовет select сам
-const handleKeydownEnter = (event) => {
+const handleKeydownEnter = () => {
   const text = query.value.trim()
   if (!text || (isNavigating.value && suggestions.value.length > 0)) return
 
   const exactMatch = suggestions.value.find(item => item.nickname === text)
-  if (exactMatch) {
-    handleSelect(exactMatch)
-    return
-  }
-
-  if (props.allowCreate && showCreateButton.value) {
-    event.preventDefault()
-    createPlayer()
-  }
+  if (exactMatch) handleSelect(exactMatch)
 }
 
 const createPlayer = async () => {

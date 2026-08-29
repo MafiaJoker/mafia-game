@@ -103,16 +103,28 @@ describe('PlayerSearchInput', () => {
     expect(wrapper.emitted('select')).toEqual([[{ id: 'user-1', nickname: 'Игрок 1' }]])
   })
 
-  it('заводит игрока по Enter, когда подсказки не подошли', async () => {
+  it('по Enter выбирает тезку из подсказок', async () => {
+    const wrapper = mountInput()
+
+    await search(wrapper, 'Игрок 1')
+    await wrapper.find('input').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(wrapper.emitted('select')).toEqual([[{ id: 'user-1', nickname: 'Игрок 1' }]])
+  })
+
+  it('по Enter нового игрока не заводит: только кнопкой', async () => {
     const wrapper = mountInput()
     apiService.getUsers.mockResolvedValue({ items: [] })
-    apiService.createUser.mockResolvedValue({ id: 'user-new' })
 
     await search(wrapper, 'Новичок')
     await wrapper.find('input').trigger('keydown', { key: 'Enter' })
     await flushPromises()
 
-    expect(apiService.createUser).toHaveBeenCalledWith({ nickname: 'Новичок' })
+    expect(apiService.createUser).not.toHaveBeenCalled()
+    expect(wrapper.emitted('select')).toBeUndefined()
+    // Кнопка на месте: завести игрока по-прежнему можно осознанным кликом
+    expect(createButton(wrapper)).toBeDefined()
   })
 
   it('на Enter после стрелок выбор остается за автокомплитом', async () => {
