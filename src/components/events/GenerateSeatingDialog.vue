@@ -63,7 +63,7 @@
         </span>
       </div>
 
-      <div class="players-list">
+      <div v-if="form.players.length" class="players-list">
         <div
           v-for="(player, index) in form.players"
           :key="player.id"
@@ -82,7 +82,7 @@
         </div>
       </div>
 
-      <div class="player-row">
+      <div class="player-row player-search">
         <span class="player-position">{{ form.players.length + 1 }}.</span>
         <el-autocomplete
           v-model="playerQuery"
@@ -491,10 +491,17 @@ const createGames = async () => {
   color: #909399;
 }
 
-/* Состав может дорасти до 10 игроков на стол, поэтому список свой скролл */
+/* Состав может дорасти до 10 игроков на стол, поэтому список свой скролл.
+   Черта снизу держит поиск игрока отдельно от уже набранных */
 .players-list {
   max-height: 300px;
   overflow-y: auto;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #dcdfe6;
+}
+
+.players-list + .player-search {
+  margin-top: 12px;
 }
 
 .player-row {
