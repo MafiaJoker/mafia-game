@@ -1,10 +1,13 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="Ночь"
     width="800px"
     :fullscreen="isMobile"
   >
+    <template #header>
+      <DialogTimerHeader title="Ночь" />
+    </template>
+
     <div class="night-container">
       <!-- Отстрел мафии -->
       <div class="action-row">
@@ -116,6 +119,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { GameRolesEnum } from '@/utils/constants.js'
+import DialogTimerHeader from './DialogTimerHeader.vue'
 import { useBreakpoints } from '@/composables/useBreakpoints'
 
 const props = defineProps({

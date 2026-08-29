@@ -1,11 +1,14 @@
 <template>
   <el-dialog
     v-model="visible"
-    :title="dialogTitle"
     width="800px"
     :fullscreen="isMobile"
     :before-close="handleClose"
   >
+    <template #header>
+      <DialogTimerHeader :title="dialogTitle" />
+    </template>
+
     <div class="voting-container">
       <FoulsPanel
         :game-id="props.gameId"
@@ -118,6 +121,7 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
 import FoulsPanel from '../FoulsPanel.vue'
+import DialogTimerHeader from './DialogTimerHeader.vue'
 import { useBreakpoints } from '@/composables/useBreakpoints'
 
 const props = defineProps({

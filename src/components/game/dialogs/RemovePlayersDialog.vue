@@ -1,9 +1,12 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="Удалить игроков"
     width="800px"
   >
+    <template #header>
+      <DialogTimerHeader title="Удалить игроков" />
+    </template>
+
     <div class="voting-container">
       <div class="vote-buttons vote-buttons-centered">
         <el-button
@@ -45,6 +48,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import DialogTimerHeader from './DialogTimerHeader.vue'
 
 const props = defineProps({
   modelValue: Boolean,

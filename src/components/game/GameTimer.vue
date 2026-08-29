@@ -1,6 +1,6 @@
 <template>
-  <div class="game-timer">
-    <div class="timer-container" :class="timerClasses" @click="handleTimer">
+  <div class="game-timer" :class="{ 'is-compact': compact }">
+    <div class="timer-container" :class="timerClasses" @click="toggle">
       <div class="timer-display">
         {{ formattedTime }}
       </div>
@@ -9,187 +9,19 @@
 </template>
 
 <script setup>
-  import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-  import { COUNTDOWN_PHASES } from '@/utils/constants.js'
+  import { useGameTimer } from '@/composables/useGameTimer'
 
-  const props = defineProps({
-    isNegotiationStarted: {
+  defineProps({
+    // Вид для шапки диалога: одна строка во всю ширину вместо крупной плашки
+    compact: {
       type: Boolean,
       default: false
     }
   })
 
-  const emit = defineEmits(['phase-changed'])
-
-  // Режимы таймера
-  const TIMER_MODES = {
-    COUNT_UP: 'count_up', // Прямой отсчет от 0
-    COUNTDOWN: 'countdown' // Обратный отсчет 60+40
-  }
-
-  const seconds = ref(0)
-  const isRunning = ref(true)
-  const timerMode = ref(TIMER_MODES.COUNT_UP)
-  const countdownPhase = ref(COUNTDOWN_PHASES.MAFIA_NEGOTIATION)
-  const isFlashing = ref(false)
-  let interval = null
-
-  const formattedTime = computed(() => {
-      let displaySeconds
-
-      if (timerMode.value === TIMER_MODES.COUNTDOWN) {
-          // Обратный отсчет
-          if (countdownPhase.value === COUNTDOWN_PHASES.MAFIA_NEGOTIATION) {
-              displaySeconds = Math.max(0, 60 - seconds.value)
-          } else if (countdownPhase.value === COUNTDOWN_PHASES.FREE_SEATING) {
-              displaySeconds = Math.max(0, 40 - seconds.value)
-          } else {
-              displaySeconds = 0
-          }
-      } else {
-          // Прямой отсчет
-          displaySeconds = seconds.value
-      }
-
-      const mins = Math.floor(displaySeconds / 60)
-      const secs = displaySeconds % 60
-      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  })
-
-  const isTimerExpired = computed(() => {
-      if (timerMode.value === TIMER_MODES.COUNTDOWN) {
-          if (countdownPhase.value === COUNTDOWN_PHASES.MAFIA_NEGOTIATION) {
-              return seconds.value >= 60
-          } else if (countdownPhase.value === COUNTDOWN_PHASES.FREE_SEATING) {
-              return seconds.value >= 40
-          }
-      }
-      return false
-  })
-
-  const shouldHighlightYellow = computed(() => {
-      if (timerMode.value === TIMER_MODES.COUNTDOWN) {
-          // Желтый на последних 10 секундах (когда осталось меньше 10)
-          const displaySeconds = parseInt(formattedTime.value.split(':')[0]) * 60 + parseInt(formattedTime.value.split(':')[1])
-          return displaySeconds > 0 && displaySeconds < 10
-      } else {
-          // Желтый если прошло больше 60 секунд при прямом отсчете
-          return seconds.value > 60
-      }
-  })
-
-  const timerClasses = computed(() => ({
-      'timer-expired': isTimerExpired.value,
-      'timer-paused': !isRunning.value,
-      'timer-flashing': isFlashing.value,
-      'timer-warning': shouldHighlightYellow.value && !isTimerExpired.value
-  }))
-
-  // Переход к следующей фазе при обратном отсчете
-  const transitionToNextPhase = async () => {
-      if (countdownPhase.value === COUNTDOWN_PHASES.MAFIA_NEGOTIATION) {
-          // Показываем желтую вспышку
-          isFlashing.value = true
-          countdownPhase.value = COUNTDOWN_PHASES.TRANSITION
-
-          // Ждем 500мс (вспышка)
-          await new Promise(resolve => setTimeout(resolve, 500))
-
-          // Переходим к свободной рассадке
-          isFlashing.value = false
-          countdownPhase.value = COUNTDOWN_PHASES.FREE_SEATING
-          seconds.value = 0
-          emit('phase-changed', COUNTDOWN_PHASES.FREE_SEATING)
-      } else if (countdownPhase.value === COUNTDOWN_PHASES.FREE_SEATING) {
-          // Останавливаем таймер после завершения свободной рассадки
-          isRunning.value = false
-      }
-  }
-
-  // Запуск таймера
-  const startTimer = () => {
-      if (interval) return // уже запущен
-
-      interval = setInterval(() => {
-          if (!isRunning.value) return // таймер на паузе
-
-          if (timerMode.value === TIMER_MODES.COUNTDOWN && isTimerExpired.value) {
-              // Таймер достиг лимита для фазы - переходим к следующей
-              transitionToNextPhase()
-              return
-          }
-
-          seconds.value++
-      }, 1000)
-  }
-
-  // Начать режим обратного отсчета
-  const startCountdownMode = () => {
-      timerMode.value = TIMER_MODES.COUNTDOWN
-      countdownPhase.value = COUNTDOWN_PHASES.MAFIA_NEGOTIATION
-      seconds.value = 0
-      isRunning.value = true
-  }
-
-  // Вернуться к режиму прямого отсчета
-  const resetToCountUpMode = () => {
-      timerMode.value = TIMER_MODES.COUNT_UP
-      seconds.value = 0
-      isRunning.value = true
-  }
-
-  // Обработка клика по таймеру
-  const handleTimer = () => {
-      if (isRunning.value) {
-          // Если таймер работает - останавливаем и сбрасываем
-          isRunning.value = false
-          seconds.value = 0
-      } else {
-          // Если таймер остановлен - запускаем
-          isRunning.value = true
-      }
-  }
-
-  // Следим за изменением пропса isNegotiationStarted
-  watch(() => props.isNegotiationStarted, (newValue, oldValue) => {
-      if (newValue && !oldValue) {
-          // Договорка началась - переходим в режим обратного отсчета
-          startCountdownMode()
-      } else if (!newValue && oldValue) {
-          // Вернулись к раздаче ролей - возвращаемся к прямому отсчету
-          resetToCountUpMode()
-      }
-  })
-
-  // Обработчик нажатия пробела
-  const handleKeydown = (event) => {
-    if (event.code === 'Space') {
-      event.preventDefault()
-      handleTimer()
-    }
-  }
-
-  onMounted(() => {
-    // Если при монтировании договорка уже началась, запускаем в режиме COUNTDOWN
-    if (props.isNegotiationStarted) {
-      startCountdownMode()
-    }
-
-    // Запускаем таймер сразу при монтировании
-    startTimer()
-
-    // Добавляем обработчик нажатия пробела
-    document.addEventListener('keydown', handleKeydown)
-  })
-
-  onUnmounted(() => {
-      if (interval) {
-	  clearInterval(interval)
-      }
-
-      // Убираем обработчик нажатия пробела
-      document.removeEventListener('keydown', handleKeydown)
-  })
+  // Ход времени, режимы и пробел живут в композабле: экземпляров таймера на
+  // экране может быть два - в шапке игры и в шапке открытого диалога
+  const { formattedTime, timerClasses, toggle } = useGameTimer()
 </script>
 
 <style scoped>
@@ -274,6 +106,22 @@
 
   .timer-warning .timer-display {
       color: #faad14;
+  }
+
+  /* Компактный вид меняет только размеры: цвета состояний (пауза, последние
+     секунды, конец фазы) остаются от общих правил выше */
+  .game-timer.is-compact {
+      width: 100%;
+  }
+
+  .is-compact .timer-container {
+      width: 100%;
+      min-width: 0;
+      padding: 4px 12px;
+  }
+
+  .is-compact .timer-display {
+      font-size: 30px;
   }
 
   /* Планшет: таймер компактнее, чтобы уместиться в шапке рядом с названием */

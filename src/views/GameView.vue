@@ -19,12 +19,7 @@
           </el-button>
           <div class="header-title-section">
             <h1>{{ gameData?.label || 'Игра' }}</h1>
-            <GameTimer
-              v-if="showTimer"
-              :key="timerReset"
-              :is-negotiation-started="isNegotiationStarted"
-              @phase-changed="handlePhaseChanged"
-            />
+            <GameTimer v-if="showTimer" />
           </div>
           <div class="header-actions">
             <el-tag type="info">{{ getStatusLabel(gameData?.result) }}</el-tag>
@@ -77,7 +72,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -85,6 +80,7 @@ import { apiService } from '@/services/api.js'
 import { COUNTDOWN_PHASES } from '@/utils/constants.js'
 import { FINISHED_GAME_RESULTS } from '@/utils/gameConstants.js'
 import { useBreakpoints } from '@/composables/useBreakpoints'
+import { useGameTimer } from '@/composables/useGameTimer'
 import SeatingPlayers from '@/components/game/SeatingPlayers.vue'
 import RolesAssigne from '@/components/game/RolesAssigne.vue'
 import GameInProgress from '@/components/game/GameInProgress.vue'
@@ -99,6 +95,7 @@ const props = defineProps({
 
 const router = useRouter()
 const { isMobile } = useBreakpoints()
+const timer = useGameTimer()
 const loading = ref(false)
 const gameData = ref(null)
 const isNegotiationStarted = ref(false)
@@ -106,7 +103,6 @@ const isFreeSeatPhase = ref(false)
 const rolesData = ref([])
 const gameStartedEventEmitted = ref(false)
 const gameInProgressRef = ref(null)
-const timerReset = ref(0) // Счетчик для сброса таймера
 
 const currentPhaseTemplate = computed(() => {
   // Если событие game-started было заэмичено, показываем игру
@@ -135,11 +131,21 @@ const showTimer = computed(() =>
   currentPhaseTemplate.value === 'GameInProgress' || isNegotiationStarted.value
 )
 
-const handlePhaseChanged = (phase) => {
+// Договорка началась - таймер уходит в обратный отсчет 60+40,
+// вернулись к раздаче ролей - в прямой
+watch(isNegotiationStarted, (started) => {
+  if (started) {
+    timer.startCountdown()
+  } else {
+    timer.resetToCountUp()
+  }
+})
+
+watch(timer.countdownPhase, (phase) => {
   if (phase === COUNTDOWN_PHASES.FREE_SEATING) {
     isFreeSeatPhase.value = true
   }
-}
+})
 
 const handleGameStarted = () => {
   gameStartedEventEmitted.value = true
@@ -148,8 +154,8 @@ const handleGameStarted = () => {
 }
 
 const handleRoundCompleted = () => {
-  // Увеличиваем счетчик для сброса таймера
-  timerReset.value++
+  // Новый круг - таймер с нуля
+  timer.reset()
 }
 
 const getStatusLabel = (status) => {
@@ -207,7 +213,15 @@ const loadGame = async () => {
 }
 
 onMounted(() => {
+  // Состояние таймера общее на всё приложение и переживает уход со страницы -
+  // новую игру начинаем с нуля
+  timer.reset()
+  timer.activate()
   loadGame()
+})
+
+onUnmounted(() => {
+  timer.deactivate()
 })
 </script>
 
