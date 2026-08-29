@@ -92,4 +92,25 @@ const emit = defineEmits(['saved'])
   font-weight: 600;
   color: #606266;
 }
+
+/* Планшет и телефон: десять игроков в два ряда по пять,
+   без скрытой горизонтальной прокрутки */
+@media (max-width: 1023px) {
+  .fouls-grid {
+    flex-wrap: wrap;
+    overflow: visible;
+    gap: 6px;
+  }
+
+  .foul-item {
+    flex: 1 1 calc(20% - 6px);
+    min-width: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .foul-item {
+    padding: 6px 2px;
+  }
+}
 </style>

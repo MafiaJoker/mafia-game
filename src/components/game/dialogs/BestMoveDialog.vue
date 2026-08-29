@@ -160,4 +160,23 @@ const handleAccept = () => {
   font-size: 18px;
   font-weight: 600;
 }
+/* Планшет и телефон: десять кнопок переносятся на вторую строку, а не уходят
+   в горизонтальную прокрутку; сами кнопки крупнее - под палец */
+@media (max-width: 1023px) {
+  .vote-buttons {
+    flex-wrap: wrap;
+    gap: 8px;
+    overflow: visible;
+  }
+
+  .vote-btn + .vote-btn {
+    border-left: 1px solid var(--el-button-border-color, #dcdfe6);
+  }
+
+  .vote-btn-large {
+    min-width: 56px;
+    height: 48px;
+    padding: 8px 12px;
+  }
+}
 </style>

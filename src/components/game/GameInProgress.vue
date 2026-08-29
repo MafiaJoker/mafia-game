@@ -1,5 +1,5 @@
 <template>
-  <div class="game-in-progress">
+  <div class="game-in-progress" :class="{ 'is-mobile': isMobile }">
     <el-card>
       <template #header>
         <div class="card-header">
@@ -8,7 +8,8 @@
             <span>Игра в процессе</span>
             <span v-if="displayPhase !== null" class="phase-indicator">День {{ displayPhase }}</span>
           </div>
-          <div class="header-right">
+          <!-- На телефоне кнопка фазы живёт в панели у нижнего края экрана -->
+          <div v-if="!isMobile" class="header-right">
             <el-button
               v-if="nextRoundButtonVisible || gameFinished"
               type="primary"
@@ -38,7 +39,84 @@
         </div>
       </template>
 
-      <GameTable :data="playersData" :row-class-name="getRowClassName">
+      <!-- Телефон: таблица на пять колонок в 360px не помещается - список строк,
+           где номер, роль, ник, фолы и выставление стоят в одну линию -->
+      <div v-if="isMobile" class="players-list">
+        <div class="players-list-header">
+          <span class="col-number">№</span>
+          <span class="col-role">
+            <el-icon
+              class="eye-icon"
+              :title="mobileRolesVisible ? 'Скрыть роли' : 'Отобразить роли'"
+              @click="mobileRolesVisible = !mobileRolesVisible"
+            >
+              <View v-if="mobileRolesVisible" />
+              <Hide v-else />
+            </el-icon>
+          </span>
+          <span class="col-name">Игрок</span>
+          <span class="col-fouls">Фолы</span>
+          <span class="col-nomination">Выст.</span>
+        </div>
+
+        <div
+          v-for="row in playersData"
+          :key="row.box_id"
+          class="player-row"
+          :class="{ 'inactive-player': !row.is_in_game }"
+        >
+          <span class="col-number">{{ row.box_id }}</span>
+          <span class="col-role">
+            <RoleIcon v-if="mobileRolesVisible" :role="row.role" />
+            <el-icon v-else :size="18" style="color: #909399;"><Hide /></el-icon>
+          </span>
+          <span class="col-name">{{ row.nickname }}</span>
+          <span class="col-fouls">
+            <FoulBadges
+              :game-id="gameId"
+              :player="row"
+              :foul-types="foulTypes"
+              :pending-fouls="pendingFouls"
+              @saved="applyGameState"
+            />
+          </span>
+          <span class="col-nomination">
+            <template v-if="votingCompleted || removedThisPhase">
+              <span
+                v-if="phaseData.voted_box_ids.includes(row.box_id) || phaseData.removed_box_ids.includes(row.box_id) || leftByFouls(row)"
+                class="left-game"
+              >
+                выбыл
+              </span>
+              <span v-else>-</span>
+            </template>
+            <template v-else-if="row.is_in_game">
+              <el-button
+                v-if="!isPlayerNominated(row.box_id)"
+                type="warning"
+                size="small"
+                plain
+                @click="addNomination(row.box_id)"
+              >
+                Выставить
+              </el-button>
+              <div v-else class="nomination-order">
+                <span class="order-number">{{ getNominationOrder(row.box_id) }}</span>
+                <el-icon
+                  class="remove-icon"
+                  @click="removeNomination(row.box_id)"
+                  :size="16"
+                >
+                  <Close />
+                </el-icon>
+              </div>
+            </template>
+            <span v-else>-</span>
+          </span>
+        </div>
+      </div>
+
+      <GameTable v-else :data="playersData" :row-class-name="getRowClassName">
         <el-table-column
           label="Фолы"
           width="120"
@@ -108,6 +186,47 @@
       </GameTable>
     </el-card>
 
+    <!-- Телефон: действия судьи прибиты к нижнему краю - до них не надо
+         прокручивать список из десяти игроков -->
+    <div v-if="isMobile" class="mobile-action-bar">
+      <el-button type="warning" class="bar-secondary" @click="openPPKDialog">
+        ППК
+      </el-button>
+      <el-button
+        type="danger"
+        class="bar-secondary"
+        :icon="Delete"
+        aria-label="Удалить игроков"
+        title="Удалить игроков"
+        @click="openRemovePlayersDialog"
+      />
+      <el-button
+        v-if="nextRoundButtonVisible || gameFinished"
+        type="primary"
+        class="bar-primary"
+        @click="handleNextRound"
+      >
+        {{ gameFinished ? 'Завершить игру' : 'Следующий круг' }}
+      </el-button>
+      <el-button
+        v-else-if="showVotingButton"
+        type="primary"
+        class="bar-primary"
+        @click="openVotingDialog"
+      >
+        Голосование
+      </el-button>
+      <el-button
+        v-else
+        type="info"
+        class="bar-primary"
+        @click="openNightDialog"
+      >
+        <el-icon style="margin-right: 6px;"><Moon /></el-icon>
+        Ночь
+      </el-button>
+    </div>
+
     <VotingDialog
       v-model="votingDialogVisible"
       :game-id="gameId"
@@ -161,11 +280,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { User, Close, Moon } from '@element-plus/icons-vue'
+import { User, Close, Moon, View, Hide, Delete } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import GameTable from './GameTable.vue'
 import { createPendingFouls } from '@/utils/pendingFouls.js'
 import RoleColumn from './RoleColumn.vue'
+import RoleIcon from './RoleIcon.vue'
 import FoulBadges from './FoulBadges.vue'
 import VotingDialog from './dialogs/VotingDialog.vue'
 import NightActionsDialog from './dialogs/NightActionsDialog.vue'
@@ -175,6 +295,7 @@ import RemovePlayersDialog from './dialogs/RemovePlayersDialog.vue'
 import { apiService } from '@/services/api.js'
 import { GameRolesEnum } from '@/utils/constants.js'
 import { FINISHED_GAME_RESULTS } from '@/utils/gameConstants.js'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 const router = useRouter()
 
 const props = defineProps({
@@ -185,6 +306,11 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['round-completed'])
+
+const { isMobile } = useBreakpoints()
+
+// Роли в списке телефона спрятаны, как и в колонке таблицы: игроки сидят рядом
+const mobileRolesVisible = ref(false)
 
 const playersData = ref([])
 const phaseId = ref(null)
@@ -642,5 +768,146 @@ defineExpose({
   color: #d89614;
   font-style: italic;
   font-weight: 500;
+}
+
+/* Планшет: ряды таблицы выше, бейджи и кнопки крупнее - под палец */
+@media (min-width: 768px) and (max-width: 1023px) {
+  :deep(.el-table .el-table__row) {
+    height: 56px;
+  }
+}
+
+/* ---------- Телефон ---------- */
+
+/* Место под прибитую снизу панель действий */
+.game-in-progress.is-mobile {
+  padding-bottom: 76px;
+}
+
+.players-list {
+  margin: 0 -12px;
+}
+
+.players-list-header,
+.player-row {
+  display: grid;
+  grid-template-columns: 24px 30px minmax(0, 1fr) auto 80px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+}
+
+.players-list-header {
+  height: 36px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #909399;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.players-list-header .col-nomination {
+  text-align: center;
+}
+
+.player-row {
+  min-height: 56px;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.player-row:nth-child(odd) {
+  background-color: #fafafa;
+}
+
+.player-row.inactive-player {
+  opacity: 0.5;
+}
+
+.player-row.inactive-player .col-name,
+.player-row.inactive-player .col-number {
+  color: #909399;
+}
+
+.player-row.inactive-player .col-nomination {
+  pointer-events: none;
+}
+
+.col-number {
+  font-weight: 600;
+  font-size: 15px;
+  color: #303133;
+}
+
+.col-role {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.col-role .eye-icon {
+  font-size: 18px;
+  color: #909399;
+  cursor: pointer;
+  padding: 6px;
+  margin: -6px;
+}
+
+.col-name {
+  font-size: 15px;
+  color: #303133;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.col-fouls {
+  display: flex;
+  justify-content: center;
+}
+
+.col-nomination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.col-nomination .el-button {
+  width: 100%;
+  padding-left: 4px;
+  padding-right: 4px;
+  font-size: 12px;
+}
+
+.col-nomination .nomination-order {
+  padding: 6px 10px;
+}
+
+.mobile-action-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  background-color: #fff;
+  border-top: 1px solid #e4e7ed;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.mobile-action-bar .el-button {
+  margin-left: 0;
+  height: 44px;
+  font-size: 15px;
+}
+
+.mobile-action-bar .bar-secondary {
+  flex: 0 0 auto;
+  min-width: 56px;
+}
+
+.mobile-action-bar .bar-primary {
+  flex: 1;
 }
 </style>

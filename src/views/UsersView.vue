@@ -1,5 +1,5 @@
 <template>
-  <div class="users-view">
+  <div class="users-view" :class="{ 'is-mobile': isMobile }">
     <el-container>
       <el-header>
         <div class="header-content">
@@ -8,18 +8,22 @@
             <el-button 
               type="primary"
               :icon="Plus"
+              :circle="isMobile"
+              :aria-label="isMobile ? 'Создать пользователя' : null"
               @click="showCreateDialog = true"
             >
-              Создать пользователя
+              <template v-if="!isMobile">Создать пользователя</template>
             </el-button>
             <el-button 
               type="success" 
               :icon="Tools" 
+              :circle="isMobile"
+              :aria-label="isMobile ? 'Создать тестовых' : null"
               @click="createTestUsers"
               :loading="creatingTestUsers"
               v-if="isDevelopment"
             >
-              Создать тестовых
+              <template v-if="!isMobile">Создать тестовых</template>
             </el-button>
           </el-space>
         </div>
@@ -59,7 +63,7 @@
               label="Действия" 
               width="150"
               align="center"
-              fixed="right"
+              :fixed="isMobile ? false : 'right'"
             >
               <template #default="scope">
                 <el-button-group>
@@ -153,10 +157,12 @@ import { Plus, Edit, Delete, Tools } from '@element-plus/icons-vue'
 import { apiService } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import PaginationFilter from '@/components/common/PaginationFilter.vue'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 import UserEditCombinedDialog from '@/components/users/UserEditCombinedDialog.vue'
 import { UI_MESSAGES } from '@/utils/uiConstants'
 
 const authStore = useAuthStore()
+const { isMobile } = useBreakpoints()
 const loading = ref(false)
 const creating = ref(false)
 const creatingTestUsers = ref(false)
@@ -457,15 +463,28 @@ onMounted(() => {
   width: 100%;
 }
 
-@media (max-width: 768px) {
+/* Планшет и телефон */
+@media (max-width: 1023px) {
+  .users-view {
+    min-height: auto;
+  }
+
   .header-content {
-    flex-direction: column;
-    gap: 16px;
-    padding: 16px 0;
+    flex-wrap: wrap;
+    gap: 12px;
   }
-  
-  .header-content h1 {
-    margin: 0;
-  }
+}
+
+/* Телефон: заголовок и круглые кнопки в одну строку */
+.is-mobile .header-content {
+  flex-wrap: nowrap;
+}
+
+.is-mobile .header-content h1 {
+  flex: 1;
+  font-size: 1.15rem;
+  line-height: 1.25;
+  margin: 0;
+  min-width: 0;
 }
 </style>

@@ -13,14 +13,15 @@
 
       <el-table 
         :data="playerStatistics" 
+        :size="isMobile ? 'small' : 'default'"
         :loading="loading"
         style="width: 100%"
         stripe
       >
         <el-table-column 
           prop="name" 
-          label="Игрок" 
-          min-width="150"
+          label="Игрок"
+          :min-width="isMobile ? 110 : 150"
           sortable
         >
           <template #default="{ row }">
@@ -32,8 +33,8 @@
         </el-table-column>
         <el-table-column 
           prop="totalScore" 
-          label="Суммарный балл" 
-          width="140"
+          :label="isCompact ? 'Балл' : 'Суммарный балл'"
+          :width="isMobile ? 70 : isTablet ? 100 : 140"
           sortable
           align="center"
         >
@@ -45,8 +46,8 @@
         </el-table-column>
         <el-table-column 
           prop="totalExtraPoints" 
-          label="Суммарные доп. баллы" 
-          width="160"
+          :label="isCompact ? 'Доп.' : 'Суммарные доп. баллы'"
+          :width="isMobile ? 64 : isTablet ? 100 : 160"
           sortable
           align="center"
         >
@@ -56,10 +57,11 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column 
+        <el-table-column
+          v-if="!isMobile"
           prop="totalPenalties" 
-          label="Суммарные пенальти" 
-          width="150"
+          :label="isCompact ? 'Штраф' : 'Суммарные пенальти'"
+          :width="isTablet ? 100 : 150"
           sortable
           align="center"
         >
@@ -71,8 +73,8 @@
         </el-table-column>
         <el-table-column 
           prop="winLossRatio" 
-          label="Победы/Поражения" 
-          width="140"
+          :label="isCompact ? 'В/П' : 'Победы/Поражения'"
+          :width="isMobile ? 60 : isTablet ? 90 : 140"
           align="center"
         >
           <template #default="{ row }">
@@ -84,7 +86,7 @@
 
     <!-- Общая статистика -->
     <el-row :gutter="16" class="mb-4 mt-4">
-      <el-col :span="6">
+      <el-col :xs="12" :sm="6">
         <el-card class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ totalGames }}</div>
@@ -92,7 +94,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="6">
         <el-card class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ cityWins }}</div>
@@ -100,7 +102,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="6">
         <el-card class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ mafiaWins }}</div>
@@ -108,7 +110,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="6">
         <el-card class="stat-card">
           <div class="stat-content">
             <div class="stat-number">{{ cityWinRate }}%</div>
@@ -132,7 +134,7 @@
               placeholder="Все столы" 
               clearable 
               size="small"
-              style="width: 150px;"
+              class="results-filter"
               @change="filterByTable"
               >
               <el-option
@@ -147,7 +149,7 @@
               placeholder="Все результаты" 
               clearable 
               size="small"
-              style="width: 150px;"
+              class="results-filter"
               @change="filterByResult"
               >
               <el-option label="Победа города" value="civilians_win" />
@@ -169,14 +171,59 @@
       </div>
 
       <div v-else class="results-table">
-        <el-table 
+        <!-- Телефон: карточка на игру, таблица на десять колонок сюда не встанет -->
+        <div v-if="isMobile" class="games-cards">
+          <div
+            v-for="row in paginatedGames"
+            :key="row.id"
+            class="game-result-card"
+            @click="openGame(row.id)"
+          >
+            <div class="game-result-top">
+              <span class="game-result-number">#{{ row.gameNumber }}</span>
+              <span class="game-result-title">{{ row.label }}</span>
+              <el-tag
+                :type="getResultType(row.result)"
+                :class="{ 'mafia-win-tag': row.result === 'mafia_win' }"
+                size="small"
+              >
+                {{ getResultLabel(row.result) }}
+              </el-tag>
+            </div>
+            <div class="game-result-meta">
+              <span>{{ row.tableName }}</span>
+              <span>{{ formatDateTime(row.started_at) }}</span>
+              <span v-if="row.duration">{{ formatDuration(row.duration) }}</span>
+            </div>
+            <div v-if="row.game_master || row.best_move_player" class="game-result-meta">
+              <span v-if="row.game_master">Судья: {{ row.game_master.nickname }}</span>
+              <span v-if="row.best_move_player" class="best-move">ЛХ: {{ row.best_move_player }}</span>
+            </div>
+            <div v-if="getGamePlayers(row).length" class="players-preview">
+              <el-tag
+                v-for="player in getGamePlayers(row).slice(0, 3)"
+                :key="player.id"
+                :type="getPlayerTagType(player)"
+                size="small"
+                class="player-tag"
+              >
+                {{ player.name || player.nickname }}
+              </el-tag>
+              <el-tag v-if="getGamePlayers(row).length > 3" size="small" type="info">
+                +{{ getGamePlayers(row).length - 3 }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
+        <el-table
+          v-else
           :data="paginatedGames" 
           stripe 
           style="width: 100%"
           :default-sort="{ prop: 'gameNumber', order: 'ascending' }"
           >
           
-          <el-table-column prop="gameNumber" label="№" width="60" align="center" sortable />
+          <el-table-column prop="gameNumber" label="№" :width="isTablet ? 44 : 60" align="center" sortable />
           
           <el-table-column prop="label" label="Название игры" min-width="150" sortable>
             <template #default="{ row }">
@@ -189,15 +236,15 @@
             </template>
           </el-table-column>
 
-          <el-table-column prop="tableName" label="Стол" width="120" sortable />
+          <el-table-column prop="tableName" label="Стол" :width="isTablet ? 90 : 120" sortable />
 
-          <el-table-column label="Дата/Время" width="140" sortable>
+          <el-table-column label="Дата/Время" :width="isTablet ? 118 : 140" sortable>
             <template #default="{ row }">
               {{ formatDateTime(row.started_at) }}
             </template>
           </el-table-column>
 
-          <el-table-column label="Продолжительность" width="120" align="center">
+          <el-table-column v-if="!isTablet" label="Продолжительность" width="120" align="center">
             <template #default="{ row }">
               <span v-if="row.duration" class="duration">
                 {{ formatDuration(row.duration) }}
@@ -206,7 +253,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="Результат" width="140" align="center" sortable>
+          <el-table-column label="Результат" :width="isTablet ? 124 : 140" align="center" sortable>
             <template #default="{ row }">
               <el-tag 
                 :type="getResultType(row.result)" 
@@ -218,7 +265,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="Судья" width="120">
+          <el-table-column label="Судья" :width="isTablet ? 100 : 120">
             <template #default="{ row }">
               <span v-if="row.game_master">
                 {{ row.game_master.nickname }}
@@ -227,7 +274,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="Игроки" min-width="200">
+          <el-table-column v-if="!isTablet" label="Игроки" min-width="200">
             <template #default="{ row }">
               <div class="players-preview">
                 <el-tag 
@@ -237,7 +284,7 @@
                   size="small"
                   class="player-tag"
                   >
-                  {{ player.name }}
+                  {{ player.name || player.nickname }}
                 </el-tag>
                 <el-tag 
                   v-if="getGamePlayers(row).length > 3"
@@ -250,7 +297,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="Лучший ход" width="120" align="center">
+          <el-table-column v-if="!isTablet" label="Лучший ход" width="120" align="center">
             <template #default="{ row }">
               <span v-if="row.best_move_player" class="best-move">
                 {{ row.best_move_player }}
@@ -259,7 +306,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="Действия" width="80" align="center">
+          <el-table-column v-if="!isTablet" label="Действия" width="80" align="center">
             <template #default="{ row }">
               <el-button 
                 type="primary" 
@@ -281,7 +328,8 @@
             v-model:page-size="pageSize"
             :page-sizes="[10, 20, 50]"
             :total="filteredGames.length"
-            layout="total, sizes, prev, pager, next, jumper"
+            :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+            :size="isMobile ? 'small' : 'default'"
             @size-change="handleSizeChange"
             @current-change="handleCurrentChange"
           />
@@ -295,6 +343,7 @@
   import { ref, computed, onMounted, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { apiService } from '@/services/api'
+  import { useBreakpoints } from '@/composables/useBreakpoints'
   import { 
       Trophy,
       View,
@@ -310,6 +359,7 @@
   })
 
   const router = useRouter()
+  const { isMobile, isTablet, isCompact } = useBreakpoints()
   const games = ref([])
   const ratingsData = ref(null)
   const loading = ref(false)
@@ -790,4 +840,84 @@
       font-size: 16px;
   }
   
+  .results-filter {
+      width: 150px;
+  }
+
+  /* Телефон */
+  @media (max-width: 767px) {
+      .card-header {
+          flex-wrap: wrap;
+      }
+
+      .card-header .header-actions {
+          flex: 1 0 100%;
+      }
+
+      .header-actions .results-filter {
+          flex: 1;
+          width: auto;
+          min-width: 0;
+      }
+
+      .stat-number {
+          font-size: 22px;
+      }
+
+      .pagination-wrapper {
+          margin-top: 12px;
+      }
+  }
+
+  /* Карточки игр (телефон) */
+  .games-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+  }
+
+  .game-result-card {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 12px;
+      background-color: #fff;
+      border: 1px solid #ebeef5;
+      border-radius: 8px;
+      cursor: pointer;
+  }
+
+  .game-result-card:active {
+      background-color: #f5f7fa;
+  }
+
+  .game-result-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+  }
+
+  .game-result-number {
+      flex-shrink: 0;
+      font-size: 12px;
+      color: #909399;
+  }
+
+  .game-result-title {
+      flex: 1;
+      min-width: 0;
+      font-weight: 600;
+      color: #409eff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+  }
+
+  .game-result-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+      font-size: 12px;
+      color: #606266;
+  }
 </style>

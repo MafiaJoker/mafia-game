@@ -24,10 +24,7 @@
     <template #default="{ row }">
       <div class="icon-container" :style="isClickable ? 'cursor: pointer;' : ''" @click="handleClick(row)">
         <div v-if="rolesVisible">
-          <CitizenIcon v-if="row.role === GameRolesEnum.civilian" />
-          <SheriffIcon v-else-if="row.role === GameRolesEnum.sheriff" />
-          <DonIcon v-else-if="row.role === GameRolesEnum.don" />
-          <MafiaIcon v-else-if="row.role === GameRolesEnum.mafia" />
+          <RoleIcon :role="row.role" />
         </div>
         <div v-else>
           <el-icon :size="20" style="color: #909399;">
@@ -42,11 +39,7 @@
 <script setup>
 import {ref, computed, watch} from 'vue'
 import { View, Hide } from '@element-plus/icons-vue'
-import CitizenIcon from './icons/CitizenIcon.vue'
-import SheriffIcon from './icons/SheriffIcon.vue'
-import DonIcon from './icons/DonIcon.vue'
-import MafiaIcon from './icons/MafiaIcon.vue'
-import { GameRolesEnum } from '@/utils/constants.js'
+import RoleIcon from './RoleIcon.vue'
 
 const props = defineProps({
   clickable: {
@@ -102,5 +95,20 @@ const handleClick = (row) => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Планшет и телефон: роль переключают пальцем, цель не меньше 40px */
+@media (max-width: 1023px) {
+  .icon-container {
+    width: 40px;
+    height: 40px;
+    margin: -8px 0 -8px -8px;
+  }
+
+  .eye-icon {
+    font-size: 20px;
+    padding: 6px;
+    margin: -6px 0 -6px -2px;
+  }
 }
 </style>

@@ -135,9 +135,16 @@
   }
 
   /* Адаптивность */
-  @media (max-width: 768px) {
+  @media (max-width: 1023px) {
     .profile-view {
-      padding: 10px;
+      min-height: auto;
+      padding: 8px;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .profile-view {
+      padding: 0;
     }
     
     .profile-content {

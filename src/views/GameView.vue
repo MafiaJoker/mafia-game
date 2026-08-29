@@ -1,9 +1,17 @@
 <template>
-  <div class="game-view">
+  <div class="game-view" :class="{ 'is-mobile': isMobile }">
     <el-container v-loading="loading">
       <el-header>
         <div class="header-content">
           <el-button
+            v-if="isMobile"
+            :icon="ArrowLeft"
+            circle
+            aria-label="Назад"
+            @click="$router.back()"
+          />
+          <el-button
+            v-else
             @click="$router.back()"
             :icon="ArrowLeft"
           >
@@ -53,8 +61,9 @@
           />
         </el-card>
 
-        <!-- Дополнительные кнопки для фазы игры -->
-        <div v-if="currentPhaseTemplate === 'GameInProgress'" class="additional-actions">
+        <!-- Дополнительные кнопки для фазы игры.
+             На телефоне они в нижней панели самой игры -->
+        <div v-if="currentPhaseTemplate === 'GameInProgress' && !isMobile" class="additional-actions">
           <el-button type="warning" size="large" @click="handlePPKClick">
             ППК
           </el-button>
@@ -75,6 +84,7 @@ import { ElMessage } from 'element-plus'
 import { apiService } from '@/services/api.js'
 import { COUNTDOWN_PHASES } from '@/utils/constants.js'
 import { FINISHED_GAME_RESULTS } from '@/utils/gameConstants.js'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 import SeatingPlayers from '@/components/game/SeatingPlayers.vue'
 import RolesAssigne from '@/components/game/RolesAssigne.vue'
 import GameInProgress from '@/components/game/GameInProgress.vue'
@@ -88,6 +98,7 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const { isMobile } = useBreakpoints()
 const loading = ref(false)
 const gameData = ref(null)
 const isNegotiationStarted = ref(false)
@@ -231,23 +242,100 @@ onMounted(() => {
   gap: 10px;
 }
 
-@media (max-width: 768px) {
-  .header-content {
-    flex-direction: column;
-    gap: 16px;
-    padding: 16px 0;
-  }
-
-  .header-content h1 {
-    margin: 0;
-  }
-}
-
 .additional-actions {
   display: flex;
   gap: 16px;
   justify-content: center;
   margin-top: 16px;
   padding: 0 20px 20px;
+}
+
+/* Планшет и телефон */
+@media (max-width: 1023px) {
+  .game-view {
+    min-height: auto;
+  }
+
+  .header-content {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .header-title-section {
+    gap: 12px;
+  }
+
+  .header-title-section h1 {
+    font-size: 1.25rem;
+  }
+}
+
+/* Телефон: строка «назад - название - статус», под ней таймер во всю ширину.
+   Шапка прилипает к верху: таймер судье нужен всегда, а список игроков длинный */
+@media (max-width: 767px) {
+  .game-view :deep(.el-header) {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background-color: #f5f7fa;
+    border-bottom: 1px solid #e4e7ed;
+    padding: 8px 12px;
+  }
+
+  .header-content {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .header-title-section {
+    display: contents;
+  }
+
+  .header-title-section h1 {
+    font-size: 1.05rem;
+    line-height: 1.3;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header-title-section :deep(.game-timer) {
+    grid-column: 1 / -1;
+  }
+
+  .header-actions {
+    gap: 0;
+  }
+
+  .header-actions :deep(.el-tag) {
+    max-width: 38vw;
+  }
+
+  .header-actions :deep(.el-tag__content) {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Внешняя карточка лишняя: у каждой фазы игры есть своя, а двойная рамка
+     съедает 26px ширины у списка игроков */
+  .game-view :deep(.el-main > .el-card) {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .game-view :deep(.el-main > .el-card > .el-card__body) {
+    padding: 0;
+  }
+
+  .game-view :deep(.el-main) {
+    padding: 8px;
+  }
 }
 </style>

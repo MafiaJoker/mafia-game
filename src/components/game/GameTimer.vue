@@ -207,6 +207,7 @@
       min-width: 300px;
       cursor: pointer;
       user-select: none;
+      -webkit-tap-highlight-color: transparent;
       transition: background 0.3s ease;
   }
 
@@ -260,6 +261,7 @@
       font-weight: bold;
       color: #409eff;
       font-family: 'Courier New', monospace;
+      line-height: 1;
   }
 
   .timer-expired .timer-display {
@@ -272,5 +274,37 @@
 
   .timer-warning .timer-display {
       color: #faad14;
+  }
+
+  /* Планшет: таймер компактнее, чтобы уместиться в шапке рядом с названием */
+  @media (min-width: 768px) and (max-width: 1023px) {
+      .timer-container {
+          min-width: 200px;
+          padding: 10px 20px;
+      }
+
+      .timer-display {
+          font-size: 40px;
+      }
+  }
+
+  /* Телефон: таймер полосой во всю ширину под названием, фон белый -
+     шапка на телефоне серая, и таймер иначе сливается с ней */
+  @media (max-width: 767px) {
+      .game-timer {
+          width: 100%;
+      }
+
+      .timer-container {
+          width: 100%;
+          min-width: 0;
+          padding: 6px 12px;
+          background: #fff;
+          border: 2px solid #e4e7ed;
+      }
+
+      .timer-display {
+          font-size: 36px;
+      }
   }
 </style>

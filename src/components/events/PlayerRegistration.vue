@@ -240,9 +240,13 @@ onMounted(() => {
   border-top: 1px solid #ebeef5;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .player-registration {
-    padding: 15px;
+    padding: 0;
+  }
+
+  .actions .el-button {
+    width: 100%;
   }
   
   .status-row,

@@ -1,10 +1,19 @@
 <template>
-  <div class="tariffs-view">
+  <div class="tariffs-view" :class="{ 'is-mobile': isMobile }">
     <el-container>
       <el-header>
         <div class="header-content">
           <h1>Управление тарифами</h1>
           <el-button 
+            v-if="isMobile"
+            type="primary" 
+            :icon="Plus"
+            circle
+            aria-label="Создать тариф"
+            @click="showCreateDialog = true"
+          />
+          <el-button 
+            v-else
             type="primary" 
             @click="showCreateDialog = true"
             :icon="Plus"
@@ -24,7 +33,43 @@
           @filter-change="handleFilterChange"
         />
 
-        <el-card>
+        <!-- Телефон: карточки тарифов -->
+        <div v-if="isMobile" v-loading="loading" class="tariffs-cards">
+          <el-empty v-if="!loading && paginatedTariffs.length === 0" description="Нет тарифов" />
+
+          <div v-for="row in paginatedTariffs" :key="row.id" class="tariff-card">
+            <div class="tariff-card-body">
+              <div class="tariff-card-title">{{ row.label }}</div>
+              <div class="tariff-card-meta">
+                <span class="tariff-card-price">
+                  {{ formatPrice(row.price) }} {{ getCurrencySymbol(row.iso_4217_code) }}
+                </span>
+                <el-tag :type="getCurrencyType(row.iso_4217_code)" size="small">
+                  {{ row.iso_4217_code }}
+                </el-tag>
+                <span class="tariff-card-date">{{ formatDate(row.created_at) }}</span>
+              </div>
+            </div>
+            <el-button-group class="tariff-card-actions">
+              <el-button 
+                type="primary" 
+                size="small" 
+                :icon="Edit"
+                aria-label="Редактировать"
+                @click="editTariff(row)"
+              />
+              <el-button 
+                type="danger" 
+                size="small" 
+                :icon="Delete"
+                aria-label="Удалить"
+                @click="deleteTariff(row)"
+              />
+            </el-button-group>
+          </div>
+        </div>
+
+        <el-card v-else>
           <el-table 
             :data="paginatedTariffs" 
             style="width: 100%"
@@ -40,14 +85,16 @@
             <el-table-column 
               prop="price" 
               label="Цена" 
-              width="150"
+              :width="isTablet ? 130 : 150"
               sortable
             >
               <template #default="{ row }">
                 {{ formatPrice(row.price) }} {{ getCurrencySymbol(row.iso_4217_code) }}
               </template>
             </el-table-column>
+            <!-- Планшет: валюта уже видна в цене, отдельной колонке места нет -->
             <el-table-column 
+              v-if="!isTablet"
               prop="iso_4217_code" 
               label="Валюта" 
               width="120" 
@@ -62,7 +109,7 @@
             <el-table-column 
               prop="created_at" 
               label="Создан" 
-              width="150"
+              :width="isTablet ? 120 : 150"
               sortable
             >
               <template #default="scope">
@@ -71,7 +118,7 @@
             </el-table-column>
             <el-table-column 
               label="Действия" 
-              width="150" 
+              :width="isTablet ? 120 : 150"
               align="center" 
               fixed="right"
             >
@@ -152,8 +199,11 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import { apiService } from '@/services/api'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 import PaginationFilter from '@/components/common/PaginationFilter.vue'
 import { UI_MESSAGES } from '@/utils/uiConstants'
+
+const { isMobile, isTablet } = useBreakpoints()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -366,17 +416,80 @@ onMounted(() => {
   align-items: center;
   height: 100%;
   width: 100%;
+  gap: 12px;
 }
 
-@media (max-width: 768px) {
+/* Планшет и телефон */
+@media (max-width: 1023px) {
+  .tariffs-view {
+    min-height: auto;
+  }
+
   .header-content {
-    flex-direction: column;
-    gap: 16px;
-    padding: 16px 0;
+    flex-wrap: wrap;
   }
-  
-  .header-content h1 {
-    margin: 0;
-  }
+}
+
+/* Телефон */
+.is-mobile .header-content {
+  flex-wrap: nowrap;
+}
+
+.is-mobile .header-content h1 {
+  flex: 1;
+  font-size: 1.15rem;
+  line-height: 1.25;
+  margin: 0;
+  min-width: 0;
+}
+
+.tariffs-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 120px;
+}
+
+.tariff-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background-color: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+}
+
+.tariff-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tariff-card-title {
+  font-weight: 600;
+  color: #303133;
+}
+
+.tariff-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.tariff-card-price {
+  font-weight: 600;
+  color: #409eff;
+}
+
+.tariff-card-date {
+  font-size: 12px;
+  color: #909399;
+}
+
+.tariff-card-actions {
+  flex-shrink: 0;
 }
 </style>
