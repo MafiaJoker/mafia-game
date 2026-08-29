@@ -38,6 +38,15 @@ const openDialog = async (phaseData = createPhaseData(), phaseId = 1) => {
 const footerButton = (dialog) => dialog.find('.el-dialog__footer button')
 const missButton = (dialog) => dialog.findAll('.action-btn-miss')[0]
 
+// Подтверждение ночного действия: всплывашка живёт секунду в конце body
+const toastText = () => Array.from(document.querySelectorAll('.el-message'))
+  .map(message => message.textContent.trim())
+
+// Галочка подтверждений стоит одна на все ночные действия
+const toggleResults = async (dialog) => {
+  await dialog.find('.settings-row input').setValue(false)
+}
+
 // Кнопки игроков в строке действия: отстрел, проверка дона, проверка шерифа
 const rowButton = (dialog, row, boxId) => dialog.findAll('.action-row')[row]
   .findAll('.action-btn')
@@ -109,6 +118,44 @@ describe('NightActionsDialog', () => {
         killed_box_id: null,
         best_move: []
       })
+    })
+  })
+
+  describe('Подтверждение действия', () => {
+    it('называет отстрелянного игрока', async () => {
+      const dialog = await openDialog()
+
+      await rowButton(dialog, 0, 3).trigger('click')
+
+      expect(toastText()).toContain('Убит игрок 3')
+    })
+
+    it('называет промах', async () => {
+      const dialog = await openDialog()
+
+      await missButton(dialog).trigger('click')
+
+      expect(toastText()).toContain('Промах')
+    })
+
+    it('молчит про отстрел, когда галочка снята', async () => {
+      const dialog = await openDialog()
+
+      await toggleResults(dialog)
+      await rowButton(dialog, 0, 3).trigger('click')
+
+      expect(toastText()).toEqual([])
+      // Данные круга галочка не трогает: она только про экран
+      expect(lastPhaseData().killed_box_id).toBe(3)
+    })
+
+    it('молчит и про проверки, когда галочка снята', async () => {
+      const dialog = await openDialog()
+
+      await toggleResults(dialog)
+      await rowButton(dialog, 2, 3).trigger('click')
+
+      expect(toastText()).toEqual([])
     })
   })
 

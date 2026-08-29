@@ -94,8 +94,8 @@
 
       <!-- Настройки -->
       <div class="settings-row">
-        <el-checkbox v-model="showCheckResults">
-          Показывать результаты проверок
+        <el-checkbox v-model="showNightResults">
+          Показывать результаты ночных действий
         </el-checkbox>
       </div>
     </div>
@@ -134,7 +134,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'update:phaseData', 'show-best-move', 'next-round'])
 
-const showCheckResults = ref(true)
+const showNightResults = ref(true)
 
 const visible = computed({
   get: () => props.modelValue,
@@ -166,6 +166,16 @@ const setKilledPlayer = (boxId) => {
   }
 
   emit('update:phaseData', updatedPhaseData)
+
+  // Подтверждение мигает и гаснет: ночью экран не должен ничего рассказывать
+  // игроку, которого ведущий разбудил не вовремя
+  if (showNightResults.value) {
+    ElMessage({
+      message: boxId === null ? 'Промах' : `Убит игрок ${boxId}`,
+      type: boxId === null ? 'info' : 'warning',
+      duration: 1000
+    })
+  }
 }
 
 // Проверка дона
@@ -176,7 +186,7 @@ const setDonCheck = (boxId) => {
   }
   emit('update:phaseData', updatedPhaseData)
 
-  if (boxId !== null && showCheckResults.value) {
+  if (boxId !== null && showNightResults.value) {
     // Проверяем, является ли игрок шерифом
     const player = props.playersData.find(p => p.box_id === boxId)
 
@@ -206,7 +216,7 @@ const setSheriffCheck = (boxId) => {
   }
   emit('update:phaseData', updatedPhaseData)
 
-  if (boxId !== null && showCheckResults.value) {
+  if (boxId !== null && showNightResults.value) {
     // Проверяем, является ли игрок мафией или доном
     const player = props.playersData.find(p => p.box_id === boxId)
 
