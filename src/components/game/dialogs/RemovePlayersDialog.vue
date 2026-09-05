@@ -4,7 +4,7 @@
     width="800px"
   >
     <template #header>
-      <DialogTimerHeader title="Удалить игроков" />
+      <DialogTimerHeader :title="title" />
     </template>
 
     <div class="voting-container">
@@ -40,7 +40,7 @@
         @click="handleAccept"
         :disabled="selectedCount === 0"
       >
-        Удалить выбранных игроков
+        Удалить выбранных
       </el-button>
     </template>
   </el-dialog>
@@ -59,6 +59,16 @@ const props = defineProps({
   phaseData: {
     type: Object,
     default: () => ({})
+  },
+  title: {
+    type: String,
+    default: 'Удалить игроков'
+  },
+  // Половина круга, в которую пишем: день и ночь по-разному двигают счётчик
+  // автоничьей, поэтому у них разные поля круга
+  phaseField: {
+    type: String,
+    default: 'removed_box_ids'
   }
 })
 
@@ -74,34 +84,25 @@ const activePlayers = computed(() => {
   return props.playersData.filter(player => player.is_in_game)
 })
 
+// Уже выбранные к удалению игроки
+const selectedBoxIds = computed(() => props.phaseData[props.phaseField] || [])
+
 // Количество выбранных игроков
-const selectedCount = computed(() => {
-  return props.phaseData.removed_box_ids ? props.phaseData.removed_box_ids.length : 0
-})
+const selectedCount = computed(() => selectedBoxIds.value.length)
 
 // Проверяет, выбран ли игрок
-const isSelected = (boxId) => {
-  return props.phaseData.removed_box_ids && props.phaseData.removed_box_ids.includes(boxId)
-}
+const isSelected = (boxId) => selectedBoxIds.value.includes(boxId)
 
 // Переключает выбор игрока
 const togglePlayer = (boxId) => {
-  const currentRemoved = props.phaseData.removed_box_ids || []
-  let updatedRemoved
+  const updatedRemoved = isSelected(boxId)
+    ? selectedBoxIds.value.filter(id => id !== boxId)
+    : [...selectedBoxIds.value, boxId]
 
-  if (currentRemoved.includes(boxId)) {
-    // Убираем из массива
-    updatedRemoved = currentRemoved.filter(id => id !== boxId)
-  } else {
-    // Добавляем в массив
-    updatedRemoved = [...currentRemoved, boxId]
-  }
-
-  const updatedPhaseData = {
+  emit('update:phaseData', {
     ...props.phaseData,
-    removed_box_ids: updatedRemoved
-  }
-  emit('update:phaseData', updatedPhaseData)
+    [props.phaseField]: updatedRemoved
+  })
 }
 
 // Принять удаление игроков

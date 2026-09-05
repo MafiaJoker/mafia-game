@@ -83,7 +83,7 @@
           <span class="col-nomination">
             <template v-if="votingCompleted || removedThisPhase">
               <span
-                v-if="phaseData.voted_box_ids.includes(row.box_id) || phaseData.removed_box_ids.includes(row.box_id) || leftByFouls(row)"
+                v-if="leftThisPhase(row)"
                 class="left-game"
               >
                 выбыл
@@ -152,7 +152,7 @@
           <template #default="{ row }">
             <div v-if="votingCompleted || removedThisPhase">
               <span
-                v-if="phaseData.voted_box_ids.includes(row.box_id) || phaseData.removed_box_ids.includes(row.box_id) || leftByFouls(row)"
+                v-if="leftThisPhase(row)"
                 class="left-game"
               >
                 покинул игру
@@ -356,6 +356,7 @@ const phaseData = ref({
   sheriff_checked_box_id: null,
   killed_box_id: null,
   removed_box_ids: [],
+  night_removed_box_ids: [],
   voted_box_ids: [],
   ppk_box_id: null,
   best_move: []
@@ -387,7 +388,18 @@ const displayPhase = computed(() => phaseId.value)
 // а после перечитывания состояния с сервера — уже нет
 const leftByFouls = (row) => row.was_in_game && !row.is_in_game
 
-// Есть ли выбывшие в текущем круге (ручное удаление или удаление по фолам)
+// Игрок выбыл в текущем круге: голосование, удаление днём или ночью, фолы.
+// Отстрел сюда не входит: ночь ничего не рассказывает столу
+const leftThisPhase = (row) => (
+  phaseData.value.voted_box_ids.includes(row.box_id)
+  || phaseData.value.removed_box_ids.includes(row.box_id)
+  || phaseData.value.night_removed_box_ids.includes(row.box_id)
+  || leftByFouls(row)
+)
+
+// Есть ли выбывшие ДНЁМ в текущем круге (ручное удаление или удаление по
+// фолам). Ночное удаление сюда не идёт: этот флаг решает, показывать ли
+// кнопку голосования, а ночь наступает уже после него
 const removedThisPhase = computed(() => {
   return phaseData.value.removed_box_ids.length > 0 || playersData.value.some(leftByFouls)
 })
@@ -634,6 +646,7 @@ const resetComponent = async () => {
     sheriff_checked_box_id: null,
     killed_box_id: null,
     removed_box_ids: [],
+    night_removed_box_ids: [],
     voted_box_ids: [],
     ppk_box_id: null,
     best_move: []

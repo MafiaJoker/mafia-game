@@ -106,6 +106,13 @@
 
     <template #footer>
       <el-button
+        :type="nightRemovedBoxIds.length ? 'danger' : 'default'"
+        :plain="nightRemovedBoxIds.length > 0"
+        @click="removeDialogVisible = true"
+      >
+        {{ nightRemoveLabel }}
+      </el-button>
+      <el-button
         type="primary"
         @click="handleNextRound"
       >
@@ -113,6 +120,21 @@
       </el-button>
     </template>
   </el-dialog>
+
+  <!-- Удаление ночью — редкое действие, поэтому живёт в модалке, как и дневное,
+       а не занимает четвёртую строку ночи. Соседом ночного диалога, а не его
+       содержимым: el-dialog не выносит себя в body, и вложенная модалка попала
+       бы в прокручиваемое тело ночи. Пишет своё поле круга — счётчик автоничьей
+       iMafia считает ночи, и половина круга решает судьбу окна ничьей -->
+  <RemovePlayersDialog
+    v-model="removeDialogVisible"
+    title="Удалить игрока ночью"
+    phase-field="night_removed_box_ids"
+    :players-data="activePlayers"
+    :phase-data="phaseData"
+    @update:phase-data="emit('update:phaseData', $event)"
+    @accept="handleNightRemoveAccept"
+  />
 </template>
 
 <script setup>
@@ -120,6 +142,7 @@ import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { GameRolesEnum } from '@/utils/constants.js'
 import DialogTimerHeader from './DialogTimerHeader.vue'
+import RemovePlayersDialog from './RemovePlayersDialog.vue'
 import { useBreakpoints } from '@/composables/useBreakpoints'
 
 const props = defineProps({
@@ -142,16 +165,24 @@ const emit = defineEmits(['update:modelValue', 'update:phaseData', 'show-best-mo
 
 const { isMobile } = useBreakpoints()
 const showNightResults = ref(true)
+const removeDialogVisible = ref(false)
 
 const visible = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value)
 })
 
-// Только активные игроки (для отстрела мафии)
+// Активные игроки — для отстрела и ночного удаления. Ночь идёт после дня:
+// заголосованный и удалённый днём уже вне игры. Список чистим здесь, а не
+// надеемся на судью: бек отвергает круг, где игрок покинул его и днём, и
+// ночью (app/game/serializers.py: check_round_halves_do_not_overlap), а
+// круг уезжает одним PATCH — 400 унесёт и отстрел, и проверки, и голосование
 const activePlayers = computed(() => {
-  const votedBoxIds = props.phaseData.voted_box_ids || []
-  return props.playersData.filter(p => p.is_in_game && !votedBoxIds.includes(p.box_id))
+  const dayLeftBoxIds = [
+    ...(props.phaseData.voted_box_ids || []),
+    ...(props.phaseData.removed_box_ids || [])
+  ]
+  return props.playersData.filter(p => p.is_in_game && !dayLeftBoxIds.includes(p.box_id))
 })
 
 // Все игроки (для проверок дона и шерифа)
@@ -244,6 +275,31 @@ const setSheriffCheck = (boxId) => {
       }
     }
   }
+}
+
+const nightRemovedBoxIds = computed(() => props.phaseData.night_removed_box_ids || [])
+
+// Модалка закрывается, а удаление должно остаться на виду: кнопка, которая её
+// открывает, и есть индикатор — судья видит, кого уводит эта ночь
+const nightRemoveLabel = computed(() => (
+  nightRemovedBoxIds.value.length
+    ? `Удалено: ${nightRemovedBoxIds.value.join(', ')}`
+    : 'Удалить игрока'
+))
+
+// Подтверждение мигает и гаснет, как у отстрела. Отстрелянного удалить можно —
+// бек это разрешает, запрещён только выход в обеих половинах круга
+const handleNightRemoveAccept = () => {
+  const boxIds = nightRemovedBoxIds.value
+  if (!showNightResults.value || !boxIds.length) return
+
+  ElMessage({
+    message: boxIds.length === 1
+      ? `Удалён игрок ${boxIds[0]}`
+      : `Удалены игроки ${boxIds.join(', ')}`,
+    type: 'warning',
+    duration: 1000
+  })
 }
 
 // Лучший ход спрашиваем только за первый отстрел
