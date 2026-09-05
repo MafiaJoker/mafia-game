@@ -65,6 +65,7 @@ const emptyPhase = () => ({
   sheriff_checked_box_id: null,
   killed_box_id: null,
   removed_box_ids: [],
+  night_removed_box_ids: [],
   voted_box_ids: [],
   ppk_box_id: null,
   best_move: []
@@ -217,5 +218,44 @@ describe('GameInProgress: сохранение круга', () => {
     await finishNight(wrapper)
 
     expect(apiService.patchGamePhase).not.toHaveBeenCalled()
+  })
+
+  // Удаление ночью едет своим полем: бек по половине круга считает автоничью
+  it('шлёт ночное удаление отдельно от дневного', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    await finishNight(wrapper, { ...emptyPhase(), night_removed_box_ids: [4] })
+
+    expect(apiService.patchGamePhase).toHaveBeenCalledWith(GAME_ID, {
+      night_removed_box_ids: [4]
+    })
+  })
+})
+
+// Отметку о выбытии на настольном экране рисует таблица, а она застаблена:
+// проверяем на списке телефона, где та же разметка живёт своей вёрсткой
+describe('GameInProgress: удалённый ночью в списке игроков', () => {
+  const DESKTOP_WIDTH = window.innerWidth
+
+  beforeEach(() => {
+    window.innerWidth = 375
+  })
+
+  afterEach(() => {
+    window.innerWidth = DESKTOP_WIDTH
+  })
+
+  const nominationCell = (wrapper, boxId) => wrapper
+    .findAll('.player-row')[boxId - 1]
+    .find('.col-nomination')
+    .text()
+
+  it('отмечает удалённого ночью так же, как удалённого днём', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    await finishNight(wrapper, { ...emptyPhase(), night_removed_box_ids: [4] })
+
+    expect(nominationCell(wrapper, 4)).toBe('выбыл')
+    expect(nominationCell(wrapper, 5)).toBe('-')
   })
 })
