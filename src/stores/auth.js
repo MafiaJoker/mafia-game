@@ -366,21 +366,31 @@ export const useAuthStore = defineStore('auth', () => {
         return !!user.value
     }
 
-    // Обновление профиля пользователя
+    // Обновление своих данных: ника и настроек.
+    // Ручка отвечает 204, а ник сервер еще и чистит от невидимых символов,
+    // поэтому состояние берем перезапросом, минуя кеш loadCurrentUser
     const updateProfile = async (profileData) => {
         loading.value = true
         error.value = null
         
         try {
-            const response = await apiService.updateProfile(profileData)
-            user.value = { ...user.value, ...response }
+            await apiService.updateCurrentUser(profileData)
+            user.value = await apiService.getCurrentUser()
+            lastUserCheckTime = Date.now()
             return { success: true }
         } catch (err) {
             error.value = err.response?.data?.detail || 'Ошибка обновления профиля'
-            return { success: false, error: error.value }
+            return { success: false, error: error.value, status: err.response?.status }
         } finally {
             loading.value = false
         }
+    }
+
+    // Аватарки уходят своими ручками, ответ уже содержит актуальный список -
+    // перезапрашивать пользователя ради картинки незачем
+    const setAvatars = (avatars) => {
+        if (!user.value) return
+        user.value = { ...user.value, avatars }
     }
 
     // Проверка прав доступа
@@ -420,6 +430,7 @@ export const useAuthStore = defineStore('auth', () => {
         logout,
         checkAuth,
         updateProfile,
+        setAvatars,
         hasPermission
     }
 })

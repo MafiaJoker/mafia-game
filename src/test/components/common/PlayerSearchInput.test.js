@@ -57,6 +57,27 @@ describe('PlayerSearchInput', () => {
     expect(shown.map(item => item.nickname)).toEqual(['Игрок 1'])
   })
 
+  it('к подсказке цепляет аватарку игрока: мирный житель в приоритете', async () => {
+    apiService.getUsers.mockResolvedValue({
+      items: [
+        {
+          ...user(1),
+          avatars: [
+            { role: 'don', avatar_url: 'https://cdn/don.webp' },
+            { role: 'civilian', avatar_url: 'https://cdn/civilian.webp' }
+          ]
+        },
+        { ...user(2), avatars: [] }
+      ]
+    })
+    const wrapper = mountInput()
+
+    const shown = await search(wrapper, 'Игрок')
+
+    expect(shown[0].avatar).toBe('https://cdn/civilian.webp')
+    expect(shown[1].avatar).toBeNull()
+  })
+
   it('ищет только среди игроков мероприятия, когда задано', async () => {
     const wrapper = mountInput({ eventId: 'event-1' })
 

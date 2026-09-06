@@ -57,10 +57,6 @@
               <el-icon><User /></el-icon>
               Профиль
             </el-dropdown-item>
-            <el-dropdown-item command="settings">
-              <el-icon><Setting /></el-icon>
-              Настройки
-            </el-dropdown-item>
             <el-dropdown-item divided command="logout">
               <el-icon><SwitchButton /></el-icon>
               Выйти
@@ -126,7 +122,6 @@
       Collection,
       User,
       UserFilled,
-      Setting,
       SwitchButton,
       ArrowDown,
       CreditCard,
@@ -215,10 +210,6 @@
       switch (command) {
           case 'profile':
               router.push('/profile')
-              break
-              
-          case 'settings':
-              ElMessage.info('Настройки будут реализованы позже')
               break
               
           case 'logout':

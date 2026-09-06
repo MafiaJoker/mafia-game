@@ -18,7 +18,14 @@
     >
       <template #default="{ item }">
         <div class="autocomplete-item">
-          <span>{{ item.nickname }}</span>
+          <el-avatar
+            v-if="item.avatar"
+            :size="24"
+            :src="item.avatar"
+            class="autocomplete-avatar"
+          />
+          <IconDefaultAvatar v-else :size="24" class="autocomplete-avatar-empty" />
+          <span class="autocomplete-nickname">{{ item.nickname }}</span>
         </div>
       </template>
     </el-autocomplete>
@@ -41,6 +48,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { apiService } from '@/services/api'
+import IconDefaultAvatar from '@/components/icons/IconDefaultAvatar.vue'
+import { pickPrimaryAvatar } from '@/utils/avatars'
 
 // Подсказки показываем не раньше этой отсечки: иначе индикатор загрузки мигает
 const MIN_SEARCH_DELAY = 125
@@ -129,7 +138,13 @@ const querySearch = async (queryString, callback) => {
     const users = await apiService.getUsers(params)
     suggestions.value = (users.items || [])
       .filter(user => !props.excludeIds.includes(user.id))
-      .map(user => ({ id: user.id, nickname: user.nickname, value: user.nickname }))
+      .map(user => ({
+        id: user.id,
+        nickname: user.nickname,
+        value: user.nickname,
+        // Аватарка приходит вместе со списком, отдельного запроса не нужно
+        avatar: pickPrimaryAvatar(user.avatars)
+      }))
   } catch (error) {
     console.error('Ошибка при поиске игроков:', error)
     suggestions.value = []
@@ -205,6 +220,27 @@ defineExpose({ focus })
 </script>
 
 <style scoped>
+.autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.autocomplete-avatar {
+  flex-shrink: 0;
+}
+
+.autocomplete-avatar-empty {
+  flex-shrink: 0;
+  color: #c0c4cc;
+}
+
+.autocomplete-nickname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .player-search-input {
   display: flex;
   align-items: center;

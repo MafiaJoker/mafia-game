@@ -145,6 +145,20 @@ api.interceptors.response.use(
 // Экспортируем функцию инициализации
 export { initApiUrl }
 
+const AVATAR_UPLOAD_TIMEOUT = 60000
+
+const AVATAR_UPLOAD_CONFIG = {
+    headers: { 'Content-Type': undefined },
+    timeout: AVATAR_UPLOAD_TIMEOUT
+}
+
+// Имя поля формы задано бекендом: UploadFile приходит в `data`
+const buildAvatarForm = (file) => {
+    const form = new FormData()
+    form.append('data', file, file.name || 'avatar.jpg')
+    return form
+}
+
 export const apiService = {
     // Методы авторизации
     async telegramLogin(telegramData) {
@@ -154,9 +168,10 @@ export const apiService = {
 
 
 
-    async updateProfile(profileData) {
-        const response = await api.patch('/auth/profile', profileData)
-        return response.data
+    // Свои данные: ник и настройки. Ручка отвечает 204 без тела, поэтому
+    // актуальное состояние берем следом из getCurrentUser
+    async updateCurrentUser(userData) {
+        await api.patch('/users/me', userData)
     },
     // Events
     async getEvents(params = {}) {
@@ -335,6 +350,28 @@ export const apiService = {
     async addTariffForUser(userId, tariffData) {
 	const response = await api.put(`/users/${userId}/tariff`, tariffData)
 	return response.data
+    },
+
+    // Аватарки игрока: своя ручка на роль, файл уходит отдельно от формы.
+    // Content-Type снимаем, чтобы axios сам проставил multipart boundary
+    // поверх дефолтного application/json, а таймаут поднимаем: 10 секунд
+    // мало для картинки с телефона на мобильном интернете
+    async uploadMyAvatar(role, file) {
+	const response = await api.put(`/users/me/avatars/${role}`, buildAvatarForm(file), AVATAR_UPLOAD_CONFIG)
+	return response.data
+    },
+
+    async deleteMyAvatar(role) {
+	await api.delete(`/users/me/avatars/${role}`)
+    },
+
+    async uploadUserAvatar(userId, role, file) {
+	const response = await api.put(`/users/${userId}/avatars/${role}`, buildAvatarForm(file), AVATAR_UPLOAD_CONFIG)
+	return response.data
+    },
+
+    async deleteUserAvatar(userId, role) {
+	await api.delete(`/users/${userId}/avatars/${role}`)
     },
 
 
