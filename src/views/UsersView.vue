@@ -54,7 +54,16 @@
               sortable
             >
               <template #default="scope">
-                {{ scope.row.nickname || '-' }}
+                <div class="user-cell">
+                  <el-avatar
+                    v-if="getPrimaryAvatar(scope.row)"
+                    :size="32"
+                    :src="getPrimaryAvatar(scope.row)"
+                    class="user-cell-avatar"
+                  />
+                  <IconDefaultAvatar v-else :size="32" class="user-cell-avatar-empty" />
+                  <span class="user-cell-nickname">{{ scope.row.nickname || '-' }}</span>
+                </div>
               </template>
             </el-table-column>
             
@@ -146,6 +155,7 @@
       v-model="editDialogVisible"
       :user="selectedUser"
       @confirm="updateUserData"
+      @avatars-updated="applyAvatarsUpdate"
     />
   </div>
 </template>
@@ -159,6 +169,8 @@ import { useAuthStore } from '@/stores/auth'
 import PaginationFilter from '@/components/common/PaginationFilter.vue'
 import { useBreakpoints } from '@/composables/useBreakpoints'
 import UserEditCombinedDialog from '@/components/users/UserEditCombinedDialog.vue'
+import IconDefaultAvatar from '@/components/icons/IconDefaultAvatar.vue'
+import { pickPrimaryAvatar } from '@/utils/avatars'
 import { UI_MESSAGES } from '@/utils/uiConstants'
 
 const authStore = useAuthStore()
@@ -418,30 +430,20 @@ const formatDate = (date) => {
   return new Date(date).toLocaleDateString('ru-RU')
 }
 
-const getRoleType = (role) => {
-  const types = {
-    admin: 'danger',
-    judge: 'warning', 
-    guest: 'info',
-    player: 'primary',
-    game_master: 'warning',
-    unregistered_player: '',
-    cashier: 'success'
-  }
-  return types[role] || 'info'
-}
+// В списке хватает одной картинки: в приоритете мирный житель
+const getPrimaryAvatar = (user) => pickPrimaryAvatar(user?.avatars)
 
-const getRoleLabel = (role) => {
-  const labels = {
-    admin: 'Администратор', 
-    judge: 'Судья',
-    guest: 'Гость',
-    player: 'Игрок',
-    game_master: 'Ведущий',
-    unregistered_player: 'Незарег. игрок',
-    cashier: 'Кассир'
-  }
-  return labels[role] || role
+// Аватарку сохранила модалка - правим строку на месте, не дергая
+// страничный список с фильтрами ради одной картинки
+const applyAvatarsUpdate = (userId, avatars) => {
+  const patch = (list) => list.map(
+    item => (item.id === userId ? { ...item, avatars } : item)
+  )
+  allUsers.value = patch(allUsers.value)
+  filteredUsers.value = patch(filteredUsers.value)
+  paginatedUsers.value = patch(paginatedUsers.value)
+  // selectedUser не трогаем: модалка следит за ним и на новом объекте
+  // сбросила бы форму - вместе с недописанным ником
 }
 
 onMounted(() => {
@@ -461,6 +463,28 @@ onMounted(() => {
   align-items: center;
   height: 100%;
   width: 100%;
+}
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.user-cell-avatar {
+  flex-shrink: 0;
+}
+
+.user-cell-avatar-empty {
+  flex-shrink: 0;
+  color: #c0c4cc;
+}
+
+.user-cell-nickname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Планшет и телефон */

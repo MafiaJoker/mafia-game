@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     title="Редактирование пользователя"
-    width="500px"
+    width="560px"
     @close="handleClose"
   >
     <div v-if="user" class="user-edit-content">
@@ -10,7 +10,7 @@
       <div class="user-preview">
         <el-avatar 
           :size="60" 
-          :src="user.photo_url"
+          :src="primaryAvatar"
         >
           {{ getUserInitials(user) }}
         </el-avatar>
@@ -34,6 +34,15 @@
             v-model="form.nickname"
             placeholder="Введите никнейм пользователя"
             clearable
+          />
+        </el-form-item>
+
+        <!-- Аватарки: уходят своей ручкой, кнопка «Сохранить» их не касается -->
+        <el-form-item>
+          <UserAvatarsEditor
+            :target="user.id"
+            :avatars="avatars"
+            @update:avatars="handleAvatarsUpdate"
           />
         </el-form-item>
 
@@ -78,6 +87,8 @@
 import { ref, watch, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { apiService } from '@/services/api'
+import UserAvatarsEditor from '@/components/users/UserAvatarsEditor.vue'
+import { pickPrimaryAvatar } from '@/utils/avatars'
 
 const props = defineProps({
   modelValue: {
@@ -90,7 +101,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'confirm'])
+const emit = defineEmits(['update:modelValue', 'confirm', 'avatars-updated'])
 
 const visible = computed({
   get: () => props.modelValue,
@@ -108,6 +119,9 @@ const form = ref({
 
 const availableRoles = ref([])
 const originalData = ref({})
+const avatars = ref([])
+
+const primaryAvatar = computed(() => pickPrimaryAvatar(avatars.value))
 
 const rules = {
   nickname: [
@@ -143,8 +157,17 @@ watch(() => props.user, (newUser) => {
       nickname: newUser.nickname || '',
       roles: [...userRoles]
     }
+
+    avatars.value = newUser.avatars ? [...newUser.avatars] : []
   }
 }, { immediate: true })
+
+// Список обновляем по ответу ручки: перезапрашивать страничный список
+// пользователей ради одной картинки незачем
+const handleAvatarsUpdate = (updated) => {
+  avatars.value = updated
+  emit('avatars-updated', props.user.id, updated)
+}
 
 const loadRoles = async () => {
   try {
@@ -267,10 +290,4 @@ const handleConfirm = async () => {
   border-left: 3px solid #f56c6c;
 }
 
-
-@media (max-width: 480px) {
-  :deep(.el-dialog) {
-    width: 90% !important;
-  }
-}
 </style>
