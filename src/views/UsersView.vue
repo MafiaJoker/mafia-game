@@ -14,6 +14,16 @@
             >
               <template v-if="!isMobile">Создать пользователя</template>
             </el-button>
+            <el-button
+              v-if="authStore.isAdmin"
+              type="warning"
+              :icon="Switch"
+              :circle="isMobile"
+              :aria-label="isMobile ? 'Объединить пользователей' : null"
+              @click="mergeDialogVisible = true"
+            >
+              <template v-if="!isMobile">Объединить</template>
+            </el-button>
             <el-button 
               type="success" 
               :icon="Tools" 
@@ -30,70 +40,84 @@
       </el-header>
 
       <el-main>
-        <!-- Фильтры и пагинация -->
-        <PaginationFilter
-          :total-items="totalUsers"
-          items-label="пользователей"
-          search-placeholder="Поиск по имени, никнейму или email..."
-          :status-options="roleOptions"
-          @filter-change="handleFilterChange"
-        />
-        
+        <el-tabs v-model="activeTab" type="border-card">
+          <el-tab-pane label="Пользователи" name="users">
+            <!-- Фильтры и пагинация -->
+            <PaginationFilter
+              :total-items="totalUsers"
+              items-label="пользователей"
+              search-placeholder="Поиск по имени, никнейму или email..."
+              :status-options="roleOptions"
+              @filter-change="handleFilterChange"
+            />
 
-        <!-- Таблица пользователей -->
-        <el-card>
-          <el-table 
-            :data="paginatedUsers" 
-            :loading="loading"
-            style="width: 100%"
-          >
-            <el-table-column 
-              prop="nickname" 
-              label="Никнейм" 
-              min-width="300"
-              sortable
-            >
-              <template #default="scope">
-                <div class="user-cell">
-                  <el-avatar
-                    v-if="getPrimaryAvatar(scope.row)"
-                    :size="32"
-                    :src="getPrimaryAvatar(scope.row)"
-                    class="user-cell-avatar"
-                  />
-                  <IconDefaultAvatar v-else :size="32" class="user-cell-avatar-empty" />
-                  <span class="user-cell-nickname">{{ scope.row.nickname || '-' }}</span>
-                </div>
-              </template>
-            </el-table-column>
+            <!-- Таблица пользователей -->
+            <el-card>
+              <el-table 
+                :data="paginatedUsers" 
+                :loading="loading"
+                style="width: 100%"
+              >
+                <el-table-column 
+                  prop="nickname" 
+                  label="Никнейм" 
+                  min-width="300"
+                  sortable
+                >
+                  <template #default="scope">
+                    <div class="user-cell">
+                      <el-avatar
+                        v-if="getPrimaryAvatar(scope.row)"
+                        :size="32"
+                        :src="getPrimaryAvatar(scope.row)"
+                        class="user-cell-avatar"
+                      />
+                      <IconDefaultAvatar v-else :size="32" class="user-cell-avatar-empty" />
+                      <span class="user-cell-nickname">{{ scope.row.nickname || '-' }}</span>
+                    </div>
+                  </template>
+                </el-table-column>
             
-            <el-table-column 
-              v-if="authStore.isAdmin"
-              label="Действия" 
-              width="150"
-              align="center"
-              :fixed="isMobile ? false : 'right'"
-            >
-              <template #default="scope">
-                <el-button-group>
-                  <el-button 
-                    size="small"
-                    type="primary"
-                    @click="handleEditUser(scope.row)"
-                    :icon="Edit"
-                  />
-                  <el-button 
-                    size="small"
-                    type="danger"
-                    @click="handleDeleteUser(scope.row)"
-                    :icon="Delete"
-                    :disabled="scope.row.role === 'admin'"
-                  />
-                </el-button-group>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
+                <el-table-column 
+                  v-if="authStore.isAdmin"
+                  label="Действия" 
+                  width="150"
+                  align="center"
+                  :fixed="isMobile ? false : 'right'"
+                >
+                  <template #default="scope">
+                    <el-button-group>
+                      <el-button 
+                        size="small"
+                        type="primary"
+                        @click="handleEditUser(scope.row)"
+                        :icon="Edit"
+                      />
+                      <el-button 
+                        size="small"
+                        type="danger"
+                        @click="handleDeleteUser(scope.row)"
+                        :icon="Delete"
+                        :disabled="scope.row.role === 'admin'"
+                      />
+                    </el-button-group>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-card>
+          </el-tab-pane>
+
+          <!-- История слияний - инструмент админа, и грузится она при первом
+               открытии вкладки, а не вместе с экраном -->
+          <el-tab-pane
+            v-if="authStore.isAdmin"
+            label="История слияний"
+            name="merges"
+            lazy
+          >
+            <UserMergeHistory ref="mergeHistoryRef" />
+          </el-tab-pane>
+        </el-tabs>
       </el-main>
     </el-container>
 
@@ -157,18 +181,25 @@
       @confirm="updateUserData"
       @avatars-updated="applyAvatarsUpdate"
     />
+
+    <UserMergeDialog
+      v-model="mergeDialogVisible"
+      @merged="handleMerged"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, Tools } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Tools, Switch } from '@element-plus/icons-vue'
 import { apiService } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import PaginationFilter from '@/components/common/PaginationFilter.vue'
 import { useBreakpoints } from '@/composables/useBreakpoints'
 import UserEditCombinedDialog from '@/components/users/UserEditCombinedDialog.vue'
+import UserMergeDialog from '@/components/users/UserMergeDialog.vue'
+import UserMergeHistory from '@/components/users/UserMergeHistory.vue'
 import IconDefaultAvatar from '@/components/icons/IconDefaultAvatar.vue'
 import { pickPrimaryAvatar } from '@/utils/avatars'
 import { UI_MESSAGES } from '@/utils/uiConstants'
@@ -180,6 +211,9 @@ const creating = ref(false)
 const creatingTestUsers = ref(false)
 const editDialogVisible = ref(false)
 const showCreateDialog = ref(false)
+const mergeDialogVisible = ref(false)
+const activeTab = ref('users')
+const mergeHistoryRef = ref(null)
 const selectedUser = ref(null)
 const allUsers = ref([])
 const filteredUsers = ref([])
@@ -335,6 +369,18 @@ const handleDeleteUser = async (user) => {
   }
 }
 
+
+// Слияние прошло: дублей в списке больше нет, а в истории появилась строка.
+// Историю трогаем, только если вкладку уже открывали - она грузится лениво
+const handleMerged = ({ report, target, sources }) => {
+  const removed = (sources || []).map(source => source.nickname).join(', ')
+  // Ник основного берём из ответа, но у сорвавшегося слияния result пуст:
+  // тогда показываем того, кого выбрали в диалоге
+  const kept = report?.result?.nickname || target?.nickname || ''
+  ElMessage.success(`Объединено: ${removed} → ${kept}`)
+  loadUsers()
+  mergeHistoryRef.value?.refresh()
+}
 
 const getUserFullName = (user) => {
   const first = user.first_name || ''

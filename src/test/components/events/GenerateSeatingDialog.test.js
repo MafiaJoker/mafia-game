@@ -65,17 +65,26 @@ const autocomplete = (wrapper) => wrapper.findComponent(ElAutocomplete)
 
 const seedInput = (wrapper) => wrapper.find('.seed-input input')
 
+// Перед запросом поиск держит паузу настоящим таймером - её надо переждать
+const SEARCH_PAUSE = 350
+
 // Подсказки живут в телепорте, поэтому дергаем fetch-suggestions напрямую,
 // как это делает автокомплит при вводе
-const searchPlayers = async (wrapper, query, found) => {
+const startSearch = async (wrapper, query, found) => {
   apiService.getUsers.mockResolvedValue({ items: found })
   await autocomplete(wrapper).setValue(query)
-  await autocomplete(wrapper).props('fetchSuggestions')(query, () => {})
+  autocomplete(wrapper).props('fetchSuggestions')(query, () => {})
+}
+
+const searchPlayers = async (wrapper, query, found) => {
+  await startSearch(wrapper, query, found)
+  await new Promise(resolve => setTimeout(resolve, SEARCH_PAUSE))
   await flushPromises()
 }
 
+// Выбор из подсказок ответа сервера не ждет: судья кликает по тому, что видит
 const addFoundPlayer = async (wrapper, player) => {
-  await searchPlayers(wrapper, player.nickname, [player])
+  await startSearch(wrapper, player.nickname, [player])
   autocomplete(wrapper).vm.$emit('select', player)
   await flushPromises()
 }
