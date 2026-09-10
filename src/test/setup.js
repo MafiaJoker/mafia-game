@@ -51,6 +51,14 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
 }
 
+// Таблица Element Plus следит за разметкой через MutationObserver, а happy-dom
+// спотыкается о реактивную обертку Vue вокруг него - таблице хватает заглушки
+global.MutationObserver = class MutationObserver {
+  observe() {}
+  disconnect() {}
+  takeRecords() { return [] }
+}
+
 // Мок для window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

@@ -1,9 +1,9 @@
 <template>
   <div class="pagination-filter" :class="{ 'is-mobile': isMobile }">
     <!-- Компьютер и планшет: фильтры в одну строку, при нехватке места переносятся -->
-    <el-row v-if="!isMobile" :gutter="20" class="filter-row">
+    <el-row v-if="!isMobile && hasFilterRow" :gutter="20" class="filter-row">
       <!-- Поиск -->
-      <el-col :xs="24" :sm="10" :md="8">
+      <el-col v-if="showSearch" :xs="24" :sm="10" :md="8">
         <el-input
           v-model="searchQuery"
           :placeholder="searchPlaceholder"
@@ -85,9 +85,10 @@
     </el-row>
 
     <!-- Телефон: поиск всегда под рукой, остальные фильтры раскрываются кнопкой -->
-    <div v-else class="filter-mobile">
+    <div v-else-if="hasFilterRow" class="filter-mobile">
       <div class="filter-search-row">
         <el-input
+          v-if="showSearch"
           v-model="searchQuery"
           :placeholder="searchPlaceholder"
           :prefix-icon="Search"
@@ -97,6 +98,7 @@
           @keyup.enter="handleSearch"
         />
         <el-button
+          v-if="showSearch"
           type="primary"
           :icon="Search"
           aria-label="Найти"
@@ -232,6 +234,11 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  // Ручке нечего искать по строке - поле убираем, а не оставляем мертвым
+  showSearch: {
+    type: Boolean,
+    default: true
+  },
   defaultPageSize: {
     type: Number,
     default: 20
@@ -272,6 +279,9 @@ const paginationLayout = computed(() => {
 const hasExtraFilters = computed(() => (
   props.statusOptions.length > 0 || props.typeOptions.length > 0 || props.showDateFilter
 ))
+
+// Ни поиска, ни фильтров - остаются только счетчик и страницы
+const hasFilterRow = computed(() => props.showSearch || hasExtraFilters.value)
 
 // Сколько фильтров включено - видно на свёрнутой кнопке
 const activeFiltersCount = computed(() => (

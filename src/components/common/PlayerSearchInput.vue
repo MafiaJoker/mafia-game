@@ -5,7 +5,7 @@
       v-model="query"
       :fetch-suggestions="querySearch"
       :placeholder="placeholder"
-      :debounce="debounce"
+      :debounce="0"
       :size="size"
       value-key="nickname"
       clearable
@@ -46,13 +46,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { apiService } from '@/services/api'
 import IconDefaultAvatar from '@/components/icons/IconDefaultAvatar.vue'
 import { pickPrimaryAvatar } from '@/utils/avatars'
-
-// Подсказки показываем не раньше этой отсечки: иначе индикатор загрузки мигает
-const MIN_SEARCH_DELAY = 125
 
 const CREATE_PLAYER_ERROR = 'Не удалось создать игрока. Попробуйте снова'
 
@@ -83,6 +80,8 @@ const props = defineProps({
     type: String,
     default: 'default'
   },
+  // Пауза перед запросом. Автокомплиту её не отдаём: пока он ждёт своей
+  // паузы, список продолжает показывать прошлый поиск
   debounce: {
     type: Number,
     default: 300
@@ -92,6 +91,10 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'select', 'clear', 'error'])
 
 const autocompleteRef = ref(null)
+// Последний ответ сервера целиком: пока летит новый запрос, показываем из
+// него то, что подходит под набранное
+const lastResults = ref([])
+// Подсказки, которые судья видит прямо сейчас
 const suggestions = ref([])
 const showCreateButton = ref(false)
 const isCreating = ref(false)
@@ -99,6 +102,14 @@ const isCreating = ref(false)
 const selectedNickname = ref('')
 // Стрелками судья ходит по подсказкам, и Enter тогда за автокомплитом
 const isNavigating = ref(false)
+
+// Колбэк автокомплита живёт до следующего нажатия клавиши: ответ приходит
+// позже, и отдавать подсказки нужно в самый свежий
+let pendingCallback = null
+let searchTimer = null
+// Ответы возвращаются не в том порядке, в каком уходили запросы: применяем
+// только последний, иначе список перезатирает чужой поиск
+let searchToken = 0
 
 const query = computed({
   get: () => props.modelValue,
@@ -108,51 +119,86 @@ const query = computed({
 // Поле очистили снаружи - забываем и выбранного игрока
 watch(() => props.modelValue, (value) => {
   if (!value) {
+    cancelPendingSearch()
     selectedNickname.value = ''
     showCreateButton.value = false
-    suggestions.value = []
+    lastResults.value = []
+    showSuggestions([])
     isNavigating.value = false
   }
 })
 
-const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+// Запрос, который ещё не ушёл или уже не нужен: его ответ применять нельзя
+const cancelPendingSearch = () => {
+  searchToken++
+  clearTimeout(searchTimer)
+  searchTimer = null
+}
 
-const querySearch = async (queryString, callback) => {
+// Игроки, которых уже взяли: в подсказках им делать нечего
+const withoutTaken = (items) => items.filter(item => !props.excludeIds.includes(item.id))
+
+// То, что можно показать ДО ответа сервера: только прошлые находки, которые
+// точно совпадают с набранным. Иначе весь запрос в списке висят люди из
+// прошлого поиска, и выбрать можно чужого. Ответ сервера так не сужаем:
+// он ищет по похожести ника и находит в том числе с опечаткой
+const narrow = (items, text) => {
+  const needle = text.toLowerCase()
+  return withoutTaken(items).filter(item => item.nickname.toLowerCase().includes(needle))
+}
+
+const showSuggestions = (items) => {
+  suggestions.value = items
+  pendingCallback?.(items)
+}
+
+const querySearch = (queryString, callback) => {
   const text = (queryString || '').trim()
+  // Судья печатает - значит по списку он больше не ходит
+  isNavigating.value = false
+  pendingCallback = callback
+  cancelPendingSearch()
+
   if (!text) {
-    suggestions.value = []
+    lastResults.value = []
     showCreateButton.value = false
-    isNavigating.value = false
-    callback([])
+    showSuggestions([])
     return
   }
 
-  // Судья печатает - значит по списку он больше не ходит
-  isNavigating.value = false
-  const startedAt = Date.now()
+  // Отвечаем сразу: автокомплит держит список открытым, пока идёт загрузка,
+  // и на её месте иначе мигает то спиннер, то пустота. Показываем то, что уже
+  // знаем и что подходит под набранное - список меняется без миганий
+  showSuggestions(narrow(lastResults.value, text))
 
+  const token = searchToken
+  searchTimer = setTimeout(() => searchPlayers(text, token), props.debounce)
+}
+
+const searchPlayers = async (text, token) => {
+  searchTimer = null
   try {
     const params = { nickname: text }
     if (props.eventId) params.event_id = props.eventId
 
     const users = await apiService.getUsers(params)
-    suggestions.value = (users.items || [])
-      .filter(user => !props.excludeIds.includes(user.id))
-      .map(user => ({
-        id: user.id,
-        nickname: user.nickname,
-        value: user.nickname,
-        // Аватарка приходит вместе со списком, отдельного запроса не нужно
-        avatar: pickPrimaryAvatar(user.avatars)
-      }))
+    // Пока летел ответ, судья набрал другое - этот список уже не про то
+    if (token !== searchToken) return
+    lastResults.value = (users.items || []).map(user => ({
+      id: user.id,
+      nickname: user.nickname,
+      value: user.nickname,
+      // Аватарка приходит вместе со списком, отдельного запроса не нужно
+      avatar: pickPrimaryAvatar(user.avatars)
+    }))
   } catch (error) {
+    if (token !== searchToken) return
     console.error('Ошибка при поиске игроков:', error)
-    suggestions.value = []
+    lastResults.value = []
   }
 
+  showSuggestions(withoutTaken(lastResults.value))
   showCreateButton.value = text !== selectedNickname.value
-  await wait(Math.max(0, MIN_SEARCH_DELAY - (Date.now() - startedAt)))
-  callback(suggestions.value)
 }
 
 const startNavigation = () => {
@@ -160,6 +206,8 @@ const startNavigation = () => {
 }
 
 const handleSelect = (item) => {
+  // Игрока выбрали - ответ незакрытого запроса открыл бы список заново
+  cancelPendingSearch()
   selectedNickname.value = item.nickname
   query.value = item.nickname
   showCreateButton.value = false
@@ -169,9 +217,11 @@ const handleSelect = (item) => {
 }
 
 const handleClear = () => {
+  cancelPendingSearch()
   selectedNickname.value = ''
   showCreateButton.value = false
   isNavigating.value = false
+  lastResults.value = []
   suggestions.value = []
   emit('clear')
 }
@@ -211,6 +261,8 @@ const createPlayer = async () => {
     isCreating.value = false
   }
 }
+
+onBeforeUnmount(cancelPendingSearch)
 
 const focus = () => {
   autocompleteRef.value?.focus()

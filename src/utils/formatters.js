@@ -32,6 +32,16 @@ export const formatDate = (dateString, format = 'short') => {
       })
     case 'datetime':
       return `${formatDate(dateString, 'short')} ${formatDate(dateString, 'time')}`
+    case 'datetime-ms': {
+      const time = date.toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
+      // Дробную часть дописываем сами: ru-RU отделяет ее запятой, а во
+      // времени привычнее точка
+      return `${formatDate(dateString, 'short')} ${time}.${String(date.getMilliseconds()).padStart(3, '0')}`
+    }
     default:
       return date.toLocaleDateString('ru-RU')
   }

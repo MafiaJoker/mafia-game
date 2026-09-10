@@ -342,6 +342,26 @@ export const apiService = {
 	return response.data
     },
 
+    // Слияние учёток одного человека. dry_run прогоняет ту же работу в
+    // транзакции и откатывает её, поэтому предпросмотр считает ровно тем же
+    // кодом, что и боевой прогон, и разойтись с ним не может.
+    // Параметр по умолчанию true и на сервере: забытый флаг показывает
+    // предпросмотр, а не удаляет учётки
+    async mergeUsers(targetId, { sourceIds, telegramOwnerId = null }, { dryRun = true } = {}) {
+	const response = await api.post(
+	    `/users/${targetId}/merge`,
+	    { source_ids: sourceIds, telegram_owner_id: telegramOwnerId },
+	    { params: { dry_run: dryRun } }
+	)
+	return response.data
+    },
+
+    // История применённых слияний: пагинация и сортировка серверные.
+    async getUserMerges(params = {}) {
+	const response = await api.get('/users/merges', { params })
+	return response.data
+    },
+
     async getRoles() {
 	const response = await api.get('/roles')
 	return response.data
