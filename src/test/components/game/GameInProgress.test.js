@@ -3,16 +3,22 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { ElMessage } from 'element-plus'
 import GameInProgress from '@/components/game/GameInProgress.vue'
+import GameTable from '@/components/game/GameTable.vue'
+import FoulBadges from '@/components/game/FoulBadges.vue'
 import VotingDialog from '@/components/game/dialogs/VotingDialog.vue'
 import NightActionsDialog from '@/components/game/dialogs/NightActionsDialog.vue'
+import RemovePlayersDialog from '@/components/game/dialogs/RemovePlayersDialog.vue'
 import { apiService } from '@/services/api.js'
 
 vi.mock('@/services/api.js', () => ({
   apiService: {
     getGameState: vi.fn(),
     createGamePhase: vi.fn(),
-    patchGamePhase: vi.fn()
+    patchGamePhase: vi.fn(),
+    addGamePhaseSilentBox: vi.fn(),
+    deleteGamePhaseSilentBox: vi.fn()
   }
 }))
 
@@ -89,8 +95,9 @@ let wrapper
 
 beforeEach(() => {
   vi.clearAllMocks()
-  apiService.createGamePhase.mockResolvedValue({})
-  apiService.patchGamePhase.mockResolvedValue({})
+  // Ручки круга отвечают состоянием игры: по умолчанию - идущей
+  apiService.createGamePhase.mockResolvedValue(gameState({ result: 'in_progress' }))
+  apiService.patchGamePhase.mockResolvedValue(gameState({ result: 'in_progress' }))
 })
 
 afterEach(() => {
@@ -138,12 +145,9 @@ describe('GameInProgress: номер дня и правила первого д�
     wrapper = await mountGame(gameState({ result: 'roles_assigned' }))
     expect(dayLabel(wrapper)).toBe('День 1')
 
-    // Две проверки «не закончилась ли игра» отвечают первым кругом,
-    // перечитывание после создания круга — вторым
-    apiService.getGameState
-      .mockResolvedValueOnce(gameState({ result: 'in_progress', phase_id: 1 }))
-      .mockResolvedValueOnce(gameState({ result: 'in_progress', phase_id: 1 }))
-      .mockResolvedValueOnce(gameState({ result: 'in_progress', phase_id: 2 }))
+    // Итог ночи приходит ответом PATCH круга, новый круг — ответом POST
+    apiService.patchGamePhase.mockResolvedValue(gameState({ result: 'in_progress', phase_id: 1 }))
+    apiService.createGamePhase.mockResolvedValue(gameState({ result: 'in_progress', phase_id: 2 }))
     await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
     await wrapper.find('.header-right button').trigger('click')
     await flushPromises()
@@ -188,11 +192,11 @@ describe('GameInProgress: уход завершённой игры на резу
   it('игра, кончившаяся по итогам круга, тоже уходит заменой', async () => {
     wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
 
-    // Проверка после ночи отвечает идущей игрой, проверка перед новым кругом — концом
-    apiService.getGameState
-      .mockResolvedValueOnce(gameState({ result: 'in_progress', phase_id: 2 }))
-      .mockResolvedValueOnce(gameState({ result: 'mafia_win', phase_id: 2 }))
+    // Сохранённая ночь закончила игру: об этом говорит ответ PATCH круга
+    apiService.patchGamePhase.mockResolvedValue(gameState({ result: 'mafia_win', phase_id: 2 }))
     await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 3 })
+    expect(headerButton(wrapper)).toBe('Завершить игру')
+
     await wrapper.find('.header-right button').trigger('click')
     await flushPromises()
 
@@ -230,6 +234,47 @@ describe('GameInProgress: сохранение круга', () => {
       night_removed_box_ids: [4]
     })
   })
+
+  // Сервер мог записать круг и потерять ответ: после ошибки круг не считается
+  // сохранённым, иначе откат правки к прошлому телу не дошёл бы до сервера
+  it('после ошибки PATCH откат правки к сохранённому кругу снова уходит на сервер', async () => {
+    const toast = vi.spyOn(ElMessage, 'error').mockImplementation(() => {})
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+    const night = { ...emptyPhase(), killed_box_id: 5, removed_box_ids: [6] }
+    await finishNight(wrapper, night)
+
+    const removal = wrapper.findComponent(RemovePlayersDialog)
+    removal.vm.$emit('update:phaseData', { ...night, removed_box_ids: [6, 8] })
+    apiService.patchGamePhase.mockRejectedValueOnce(new Error('timeout of 10000ms exceeded'))
+    await wrapper.find('.header-right button').trigger('click')
+    await flushPromises()
+
+    expect(toast).toHaveBeenCalledWith('Не удалось сохранить фазу игры')
+    expect(apiService.createGamePhase).not.toHaveBeenCalled()
+
+    removal.vm.$emit('update:phaseData', night)
+    await wrapper.find('.header-right button').trigger('click')
+    await flushPromises()
+
+    expect(apiService.patchGamePhase).toHaveBeenLastCalledWith(GAME_ID, {
+      killed_box_id: 5,
+      removed_box_ids: [6]
+    })
+    expect(apiService.createGamePhase).toHaveBeenCalledTimes(1)
+    toast.mockRestore()
+  })
+
+  it('после ошибки PATCH сверяет экран с состоянием игры', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    // Ночь закончила игру на сервере, но ответ PATCH потерялся
+    apiService.patchGamePhase.mockRejectedValueOnce(new Error('Network Error'))
+    apiService.getGameState.mockResolvedValue(gameState({ result: 'mafia_win', phase_id: 2 }))
+    await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 3 })
+
+    expect(apiService.getGameState).toHaveBeenCalledTimes(2)
+    expect(headerButton(wrapper)).toBe('Завершить игру')
+  })
 })
 
 // Отметку о выбытии на настольном экране рисует таблица, а она застаблена:
@@ -257,5 +302,237 @@ describe('GameInProgress: удалённый ночью в списке игро
 
     expect(nominationCell(wrapper, 4)).toBe('выбыл')
     expect(nominationCell(wrapper, 5)).toBe('-')
+  })
+})
+
+// Кто начинает круг и кто в нём молчит, считает сервер (MafiaJoker/backend#166):
+// компонент это показывает и переносит молчание между этим и следующим кругом.
+// Метки проверяем на списке телефона - таблица застаблена
+describe('GameInProgress: кто начинает круг и кто в нём молчит', () => {
+  const DESKTOP_WIDTH = window.innerWidth
+
+  beforeEach(() => {
+    window.innerWidth = 375
+  })
+
+  afterEach(() => {
+    window.innerWidth = DESKTOP_WIDTH
+  })
+
+  const rowOf = (wrapper, boxId) => wrapper.findAll('.player-row')[boxId - 1]
+  const marksOf = (wrapper, boxId) => rowOf(wrapper, boxId).find('.round-speech-marks')
+  const silenceSwitch = (wrapper, boxId) => rowOf(wrapper, boxId).find('button.speech-mark')
+
+  // Состояние игры, в котором поменялся один игрок
+  const withPlayer = (state, boxId, changes) => ({
+    ...state,
+    players: state.players.map(player => (
+      player.box_id === boxId ? { ...player, ...changes } : player
+    ))
+  })
+
+  // Фолы игроку: бейдж отдаёт ответ ручки фолов - состояние игры
+  const saveFouls = async (wrapper, boxId, state) => {
+    wrapper.findAllComponents(FoulBadges)
+      .find(badges => badges.props('player').box_id === boxId)
+      .vm.$emit('saved', state)
+    await flushPromises()
+  }
+
+  it('подсвечивает того, кто начинает круг', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2, phase_start_box_id: 3 }))
+
+    expect(wrapper.findAll('.phase-start-player')).toHaveLength(1)
+    expect(rowOf(wrapper, 3).classes()).toContain('phase-start-player')
+    expect(marksOf(wrapper, 3).text()).toBe('Начинает круг')
+    expect(marksOf(wrapper, 4).exists()).toBe(false)
+  })
+
+  it('перенесённое с прошлого круга молчание показывает без переключателя', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 3, silent_box_ids: [5] }))
+
+    expect(marksOf(wrapper, 5).text()).toBe('Молчит в этом круге')
+    // Его снимают правкой фола: ручка молчания ответила бы 400
+    expect(silenceSwitch(wrapper, 5).exists()).toBe(false)
+  })
+
+  it('третий фол: молчит в следующем круге, а переключатель отнимает минуту уже в этом', async () => {
+    const state = gameState({ result: 'in_progress', phase_id: 2 })
+    wrapper = await mountGame(state)
+
+    const fouled = {
+      ...withPlayer(state, 7, { fouls: [{ type: 'regular', count: 3 }] }),
+      next_phase_silent_box_ids: [7]
+    }
+    await saveFouls(wrapper, 7, fouled)
+    expect(marksOf(wrapper, 7).text()).toBe('Молчит в следующем круге')
+
+    apiService.addGamePhaseSilentBox.mockResolvedValue({
+      ...fouled,
+      silent_box_ids: [7],
+      next_phase_silent_box_ids: []
+    })
+    await silenceSwitch(wrapper, 7).trigger('click')
+    await flushPromises()
+
+    expect(apiService.addGamePhaseSilentBox).toHaveBeenCalledWith(GAME_ID, 2, 7)
+    expect(marksOf(wrapper, 7).text()).toBe('Молчит в этом круге')
+
+    // Нажал по ошибке - тот же переключатель возвращает минуту
+    apiService.deleteGamePhaseSilentBox.mockResolvedValue(fouled)
+    await silenceSwitch(wrapper, 7).trigger('click')
+    await flushPromises()
+
+    expect(apiService.deleteGamePhaseSilentBox).toHaveBeenCalledWith(GAME_ID, 2, 7)
+    expect(apiService.addGamePhaseSilentBox).toHaveBeenCalledTimes(1)
+    expect(marksOf(wrapper, 7).text()).toBe('Молчит в следующем круге')
+  })
+
+  it('выбывшему по фолам круг молчания больше не выбирают', async () => {
+    const state = gameState({ result: 'in_progress', phase_id: 2, next_phase_silent_box_ids: [7] })
+    wrapper = await mountGame(state)
+    expect(silenceSwitch(wrapper, 7).exists()).toBe(true)
+
+    // Минуту отняли, а следом игрок получил четвёртый фол и выбыл
+    await saveFouls(wrapper, 7, {
+      ...withPlayer(state, 7, { fouls: [{ type: 'regular', count: 4 }], is_in_game: false }),
+      silent_box_ids: [7],
+      next_phase_silent_box_ids: []
+    })
+
+    expect(marksOf(wrapper, 7).text()).toBe('Молчит в этом круге')
+    expect(silenceSwitch(wrapper, 7).exists()).toBe(false)
+  })
+
+  // Голосование и удаления живут в круге до его сохранения: сервер о выбывших
+  // ещё не знает, и is_in_game у них прежний
+  it('заголосованному и удалённому в этом круге круг молчания больше не выбирают', async () => {
+    const state = gameState({ result: 'in_progress', phase_id: 2, next_phase_silent_box_ids: [7, 8] })
+    wrapper = await mountGame(state)
+    expect(silenceSwitch(wrapper, 7).exists()).toBe(true)
+    expect(silenceSwitch(wrapper, 8).exists()).toBe(true)
+
+    wrapper.findComponent(VotingDialog).vm.$emit('update:phaseData', { ...emptyPhase(), voted_box_ids: [7] })
+    await flushPromises()
+
+    expect(marksOf(wrapper, 7).text()).toBe('Молчит в следующем круге')
+    expect(silenceSwitch(wrapper, 7).exists()).toBe(false)
+    expect(silenceSwitch(wrapper, 8).exists()).toBe(true)
+
+    wrapper.findComponent(RemovePlayersDialog).vm.$emit('update:phaseData', {
+      ...emptyPhase(),
+      voted_box_ids: [7],
+      removed_box_ids: [8]
+    })
+    await flushPromises()
+
+    expect(silenceSwitch(wrapper, 8).exists()).toBe(false)
+  })
+
+  it('в новом круге перенесённое молчание уже не переключается', async () => {
+    const state = gameState({ result: 'in_progress', phase_id: 2, next_phase_silent_box_ids: [7] })
+    wrapper = await mountGame(state)
+    expect(silenceSwitch(wrapper, 7).exists()).toBe(true)
+
+    // Минуту в круге 2 не отняли - сервер перенёс молчание в круг 3,
+    // новый круг приходит ответом POST
+    apiService.createGamePhase.mockResolvedValue(gameState({
+      result: 'in_progress',
+      phase_id: 3,
+      phase_start_box_id: 2,
+      silent_box_ids: [7]
+    }))
+    await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
+    await wrapper.find('.mobile-action-bar .bar-primary').trigger('click')
+    await flushPromises()
+
+    expect(marksOf(wrapper, 2).text()).toBe('Начинает круг')
+    expect(marksOf(wrapper, 7).text()).toBe('Молчит в этом круге')
+    expect(silenceSwitch(wrapper, 7).exists()).toBe(false)
+  })
+})
+
+describe('GameInProgress: начинающий круг в таблице', () => {
+  it('строка начинающего круг получает свой класс рядом с классом выбывшего', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2, phase_start_box_id: 3 }))
+
+    const rowClassName = wrapper.findComponent(GameTable).props('rowClassName')
+    expect(rowClassName({ row: { box_id: 3, is_in_game: true } })).toBe('phase-start-player')
+    expect(rowClassName({ row: { box_id: 4, is_in_game: true } })).toBe('')
+    expect(rowClassName({ row: { box_id: 3, is_in_game: false } })).toBe('inactive-player phase-start-player')
+  })
+})
+
+// Ручки круга отвечают состоянием игры (MafiaJoker/backend#166): GET /state
+// нужен только чтобы восстановить игру с нуля - при открытии страницы
+describe('GameInProgress: запросы круга', () => {
+  it('ночь и «Следующий круг» не перечитывают состояние: новый круг приходит ответом POST', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    // Отстреленный ночью в новом круге уже не играет, начинает круг четвёртый
+    apiService.createGamePhase.mockResolvedValue(gameState({
+      result: 'in_progress',
+      phase_id: 3,
+      phase_start_box_id: 4,
+      players: players().map(player => ({ ...player, is_in_game: player.box_id !== 5 }))
+    }))
+    await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
+    await wrapper.find('.header-right button').trigger('click')
+    await flushPromises()
+
+    expect(apiService.getGameState).toHaveBeenCalledTimes(1)
+    expect(dayLabel(wrapper)).toBe('День 3')
+    const table = wrapper.findComponent(GameTable)
+    expect(table.props('data').find(player => player.box_id === 5).is_in_game).toBe(false)
+    expect(table.props('rowClassName')({ row: { box_id: 4, is_in_game: true } })).toBe('phase-start-player')
+  })
+
+  it('«Следующий круг» не шлёт повторно круг, сохранённый ночью', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
+    await wrapper.find('.header-right button').trigger('click')
+    await flushPromises()
+
+    expect(apiService.patchGamePhase).toHaveBeenCalledTimes(1)
+    expect(apiService.createGamePhase).toHaveBeenCalledTimes(1)
+  })
+
+  it('изменённый после ночи круг досохраняет, и его ответ может закончить игру', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+    await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
+
+    // После ночи судья удалил игрока, и это закончило игру
+    apiService.patchGamePhase.mockResolvedValue(gameState({ result: 'mafia_win', phase_id: 2 }))
+    wrapper.findComponent(RemovePlayersDialog).vm.$emit('update:phaseData', {
+      ...emptyPhase(),
+      killed_box_id: 5,
+      removed_box_ids: [6]
+    })
+    await wrapper.find('.header-right button').trigger('click')
+    await flushPromises()
+
+    expect(apiService.patchGamePhase).toHaveBeenCalledTimes(2)
+    expect(apiService.patchGamePhase).toHaveBeenLastCalledWith(GAME_ID, {
+      killed_box_id: 5,
+      removed_box_ids: [6]
+    })
+    expect(router.replace).toHaveBeenCalledWith(`/game/${GAME_ID}/results`)
+    expect(apiService.createGamePhase).not.toHaveBeenCalled()
+    expect(apiService.getGameState).toHaveBeenCalledTimes(1)
+  })
+
+  it('ответ ручки круга без состояния перечитывает игру с нуля', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    // Бекенд до MafiaJoker/backend#166 отвечал на POST пустым телом
+    apiService.createGamePhase.mockResolvedValue('')
+    apiService.getGameState.mockResolvedValue(gameState({ result: 'in_progress', phase_id: 3 }))
+    await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
+    await wrapper.find('.header-right button').trigger('click')
+    await flushPromises()
+
+    expect(apiService.getGameState).toHaveBeenCalledTimes(2)
+    expect(dayLabel(wrapper)).toBe('День 3')
   })
 })

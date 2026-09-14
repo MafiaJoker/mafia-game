@@ -304,6 +304,7 @@ export const apiService = {
     },
 
     // Game Phases (v1 API - individual phases)
+    // Ответ PATCH и POST — состояние игры после записи круга, как у GET /state
     async patchGamePhase(gameId, phaseData) {
 	const response = await api.patch(`/games/${gameId}/phases`, phaseData)
 	return response.data
@@ -319,6 +320,20 @@ export const apiService = {
 
     async createGamePhase(gameId, phaseData) {
 	const response = await api.post(`/games/${gameId}/phases`, phaseData)
+	return response.data
+    },
+
+    // Молчание за третий фол. По умолчанию оштрафованный молчит в следующем
+    // круге (next_phase_silent_box_ids состояния игры): PUT отнимает у него
+    // минуту уже в круге phaseId, DELETE возвращает её. Обе ручки
+    // идемпотентны и отвечают состоянием игры, как PATCH /fouls
+    async addGamePhaseSilentBox(gameId, phaseId, boxId) {
+	const response = await api.put(`/games/${gameId}/phases/${phaseId}/silent-boxes/${boxId}`)
+	return response.data
+    },
+
+    async deleteGamePhaseSilentBox(gameId, phaseId, boxId) {
+	const response = await api.delete(`/games/${gameId}/phases/${phaseId}/silent-boxes/${boxId}`)
 	return response.data
     },
 
