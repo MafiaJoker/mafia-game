@@ -63,7 +63,10 @@
           v-for="row in playersData"
           :key="row.box_id"
           class="player-row"
-          :class="{ 'inactive-player': !row.is_in_game }"
+          :class="{
+            'inactive-player': !row.is_in_game,
+            'phase-start-player': isPhaseStartPlayer(row)
+          }"
         >
           <span class="col-number">{{ row.box_id }}</span>
           <span class="col-role">
@@ -113,6 +116,17 @@
             </template>
             <span v-else>-</span>
           </span>
+          <!-- Метки речи круга - второй строкой под ником: в колонке ника
+               на телефоне им места нет -->
+          <RoundSpeechMarks
+            class="col-speech"
+            :game-id="gameId"
+            :phase-id="phaseId"
+            :player="row"
+            :round-speech="roundSpeech"
+            :left-this-phase="leftThisPhase(row)"
+            @saved="applyGameState"
+          />
         </div>
       </div>
 
@@ -140,7 +154,17 @@
           min-width="200"
         >
           <template #default="{ row }">
-            {{ row.nickname }}
+            <div class="player-cell">
+              <span>{{ row.nickname }}</span>
+              <RoundSpeechMarks
+                :game-id="gameId"
+                :phase-id="phaseId"
+                :player="row"
+                :round-speech="roundSpeech"
+                :left-this-phase="leftThisPhase(row)"
+                @saved="applyGameState"
+              />
+            </div>
           </template>
         </el-table-column>
 
@@ -287,6 +311,7 @@ import { createPendingFouls } from '@/utils/pendingFouls.js'
 import RoleColumn from './RoleColumn.vue'
 import RoleIcon from './RoleIcon.vue'
 import FoulBadges from './FoulBadges.vue'
+import RoundSpeechMarks from './RoundSpeechMarks.vue'
 import VotingDialog from './dialogs/VotingDialog.vue'
 import NightActionsDialog from './dialogs/NightActionsDialog.vue'
 import BestMoveDialog from './dialogs/BestMoveDialog.vue'
@@ -350,6 +375,21 @@ const gameFinished = ref(false)
 // таблицы и панели фолов диалога голосования: одного игрока рендерят оба
 const pendingFouls = createPendingFouls()
 
+// Кто начинает круг и кто в нём молчит - считает сервер (MafiaJoker/backend#166).
+// lostSpeechBoxIds - лишившиеся речи в этом круге: только им судья выбирает,
+// молчать в этом круге или в следующем. Сервер их отдельно не отдаёт, поэтому
+// копим всех, кто за круг побывал в next_phase_silent_box_ids. После перезагрузки
+// страницы отнятую минуту уже не вернуть переключателем - как и прочий прогресс
+// круга, он живёт только до перезагрузки
+const emptyRoundSpeech = () => ({
+  phaseStartBoxId: null,
+  silentBoxIds: [],
+  nextPhaseSilentBoxIds: [],
+  lostSpeechBoxIds: []
+})
+
+const roundSpeech = ref(emptyRoundSpeech())
+
 // Объект для формирования данных фазы игры
 const phaseData = ref({
   don_checked_box_id: null,
@@ -362,11 +402,26 @@ const phaseData = ref({
   best_move: []
 })
 
+// Ручки круга отвечают состоянием игры (MafiaJoker/backend#166), поэтому
+// GET /state после них не нужен. Ответ без игроков (пустое тело) не годится:
+// тогда состояние читаем с нуля
+const gameStateOf = async (response) => {
+  if (Array.isArray(response?.players)) return response
+  console.error('Unexpected game state in phases response:', response)
+  return apiService.getGameState(props.gameId)
+}
+
+// Тело последнего сохранённого круга: «Следующий круг» после ночи не шлёт
+// тот же круг второй раз
+let savedPhaseBody = null
+
 // PATCH затирает всё, что пришло в теле, а после перезагрузки страницы
 // phaseData пуст при уже сохранённом круге. Поэтому отправляем только
 // заполненное: отсутствие поля означает «не трогай», а не «обнули».
 // Обратная сторона — переигранный после перезагрузки круг не умеет снимать
-// отстрел: круг не читается с сервера (MafiaJoker/backend#183)
+// отстрел: круг не читается с сервера (MafiaJoker/backend#183).
+// Отдаёт состояние игры после записи или null, если писать было нечего:
+// тогда итог игры тот же, что в последнем ответе сервера
 const savePhaseData = async () => {
   const filled = Object.fromEntries(
     Object.entries(phaseData.value).filter(([, value]) => (
@@ -374,10 +429,29 @@ const savePhaseData = async () => {
     ))
   )
 
-  // Круг, в котором ничего не произошло: сохранять нечего
-  if (Object.keys(filled).length === 0) return
+  // Круг, в котором ничего не произошло или который уже сохранён ровно
+  // таким: сохранять нечего
+  const body = JSON.stringify(filled)
+  if (Object.keys(filled).length === 0 || body === savedPhaseBody) return null
 
-  await apiService.patchGamePhase(props.gameId, filled)
+  // Пока ответа нет, что записано в круге, неизвестно: сервер мог сохранить
+  // тело и потерять ответ. Со старым телом в кэше откат правки к нему не ушёл бы
+  savedPhaseBody = null
+  try {
+    const gameState = await gameStateOf(await apiService.patchGamePhase(props.gameId, filled))
+    savedPhaseBody = body
+    return gameState
+  } catch (error) {
+    // Тела круга состояние игры не отдаёт, поэтому кэш
+    // остаётся пустым и следующее сохранение уйдёт заново. А экран сверяем
+    // с сервером: кто выбыл и не кончилась ли игра
+    try {
+      applyGameState(await apiService.getGameState(props.gameId))
+    } catch (stateError) {
+      console.error('Failed to read game state after phase error:', stateError)
+    }
+    throw error
+  }
 }
 
 // Номер дня — это номер круга с сервера: фазу текущего круга создаёт
@@ -423,8 +497,13 @@ const handleVotingCompleted = () => {
   votingCompleted.value = true
 }
 
+const isPhaseStartPlayer = (row) => row.box_id === roundSpeech.value.phaseStartBoxId
+
 const getRowClassName = ({ row }) => {
-  return !row.is_in_game ? 'inactive-player' : ''
+  return [
+    !row.is_in_game && 'inactive-player',
+    isPhaseStartPlayer(row) && 'phase-start-player'
+  ].filter(Boolean).join(' ')
 }
 
 // Проверяет, номинирован ли игрок
@@ -509,15 +588,16 @@ const handleNightActionDialog = async () => {
   // Никаких голосований перед ночью
   handleVotingCompleted()
 
-  // Синхронизируем данные круга и узнаём у сервера, не завершилась ли игра:
-  // данные голосования/ночи живут только в phaseData до этого PATCH
+  // Синхронизируем данные круга: данные голосования/ночи живут только
+  // в phaseData до этого PATCH. Его ответ заодно говорит, не завершилась ли игра
   try {
-    await savePhaseData()
-    const gameState = await apiService.getGameState(props.gameId)
-    gameFinished.value = FINISHED_GAME_RESULTS.includes(gameState.result)
+    const gameState = await savePhaseData()
+    if (gameState) {
+      gameFinished.value = FINISHED_GAME_RESULTS.includes(gameState.result)
+    }
   } catch (error) {
-    console.error('Failed to check game state after round:', error)
-    gameFinished.value = false
+    // Итог игры savePhaseData при ошибке уже взял из состояния игры
+    console.error('Failed to save round after night:', error)
   }
 }
 
@@ -535,30 +615,45 @@ const handleRemovePlayersAccept = () => {
 // Обработчик клика по кнопке "Следующий круг"
 const handleNextRound = async () => {
   try {
-    // Обновляем данные фазы на сервере: PATCH меняет только переданные поля
-    // и не трогает фолы, разложенные по кругам сервером
-    await savePhaseData()
+    // Обновляем данные фазы на сервере: после ночи в круге могли появиться
+    // удаление или ППК. PATCH меняет только переданные поля и не трогает фолы,
+    // разложенные по кругам сервером
+    const savedState = await savePhaseData()
 
     // Игра могла завершиться раньше или по итогам этого круга —
     // проверяем результат до создания новой фазы
-    const gameState = await apiService.getGameState(props.gameId)
-    if (FINISHED_GAME_RESULTS.includes(gameState.result)) {
+    const finished = savedState
+      ? FINISHED_GAME_RESULTS.includes(savedState.result)
+      : gameFinished.value
+    if (finished) {
       // replace: ведение завершённой игры - не то место, куда возвращает «Назад»
       router.replace(`/game/${props.gameId}/results`)
       return
     }
 
-    // Создаем новую пустую фазу для следующего круга
-    await apiService.createGamePhase(props.gameId, {})
+    // Создаем новую пустую фазу для следующего круга: ответ - уже её состояние
+    const roundState = await gameStateOf(await apiService.createGamePhase(props.gameId, {}))
 
     // Эмитим событие для сброса таймера в родительском компоненте
     emit('round-completed')
 
-    // Полная перезагрузка компонента
-    await resetComponent()
+    // Полная перезагрузка компонента - без перечитывания состояния
+    resetComponent(roundState)
   } catch (error) {
     console.error('Failed to save game phase:', error)
     ElMessage.error('Не удалось сохранить фазу игры')
+  }
+}
+
+// Речь круга есть в каждом состоянии игры: его отдают GET /state и ручки
+// фолов и молчания
+const applyRoundSpeech = (gameState) => {
+  const nextPhaseSilentBoxIds = gameState.next_phase_silent_box_ids || []
+  roundSpeech.value = {
+    phaseStartBoxId: gameState.phase_start_box_id ?? null,
+    silentBoxIds: gameState.silent_box_ids || [],
+    nextPhaseSilentBoxIds,
+    lostSpeechBoxIds: [...new Set([...roundSpeech.value.lostSpeechBoxIds, ...nextPhaseSilentBoxIds])]
   }
 }
 
@@ -584,57 +679,71 @@ const applyGameState = (gameState) => {
     player.fouls = statePlayer.fouls || []
   })
 
+  // Третий фол лишает речи, а отметка судьи переносит молчание между кругами
+  applyRoundSpeech(gameState)
+
   // Удаление по фолам могло завершить игру (или откат фола — «раззавершить»)
   gameFinished.value = FINISHED_GAME_RESULTS.includes(gameState.result)
 }
 
+// Раскладывает состояние игры с нуля: так открывается страница (GET /state)
+// и начинается новый круг (ответ POST /phases)
+const restoreGameState = (gameState) => {
+  // Проверяем, завершена ли игра
+  if (FINISHED_GAME_RESULTS.includes(gameState.result)) {
+    // Перенаправляем на страницу результатов, не оставляя записи в истории
+    router.replace(`/game/${props.gameId}/results`)
+    return
+  }
+
+  // Сохраняем phase_id и статус игры
+  phaseId.value = gameState.phase_id
+  gameStatus.value = gameState.result
+
+  // Типы фолов и пороги удаления — из системы правил игры
+  if (gameState.rule_system?.removal_thresholds?.length) {
+    foulTypes.value = gameState.rule_system.removal_thresholds
+  }
+
+  applyRoundSpeech(gameState)
+
+  // Преобразуем данные игроков в формат для таблицы
+  if (gameState.players && Array.isArray(gameState.players)) {
+    playersData.value = gameState.players.map(player => {
+      const isInGame = player.is_in_game !== undefined ? player.is_in_game : true
+      return {
+        id: player.id,
+        nickname: player.nickname,
+        box_id: player.box_id,
+        role: player.role || GameRolesEnum.civilian,
+        // Фолы по типам за всю игру: [{ type, count }]
+        fouls: player.fouls || [],
+        is_in_game: isInGame,
+        // Снимок для определения выбывших в текущем круге
+        was_in_game: isInGame
+      }
+    })
+  }
+}
+
+// Состояние игры читаем только чтобы восстановить её с нуля: при открытии
+// страницы и когда ответ ручки не годится
 const loadGameData = async () => {
   try {
-    const gameState = await apiService.getGameState(props.gameId)
-
-    // Проверяем, завершена ли игра
-    if (FINISHED_GAME_RESULTS.includes(gameState.result)) {
-      // Перенаправляем на страницу результатов, не оставляя записи в истории
-      router.replace(`/game/${props.gameId}/results`)
-      return
-    }
-
-    // Сохраняем phase_id и статус игры
-    phaseId.value = gameState.phase_id
-    gameStatus.value = gameState.result
-
-    // Типы фолов и пороги удаления — из системы правил игры
-    if (gameState.rule_system?.removal_thresholds?.length) {
-      foulTypes.value = gameState.rule_system.removal_thresholds
-    }
-
-    // Преобразуем данные игроков в формат для таблицы
-    if (gameState.players && Array.isArray(gameState.players)) {
-      playersData.value = gameState.players.map(player => {
-        const isInGame = player.is_in_game !== undefined ? player.is_in_game : true
-        return {
-          id: player.id,
-          nickname: player.nickname,
-          box_id: player.box_id,
-          role: player.role || GameRolesEnum.civilian,
-          // Фолы по типам за всю игру: [{ type, count }]
-          fouls: player.fouls || [],
-          is_in_game: isInGame,
-          // Снимок для определения выбывших в текущем круге
-          was_in_game: isInGame
-        }
-      })
-    }
+    restoreGameState(await apiService.getGameState(props.gameId))
   } catch (error) {
     console.error('Failed to load game state:', error)
     playersData.value = []
   }
 }
 
-// Полная перезагрузка компонента
-const resetComponent = async () => {
+// Полная перезагрузка компонента: новый круг раскладываем из ответа POST /phases
+const resetComponent = (roundState) => {
   // Сбрасываем все состояния к начальным значениям
   pendingFouls.clear()
+  // Лишившиеся речи в прошлом круге в новом уже ничего не выбирают
+  roundSpeech.value = emptyRoundSpeech()
+  savedPhaseBody = null
   nominatedPlayers.value = []
   votingCompleted.value = false
   nextRoundButtonVisible.value = false
@@ -659,8 +768,7 @@ const resetComponent = async () => {
   ppkDialogVisible.value = false
   removePlayersDialogVisible.value = false
 
-  // Перезагружаем данные игры
-  await loadGameData()
+  restoreGameState(roundState)
 }
 
 onMounted(async () => {
@@ -783,6 +891,23 @@ defineExpose({
   font-weight: 500;
 }
 
+.player-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+/* Начинающий круг: полоса у номера - строку видно, не читая меток */
+:deep(.el-table__row.phase-start-player > td:first-child) {
+  box-shadow: inset 4px 0 0 #67c23a;
+}
+
+:deep(.el-table__row.phase-start-player > td:first-child .cell) {
+  color: #529b2e;
+  font-weight: 700;
+}
+
 /* Планшет: ряды таблицы выше, бейджи и кнопки крупнее - под палец */
 @media (min-width: 768px) and (max-width: 1023px) {
   :deep(.el-table .el-table__row) {
@@ -824,6 +949,8 @@ defineExpose({
 
 .player-row {
   min-height: 56px;
+  padding-top: 6px;
+  padding-bottom: 6px;
   border-bottom: 1px solid #f0f2f5;
 }
 
@@ -842,6 +969,19 @@ defineExpose({
 
 .player-row.inactive-player .col-nomination {
   pointer-events: none;
+}
+
+.player-row.phase-start-player {
+  box-shadow: inset 4px 0 0 #67c23a;
+}
+
+.player-row.phase-start-player .col-number {
+  color: #529b2e;
+}
+
+/* Метки речи круга - вторая строка от ника до правого края */
+.player-row .col-speech {
+  grid-column: 3 / -1;
 }
 
 .col-number {
