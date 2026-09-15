@@ -22,6 +22,19 @@
 
       <!-- Раунды 1 и 2: показываем список игроков -->
       <div v-if="votingRound < 3">
+        <!-- Счётчик над списком и прилипает к верху прокрутки: по нему ведущий видит,
+             что проголосовали все, а под длинным списком он уходил за край экрана -->
+        <div class="voting-counter">
+          <div class="summary-row">
+            <span>Распределено голосов:</span>
+            <span class="summary-value">{{ totalVotesAssigned }} / {{ alivePlayersCount }}</span>
+          </div>
+          <div v-if="votingRound > 1" class="summary-row">
+            <span>Раунд голосования:</span>
+            <span class="summary-value">{{ votingRound }}</span>
+          </div>
+        </div>
+
         <div
           v-for="(candidate, index) in currentCandidates"
           :key="candidate.box_id"
@@ -56,18 +69,6 @@
             >
               {{ voteCount - 1 }}
             </el-button>
-          </div>
-        </div>
-
-        <div class="voting-summary">
-          <el-divider />
-          <div class="summary-row">
-            <span>Распределено голосов:</span>
-            <span class="summary-value">{{ totalVotesAssigned }} / {{ alivePlayersCount }}</span>
-          </div>
-          <div v-if="votingRound > 1" class="summary-row">
-            <span>Раунд голосования:</span>
-            <span class="summary-value">{{ votingRound }}</span>
           </div>
         </div>
       </div>
@@ -229,9 +230,14 @@ const isCandidateAvailable = (index) => {
   return index >= lastVotedIndex
 }
 
+// Подсвечены поданные голоса - кнопки от 1 до выбранной. Ноль значит «голосов нет»,
+// а не голос: его не подсвечиваем, иначе ведущий засчитывает его как целый голос
+const isVoteCounted = (voteValue, currentVotes) => {
+  return voteValue > 0 && voteValue <= currentVotes
+}
+
 const isVoteSelected = (boxId, voteValue) => {
-  const currentVotes = votes[boxId] || 0
-  return voteValue <= currentVotes
+  return isVoteCounted(voteValue, votes[boxId] || 0)
 }
 
 const isVoteAvailable = (index, boxId, voteValue) => {
@@ -252,37 +258,15 @@ const isVoteAvailable = (index, boxId, voteValue) => {
 }
 
 const getButtonType = (boxId, voteValue) => {
-  const currentVotes = votes[boxId] || 0
-
-  // Если это выбранное значение - primary
-  if (currentVotes === voteValue) {
-    return 'primary'
-  }
-
-  // Если слева от выбранного и есть выбор - тоже primary
-  if (currentVotes > 0 && voteValue < currentVotes) {
-    return 'primary'
-  }
-
-  return 'default'
-}
-
-const getButtonTypeForAll = (voteValue) => {
-  // Если это выбранное значение - primary
-  if (votesForAll.value === voteValue) {
-    return 'primary'
-  }
-
-  // Если слева от выбранного и есть выбор - тоже primary
-  if (votesForAll.value > 0 && voteValue < votesForAll.value) {
-    return 'primary'
-  }
-
-  return 'default'
+  return isVoteSelected(boxId, voteValue) ? 'primary' : 'default'
 }
 
 const isVoteSelectedForAll = (voteValue) => {
-  return voteValue <= votesForAll.value
+  return isVoteCounted(voteValue, votesForAll.value)
+}
+
+const getButtonTypeForAll = (voteValue) => {
+  return isVoteSelectedForAll(voteValue) ? 'primary' : 'default'
 }
 
 const getCandidateData = (boxId) => {
@@ -526,6 +510,17 @@ watch(() => props.modelValue, (newValue) => {
 
 .voting-summary {
   margin-top: 16px;
+}
+
+/* Прокручивается тело диалога (планшет и телефон) или слой под диалогом (компьютер) -
+   счётчик остаётся у верхнего края, строки кандидатур уходят под него */
+.voting-counter {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin-bottom: 8px;
+  background-color: var(--el-dialog-bg-color, #fff);
+  border-bottom: 1px solid #ebeef5;
 }
 
 .summary-row {
