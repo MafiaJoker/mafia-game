@@ -33,7 +33,7 @@
               type="info"
               size="default"
               :icon="Moon"
-              :loading="nextRoundPending"
+              :loading="nextRoundPending || votingSaving"
               @click="openNightDialog"
             >
               Ночь
@@ -250,7 +250,7 @@
         type="info"
         class="bar-primary"
         :icon="Moon"
-        :loading="nextRoundPending"
+        :loading="nextRoundPending || votingSaving"
         @click="openNightDialog"
       >
         Ночь
@@ -371,6 +371,10 @@ const removePlayersDialogVisible = ref(false)
 
 // Флаг завершения голосования
 const votingCompleted = ref(false)
+
+// Голосование сохраняется. Пока сервер не ответил, неизвестно, не кончилась ли
+// им игра, поэтому «Ночь» ждёт ответа
+const votingSaving = ref(false)
 
 // Идёт переход в новый круг. Второй поверх него не запускаем: бек повторный
 // POST не отсекает и создал бы ещё один круг
@@ -509,9 +513,26 @@ const showVotingButton = computed(() => {
   return !votingCompleted.value && nominatedPlayers.value.length > 0
 })
 
-// Обработчик завершения голосования
-const handleVotingCompleted = () => {
+// Голосование закончено. Заголосованный выбывает сразу, и игра может на нём
+// кончиться: угадайка, равенство команд. Поэтому круг сохраняем сейчас, а не
+// с ночью, и итог берём из ответа - тогда вместо «Ночи» будет «Завершить игру»
+const handleVotingCompleted = async () => {
   votingCompleted.value = true
+  votingSaving.value = true
+  try {
+    // null - писать нечего (никто не выбыл): итог игры прежний
+    const savedState = await savePhaseData()
+    if (savedState) {
+      gameFinished.value = FINISHED_GAME_RESULTS.includes(savedState.result)
+    }
+  } catch (error) {
+    // Голосование не потеряно: круг уйдёт на сервер снова вместе с ночью,
+    // и итог игры проверится там
+    console.error('Failed to save voting:', error)
+    ElMessage.error('Не удалось сохранить голосование')
+  } finally {
+    votingSaving.value = false
+  }
 }
 
 const isPhaseStartPlayer = (row) => row.box_id === roundSpeech.value.phaseStartBoxId
@@ -570,7 +591,7 @@ const openVotingDialog = () => {
   if (phaseId.value > 1 && nominatedPlayers.value.length === 1) {
     const votedPlayerId = nominatedPlayers.value[0]
     phaseData.value.voted_box_ids.push(votedPlayerId)
-    votingCompleted.value = true
+    handleVotingCompleted()
     return
   }
   votingDialogVisible.value = true
@@ -602,7 +623,7 @@ const openRemovePlayersDialog = () => {
 const handleNightActionDialog = () => {
   // Выставлять в этом круге уже некого: если переход сорвётся, судья останется
   // в дне без кнопок выставления и повторит его через «Ночь»
-  handleVotingCompleted()
+  votingCompleted.value = true
   return handleNextRound()
 }
 
@@ -627,9 +648,9 @@ const handleNextRound = async () => {
   const killedPlayer = playersData.value.find(player => player.box_id === phaseData.value.killed_box_id)
 
   try {
-    // Сохраняем круг на сервере: голосование, ночь и ППК живут только в phaseData
-    // до этого PATCH. Он меняет только переданные поля и не трогает фолы,
-    // разложенные по кругам сервером
+    // Сохраняем круг на сервере: ночь и ППК живут только в phaseData до этого
+    // PATCH, голосование - если не сохранилось сразу. Он меняет только переданные
+    // поля и не трогает фолы, разложенные по кругам сервером
     const savedState = await savePhaseData()
 
     // Игра могла завершиться раньше или по итогам этого круга —

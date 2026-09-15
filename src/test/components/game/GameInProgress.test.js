@@ -202,6 +202,119 @@ describe('GameInProgress: уход завершённой игры на резу
   })
 })
 
+// Заголосованный выбывает сразу, поэтому игра может кончиться голосованием,
+// а не ночью: угадайка, равенство команд (#93). Итог приходит ответом PATCH круга
+describe('GameInProgress: конец игры голосованием', () => {
+  // Голосование закончено: диалог отдаёт круг с заголосованными
+  const finishVoting = async (wrapper, votedBoxIds) => {
+    const voting = wrapper.findComponent(VotingDialog)
+    voting.vm.$emit('update:phaseData', { ...emptyPhase(), voted_box_ids: votedBoxIds })
+    voting.vm.$emit('voting-completed')
+    await flushPromises()
+  }
+
+  it('угадайка: после заголосованного красного вместо «Ночи» «Завершить игру»', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 5 }))
+    await nominate(wrapper, [2, 3])
+
+    apiService.patchGamePhase.mockResolvedValue(gameState({ result: 'mafia_win', phase_id: 5 }))
+    await finishVoting(wrapper, [2])
+
+    expect(apiService.patchGamePhase).toHaveBeenCalledWith(GAME_ID, { voted_box_ids: [2] })
+    expect(headerButton(wrapper)).toBe('Завершить игру')
+  })
+
+  it('«Завершить игру» уводит на результаты, не отправляя круг снова', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 5 }))
+    await nominate(wrapper, [1, 2])
+
+    apiService.patchGamePhase.mockResolvedValue(gameState({ result: 'civilians_win', phase_id: 5 }))
+    await finishVoting(wrapper, [1])
+    await wrapper.find('.header-right button').trigger('click')
+    await flushPromises()
+
+    expect(apiService.patchGamePhase).toHaveBeenCalledTimes(1)
+    expect(apiService.createGamePhase).not.toHaveBeenCalled()
+    expect(router.replace).toHaveBeenCalledWith(`/game/${GAME_ID}/results`)
+  })
+
+  it('со второго дня единственный выставленный тоже может закончить игру', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 3 }))
+    await nominate(wrapper, [4])
+
+    apiService.patchGamePhase.mockResolvedValue(gameState({ result: 'mafia_win', phase_id: 3 }))
+    await wrapper.find('.header-right button').trigger('click')
+    await flushPromises()
+
+    expect(apiService.patchGamePhase).toHaveBeenCalledWith(GAME_ID, { voted_box_ids: [4] })
+    expect(headerButton(wrapper)).toBe('Завершить игру')
+  })
+
+  it('игра после голосования идёт: «Ночь», а ночь дописывает круг', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 3 }))
+    await nominate(wrapper, [1, 5])
+
+    await finishVoting(wrapper, [1])
+    expect(headerButton(wrapper)).toBe('Ночь')
+
+    apiService.createGamePhase.mockResolvedValue(gameState({ result: 'in_progress', phase_id: 4 }))
+    await finishNight(wrapper, { ...emptyPhase(), voted_box_ids: [1], killed_box_id: 6 })
+
+    expect(apiService.patchGamePhase).toHaveBeenCalledTimes(2)
+    expect(apiService.patchGamePhase).toHaveBeenLastCalledWith(GAME_ID, { voted_box_ids: [1], killed_box_id: 6 })
+    expect(dayLabel(wrapper)).toBe('День 4')
+  })
+
+  it('голосование без выбывших круг не сохраняет', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 3 }))
+    await nominate(wrapper, [4, 5])
+
+    // Подъём всех кандидатур не набрал голосов: никто не выбыл
+    await finishVoting(wrapper, [])
+
+    expect(apiService.patchGamePhase).not.toHaveBeenCalled()
+    expect(headerButton(wrapper)).toBe('Ночь')
+  })
+
+  it('пока голосование сохраняется, «Ночь» в загрузке и не нажимается', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 3 }))
+    await nominate(wrapper, [4, 5])
+
+    let answerPatch
+    apiService.patchGamePhase.mockReturnValueOnce(new Promise(resolve => { answerPatch = resolve }))
+    await finishVoting(wrapper, [4])
+
+    expect(wrapper.find('.header-right button').classes()).toContain('is-loading')
+
+    answerPatch(gameState({ result: 'mafia_win', phase_id: 3 }))
+    await flushPromises()
+
+    expect(headerButton(wrapper)).toBe('Завершить игру')
+    expect(wrapper.find('.header-right button').classes()).not.toContain('is-loading')
+  })
+
+  it('упавшее сохранение голосования не теряет его: круг уходит снова с ночью', async () => {
+    const toast = vi.spyOn(ElMessage, 'error').mockImplementation(() => {})
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 3 }))
+    await nominate(wrapper, [4, 5])
+
+    apiService.patchGamePhase.mockRejectedValueOnce(new Error('Network Error'))
+    await finishVoting(wrapper, [4])
+
+    expect(toast).toHaveBeenCalledWith('Не удалось сохранить голосование')
+    expect(headerButton(wrapper)).toBe('Ночь')
+
+    // Итог игры проверяется уже с ночью
+    apiService.patchGamePhase.mockResolvedValue(gameState({ result: 'mafia_win', phase_id: 3 }))
+    await finishNight(wrapper, { ...emptyPhase(), voted_box_ids: [4] })
+
+    expect(apiService.patchGamePhase).toHaveBeenCalledTimes(2)
+    expect(apiService.patchGamePhase).toHaveBeenLastCalledWith(GAME_ID, { voted_box_ids: [4] })
+    expect(router.replace).toHaveBeenCalledWith(`/game/${GAME_ID}/results`)
+    toast.mockRestore()
+  })
+})
+
 describe('GameInProgress: сохранение круга', () => {
   it('шлёт только заполненные поля: перезагрузка не обнуляет сохранённый круг', async () => {
     wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
