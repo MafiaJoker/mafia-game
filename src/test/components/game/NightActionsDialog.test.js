@@ -52,7 +52,7 @@ const missButton = (dialog) => dialog.findAll('.action-btn-miss')[0]
 const toastText = () => Array.from(document.querySelectorAll('.el-message'))
   .map(message => message.textContent.trim())
 
-// Галочка подтверждений стоит одна на все ночные действия
+// Первая галочка настроек - подтверждения сразу всех ночных действий
 const toggleResults = async (dialog) => {
   await dialog.find('.settings-row input').setValue(false)
 }
@@ -309,6 +309,29 @@ describe('NightActionsDialog', () => {
         killed_box_id: 3,
         night_removed_box_ids: [3]
       })
+    })
+  })
+
+  describe('Тост об убитом утром', () => {
+    // Вторая галочка настроек: сам тост показывает уже новый день, выбор хранит родитель
+    const killedToastInput = (dialog) => dialog.findAll('.settings-row input')[1]
+
+    it('галочка включена по умолчанию и отдаёт выбор наверх', async () => {
+      const dialog = await openDialog()
+      expect(killedToastInput(dialog).element.checked).toBe(true)
+
+      await killedToastInput(dialog).setValue(false)
+
+      expect(wrapper.emitted('update:showKilledToast')).toEqual([[false]])
+    })
+
+    it('не выключается галочкой ночных подтверждений', async () => {
+      const dialog = await openDialog()
+
+      await toggleResults(dialog)
+
+      expect(wrapper.emitted('update:showKilledToast')).toBeUndefined()
+      expect(killedToastInput(dialog).element.checked).toBe(true)
     })
   })
 })

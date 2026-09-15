@@ -9,6 +9,7 @@ import GameTable from '@/components/game/GameTable.vue'
 import FoulBadges from '@/components/game/FoulBadges.vue'
 import VotingDialog from '@/components/game/dialogs/VotingDialog.vue'
 import NightActionsDialog from '@/components/game/dialogs/NightActionsDialog.vue'
+import BestMoveDialog from '@/components/game/dialogs/BestMoveDialog.vue'
 import RemovePlayersDialog from '@/components/game/dialogs/RemovePlayersDialog.vue'
 import { apiService } from '@/services/api.js'
 
@@ -83,7 +84,7 @@ const nominate = async (wrapper, boxIds) => {
   await flushPromises()
 }
 
-// Ночь закончена: диалог отдаёт круг и просит показать «Следующий круг»
+// Ночь закончена: диалог отдаёт круг, и новый день начинается сразу
 const finishNight = async (wrapper, phase = emptyPhase()) => {
   const night = wrapper.findComponent(NightActionsDialog)
   night.vm.$emit('update:phaseData', phase)
@@ -141,7 +142,7 @@ describe('GameInProgress: создание круга при открытии с
 })
 
 describe('GameInProgress: номер дня и правила первого дня', () => {
-  it('«Следующий круг» переводит первый день во второй, а не в третий', async () => {
+  it('ночь переводит первый день во второй, а не в третий', async () => {
     wrapper = await mountGame(gameState({ result: 'roles_assigned' }))
     expect(dayLabel(wrapper)).toBe('День 1')
 
@@ -149,8 +150,6 @@ describe('GameInProgress: номер дня и правила первого д�
     apiService.patchGamePhase.mockResolvedValue(gameState({ result: 'in_progress', phase_id: 1 }))
     apiService.createGamePhase.mockResolvedValue(gameState({ result: 'in_progress', phase_id: 2 }))
     await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
-    await wrapper.find('.header-right button').trigger('click')
-    await flushPromises()
 
     expect(apiService.createGamePhase).toHaveBeenCalledTimes(2)
     expect(dayLabel(wrapper)).toBe('День 2')
@@ -189,16 +188,12 @@ describe('GameInProgress: уход завершённой игры на резу
     expect(apiService.createGamePhase).not.toHaveBeenCalled()
   })
 
-  it('игра, кончившаяся по итогам круга, тоже уходит заменой', async () => {
+  it('игра, кончившаяся ночью, сразу уходит на результаты заменой', async () => {
     wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
 
     // Сохранённая ночь закончила игру: об этом говорит ответ PATCH круга
     apiService.patchGamePhase.mockResolvedValue(gameState({ result: 'mafia_win', phase_id: 2 }))
     await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 3 })
-    expect(headerButton(wrapper)).toBe('Завершить игру')
-
-    await wrapper.find('.header-right button').trigger('click')
-    await flushPromises()
 
     expect(router.replace).toHaveBeenCalledWith(`/game/${GAME_ID}/results`)
     expect(router.push).not.toHaveBeenCalled()
@@ -240,27 +235,24 @@ describe('GameInProgress: сохранение круга', () => {
   it('после ошибки PATCH откат правки к сохранённому кругу снова уходит на сервер', async () => {
     const toast = vi.spyOn(ElMessage, 'error').mockImplementation(() => {})
     wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
-    const night = { ...emptyPhase(), killed_box_id: 5, removed_box_ids: [6] }
+    const night = { ...emptyPhase(), killed_box_id: 5 }
+
+    // Круг сохранился, а новый не создался: судья переигрывает ночь
+    apiService.createGamePhase.mockRejectedValueOnce(new Error('Network Error'))
+    await finishNight(wrapper, night)
+    expect(toast).toHaveBeenCalledWith('Не удалось сохранить фазу игры')
+
+    // Правка отстрела, ответ на которую потерялся
+    apiService.patchGamePhase.mockRejectedValueOnce(new Error('timeout of 10000ms exceeded'))
+    await finishNight(wrapper, { ...night, killed_box_id: 6 })
+    expect(apiService.createGamePhase).toHaveBeenCalledTimes(1)
+
+    // Откат к сохранённому телу: сервер мог записать правку, поэтому шлём снова
     await finishNight(wrapper, night)
 
-    const removal = wrapper.findComponent(RemovePlayersDialog)
-    removal.vm.$emit('update:phaseData', { ...night, removed_box_ids: [6, 8] })
-    apiService.patchGamePhase.mockRejectedValueOnce(new Error('timeout of 10000ms exceeded'))
-    await wrapper.find('.header-right button').trigger('click')
-    await flushPromises()
-
-    expect(toast).toHaveBeenCalledWith('Не удалось сохранить фазу игры')
-    expect(apiService.createGamePhase).not.toHaveBeenCalled()
-
-    removal.vm.$emit('update:phaseData', night)
-    await wrapper.find('.header-right button').trigger('click')
-    await flushPromises()
-
-    expect(apiService.patchGamePhase).toHaveBeenLastCalledWith(GAME_ID, {
-      killed_box_id: 5,
-      removed_box_ids: [6]
-    })
-    expect(apiService.createGamePhase).toHaveBeenCalledTimes(1)
+    expect(apiService.patchGamePhase).toHaveBeenCalledTimes(3)
+    expect(apiService.patchGamePhase).toHaveBeenLastCalledWith(GAME_ID, { killed_box_id: 5 })
+    expect(apiService.createGamePhase).toHaveBeenCalledTimes(2)
     toast.mockRestore()
   })
 
@@ -295,13 +287,17 @@ describe('GameInProgress: удалённый ночью в списке игро
     .find('.col-nomination')
     .text()
 
-  it('отмечает удалённого ночью так же, как удалённого днём', async () => {
+  it('пока новый круг не создан, отмечает удалённого ночью так же, как удалённого днём', async () => {
+    const toast = vi.spyOn(ElMessage, 'error').mockImplementation(() => {})
     wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
 
+    // Ночь сохранилась, а новый круг не создался: судья остаётся в этом круге
+    apiService.createGamePhase.mockRejectedValueOnce(new Error('Network Error'))
     await finishNight(wrapper, { ...emptyPhase(), night_removed_box_ids: [4] })
 
     expect(nominationCell(wrapper, 4)).toBe('выбыл')
     expect(nominationCell(wrapper, 5)).toBe('-')
+    toast.mockRestore()
   })
 })
 
@@ -443,8 +439,6 @@ describe('GameInProgress: кто начинает круг и кто в нём �
       silent_box_ids: [7]
     }))
     await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
-    await wrapper.find('.mobile-action-bar .bar-primary').trigger('click')
-    await flushPromises()
 
     expect(marksOf(wrapper, 2).text()).toBe('Начинает круг')
     expect(marksOf(wrapper, 7).text()).toBe('Молчит в этом круге')
@@ -466,7 +460,7 @@ describe('GameInProgress: начинающий круг в таблице', () =
 // Ручки круга отвечают состоянием игры (MafiaJoker/backend#166): GET /state
 // нужен только чтобы восстановить игру с нуля - при открытии страницы
 describe('GameInProgress: запросы круга', () => {
-  it('ночь и «Следующий круг» не перечитывают состояние: новый круг приходит ответом POST', async () => {
+  it('ночь не перечитывает состояние: новый круг приходит ответом POST', async () => {
     wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
 
     // Отстреленный ночью в новом круге уже не играет, начинает круг четвёртый
@@ -477,49 +471,54 @@ describe('GameInProgress: запросы круга', () => {
       players: players().map(player => ({ ...player, is_in_game: player.box_id !== 5 }))
     }))
     await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
-    await wrapper.find('.header-right button').trigger('click')
-    await flushPromises()
 
     expect(apiService.getGameState).toHaveBeenCalledTimes(1)
     expect(dayLabel(wrapper)).toBe('День 3')
+    // Отдельной кнопки «Следующий круг» больше нет: в новом дне в шапке снова «Ночь»
+    expect(headerButton(wrapper)).toBe('Ночь')
     const table = wrapper.findComponent(GameTable)
     expect(table.props('data').find(player => player.box_id === 5).is_in_game).toBe(false)
     expect(table.props('rowClassName')({ row: { box_id: 4, is_in_game: true } })).toBe('phase-start-player')
   })
 
-  it('«Следующий круг» не шлёт повторно круг, сохранённый ночью', async () => {
+  it('повтор перехода после упавшего POST не шлёт тот же круг второй раз', async () => {
+    const toast = vi.spyOn(ElMessage, 'error').mockImplementation(() => {})
     wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
 
+    apiService.createGamePhase.mockRejectedValueOnce(new Error('Network Error'))
     await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
-    await wrapper.find('.header-right button').trigger('click')
+    expect(dayLabel(wrapper)).toBe('День 2')
+
+    // Судья снова открывает ночь и жмёт «Продолжить» с тем же кругом
+    await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
+
+    expect(apiService.patchGamePhase).toHaveBeenCalledTimes(1)
+    expect(apiService.createGamePhase).toHaveBeenCalledTimes(2)
+    toast.mockRestore()
+  })
+
+  // Бек повторный POST не отсекает: второй переход поверх идущего создал бы
+  // лишний круг, и игра перескочила бы день
+  it('второй переход, пока идёт первый, не создаёт ещё один круг', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    let answerPatch
+    apiService.patchGamePhase.mockReturnValueOnce(new Promise(resolve => { answerPatch = resolve }))
+    const night = wrapper.findComponent(NightActionsDialog)
+    night.vm.$emit('update:phaseData', { ...emptyPhase(), killed_box_id: 5 })
+    night.vm.$emit('next-round')
+    night.vm.$emit('next-round')
+    await flushPromises()
+
+    // Пока сервер не ответил, кнопка фазы в загрузке и не нажимается
+    expect(wrapper.find('.header-right button').classes()).toContain('is-loading')
+
+    answerPatch(gameState({ result: 'in_progress', phase_id: 2 }))
     await flushPromises()
 
     expect(apiService.patchGamePhase).toHaveBeenCalledTimes(1)
     expect(apiService.createGamePhase).toHaveBeenCalledTimes(1)
-  })
-
-  it('изменённый после ночи круг досохраняет, и его ответ может закончить игру', async () => {
-    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
-    await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
-
-    // После ночи судья удалил игрока, и это закончило игру
-    apiService.patchGamePhase.mockResolvedValue(gameState({ result: 'mafia_win', phase_id: 2 }))
-    wrapper.findComponent(RemovePlayersDialog).vm.$emit('update:phaseData', {
-      ...emptyPhase(),
-      killed_box_id: 5,
-      removed_box_ids: [6]
-    })
-    await wrapper.find('.header-right button').trigger('click')
-    await flushPromises()
-
-    expect(apiService.patchGamePhase).toHaveBeenCalledTimes(2)
-    expect(apiService.patchGamePhase).toHaveBeenLastCalledWith(GAME_ID, {
-      killed_box_id: 5,
-      removed_box_ids: [6]
-    })
-    expect(router.replace).toHaveBeenCalledWith(`/game/${GAME_ID}/results`)
-    expect(apiService.createGamePhase).not.toHaveBeenCalled()
-    expect(apiService.getGameState).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('.header-right button').classes()).not.toContain('is-loading')
   })
 
   it('ответ ручки круга без состояния перечитывает игру с нуля', async () => {
@@ -529,10 +528,73 @@ describe('GameInProgress: запросы круга', () => {
     apiService.createGamePhase.mockResolvedValue('')
     apiService.getGameState.mockResolvedValue(gameState({ result: 'in_progress', phase_id: 3 }))
     await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
-    await wrapper.find('.header-right button').trigger('click')
-    await flushPromises()
 
     expect(apiService.getGameState).toHaveBeenCalledTimes(2)
     expect(dayLabel(wrapper)).toBe('День 3')
+  })
+})
+
+// Утром ведущему напоминают, кого убили ночью. Тост показывает уже новый день,
+// а галочка для него живёт в ночном диалоге
+describe('GameInProgress: тост об убитом ночью', () => {
+  const KILLED_TOAST_STORAGE_KEY = 'game_show_killed_toast'
+
+  const toastTexts = () => Array.from(document.querySelectorAll('.el-message'))
+    .map(message => message.textContent.trim())
+
+  beforeEach(() => {
+    document.querySelectorAll('.el-message').forEach(message => message.remove())
+  })
+
+  afterEach(() => {
+    localStorage.getItem.mockReset()
+  })
+
+  it('в новом дне называет убитого номером и ником', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
+
+    expect(toastTexts()).toContain('Ночью убит игрок 5 — Игрок 5')
+  })
+
+  it('после ЛХ новый день тоже начинается сразу и с тостом', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 1 }))
+    apiService.createGamePhase.mockResolvedValue(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    const bestMove = wrapper.findComponent(BestMoveDialog)
+    bestMove.vm.$emit('update:phaseData', { ...emptyPhase(), killed_box_id: 5, best_move: [1, 2, 3] })
+    bestMove.vm.$emit('accept')
+    await flushPromises()
+
+    expect(apiService.patchGamePhase).toHaveBeenCalledWith(GAME_ID, { killed_box_id: 5, best_move: [1, 2, 3] })
+    expect(dayLabel(wrapper)).toBe('День 2')
+    expect(toastTexts()).toContain('Ночью убит игрок 5 — Игрок 5')
+  })
+
+  it('после промаха молчит', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    await finishNight(wrapper)
+
+    expect(apiService.createGamePhase).toHaveBeenCalledTimes(1)
+    expect(toastTexts()).toEqual([])
+  })
+
+  it('молчит, когда ведущий снял галочку, и запоминает выбор на устройстве', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    wrapper.findComponent(NightActionsDialog).vm.$emit('update:showKilledToast', false)
+    await finishNight(wrapper, { ...emptyPhase(), killed_box_id: 5 })
+
+    expect(toastTexts()).toEqual([])
+    expect(localStorage.setItem).toHaveBeenCalledWith(KILLED_TOAST_STORAGE_KEY, 'false')
+  })
+
+  it('снятая галочка переживает перезагрузку страницы', async () => {
+    localStorage.getItem.mockImplementation(key => (key === KILLED_TOAST_STORAGE_KEY ? 'false' : null))
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    expect(wrapper.findComponent(NightActionsDialog).props('showKilledToast')).toBe(false)
   })
 })
