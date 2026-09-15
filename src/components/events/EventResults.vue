@@ -51,8 +51,19 @@
           sortable
           align="center"
         >
+          <template #header="{ column }">
+            {{ column.label }}
+            <!-- На телефоне и планшете подсказка по тапу: hover-подсказка на тач-экране
+                 остаётся висеть. .stop - клик по иконке не должен сортировать колонку -->
+            <el-tooltip placement="top" :trigger="isCompact ? 'click' : 'hover'">
+              <template #content>
+                <div class="hint-content">{{ TOTAL_EXTRA_POINTS_HINT }}</div>
+              </template>
+              <el-icon class="hint-icon" @click.stop><QuestionFilled /></el-icon>
+            </el-tooltip>
+          </template>
           <template #default="{ row }">
-            <span :class="{ 'positive-score': row.totalExtraPoints > 0 }">
+            <span :class="{ 'positive-score': row.totalExtraPoints > 0, 'negative-score': row.totalExtraPoints < 0 }">
               {{ formatScore(row.totalExtraPoints) }}
             </span>
           </template>
@@ -347,7 +358,8 @@
   import { 
       Trophy,
       View,
-      User
+      User,
+      QuestionFilled
   } from '@element-plus/icons-vue'
 
   const props = defineProps({
@@ -357,6 +369,11 @@
           default: null
       }
   })
+
+  // Сумму допов считает сервер (total_extra_points_summary), подсказка только объясняет формулу
+  const TOTAL_EXTRA_POINTS_HINT = 'Доп. баллы − штрафы + лучший ход (ЛХ), с учётом множителя этапа. ' +
+      'Компенсация за первый отстрел (Ci) сюда не входит — она учтена в суммарном балле. ' +
+      'По этой сумме выбирается MVP и делятся места при равном суммарном балле'
 
   const router = useRouter()
   const { isMobile, isTablet, isCompact } = useBreakpoints()
@@ -486,7 +503,7 @@
                       id: playerData.user.id,
                       name: playerData.user.nickname,
                       totalScore: playerData.all_points_summary || 0,
-                      totalExtraPoints: playerData.extra_points_summary || 0,
+                      totalExtraPoints: playerData.total_extra_points_summary || 0,
                       totalPenalties: playerData.penalty_points_summary || 0,
                       totalBestMove: playerData.best_move_points_summary || 0,
                       position: playerData.position || 0,
@@ -730,6 +747,17 @@
       display: flex;
       align-items: center;
       gap: 8px;
+  }
+
+  .hint-icon {
+      vertical-align: middle;
+      color: #909399;
+      cursor: help;
+  }
+
+  .hint-content {
+      max-width: 260px;
+      word-break: normal;
   }
 
   .header-actions {
