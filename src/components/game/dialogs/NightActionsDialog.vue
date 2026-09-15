@@ -101,6 +101,13 @@
         <el-checkbox v-model="showNightResults">
           Показывать результаты ночных действий
         </el-checkbox>
+        <!-- Тост показывает уже новый день, поэтому выбор хранит родитель -->
+        <el-checkbox
+          :model-value="showKilledToast"
+          @update:model-value="emit('update:showKilledToast', $event)"
+        >
+          Показывать утром, кого убили ночью
+        </el-checkbox>
       </div>
     </div>
 
@@ -158,10 +165,15 @@ const props = defineProps({
   phaseId: {
     type: Number,
     default: null
+  },
+  // Тост с убитым утром: показывает его GameInProgress уже в новом дне
+  showKilledToast: {
+    type: Boolean,
+    default: true
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'update:phaseData', 'show-best-move', 'next-round'])
+const emit = defineEmits(['update:modelValue', 'update:phaseData', 'update:showKilledToast', 'show-best-move', 'next-round'])
 
 const { isMobile } = useBreakpoints()
 const showNightResults = ref(true)
@@ -307,7 +319,7 @@ const bestMoveRequired = computed(() => {
   return props.phaseId === 1 && props.phaseData.killed_box_id != null
 })
 
-// Обработчик "Следующий круг" или "Лучший ход"
+// «Продолжить»: лучший ход за первый отстрел или сразу новый круг
 const handleNextRound = () => {
   if (bestMoveRequired.value) {
     // Первая ночь с отстрелом — показываем модальное окно лучшего хода
@@ -373,7 +385,14 @@ const handleNextRound = () => {
 .settings-row {
   padding: 12px 16px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  gap: 4px 24px;
+}
+
+/* Расстояние между галочками задаёт gap, свой отступ el-checkbox лишний */
+.settings-row .el-checkbox {
+  margin-right: 0;
 }
 
 :deep(.el-divider) {
@@ -418,7 +437,10 @@ const handleNextRound = () => {
     margin-left: 0;
   }
 
+  /* Галочки друг под другом: в строку на телефоне не помещаются */
   .settings-row {
+    flex-direction: column;
+    align-items: flex-start;
     padding: 8px 0 0;
   }
 

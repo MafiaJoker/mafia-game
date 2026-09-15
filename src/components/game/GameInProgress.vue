@@ -11,17 +11,19 @@
           <!-- На телефоне кнопка фазы живёт в панели у нижнего края экрана -->
           <div v-if="!isMobile" class="header-right">
             <el-button
-              v-if="nextRoundButtonVisible || gameFinished"
+              v-if="gameFinished"
               type="primary"
               size="default"
+              :loading="nextRoundPending"
               @click="handleNextRound"
             >
-              {{ gameFinished ? 'Завершить игру' : 'Следующий круг' }}
+              Завершить игру
             </el-button>
             <el-button
               v-else-if="showVotingButton"
               type="primary"
               size="default"
+              :loading="nextRoundPending"
               @click="openVotingDialog"
             >
               Начать голосование
@@ -30,9 +32,10 @@
               v-else
               type="info"
               size="default"
+              :icon="Moon"
+              :loading="nextRoundPending"
               @click="openNightDialog"
             >
-              <el-icon style="margin-right: 6px;"><Moon /></el-icon>
               Ночь
             </el-button>
           </div>
@@ -225,17 +228,19 @@
         @click="openRemovePlayersDialog"
       />
       <el-button
-        v-if="nextRoundButtonVisible || gameFinished"
+        v-if="gameFinished"
         type="primary"
         class="bar-primary"
+        :loading="nextRoundPending"
         @click="handleNextRound"
       >
-        {{ gameFinished ? 'Завершить игру' : 'Следующий круг' }}
+        Завершить игру
       </el-button>
       <el-button
         v-else-if="showVotingButton"
         type="primary"
         class="bar-primary"
+        :loading="nextRoundPending"
         @click="openVotingDialog"
       >
         Голосование
@@ -244,9 +249,10 @@
         v-else
         type="info"
         class="bar-primary"
+        :icon="Moon"
+        :loading="nextRoundPending"
         @click="openNightDialog"
       >
-        <el-icon style="margin-right: 6px;"><Moon /></el-icon>
         Ночь
       </el-button>
     </div>
@@ -267,6 +273,7 @@
 
     <NightActionsDialog
       v-model="nightDialogVisible"
+      v-model:show-killed-toast="showKilledToast"
       :players-data="playersData"
       :phase-data="phaseData"
       :phase-id="displayPhase"
@@ -302,7 +309,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { User, Close, Moon, View, Hide, Delete } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -365,8 +372,18 @@ const removePlayersDialogVisible = ref(false)
 // Флаг завершения голосования
 const votingCompleted = ref(false)
 
-// Флаг для показа кнопки "Следующий круг"
-const nextRoundButtonVisible = ref(false)
+// Идёт переход в новый круг. Второй поверх него не запускаем: бек повторный
+// POST не отсекает и создал бы ещё один круг
+const nextRoundPending = ref(false)
+
+// Тост «Ночью убит игрок N» в начале нового дня нужен не каждому ведущему:
+// выбор запоминаем на устройстве, а галочка живёт в ночном диалоге
+const KILLED_TOAST_STORAGE_KEY = 'game_show_killed_toast'
+const showKilledToast = ref(localStorage.getItem(KILLED_TOAST_STORAGE_KEY) !== 'false')
+
+watch(showKilledToast, (value) => {
+  localStorage.setItem(KILLED_TOAST_STORAGE_KEY, String(value))
+})
 
 // Игра уже завершена по данным сервера — кнопка превращается в «Завершить игру»
 const gameFinished = ref(false)
@@ -411,8 +428,8 @@ const gameStateOf = async (response) => {
   return apiService.getGameState(props.gameId)
 }
 
-// Тело последнего сохранённого круга: «Следующий круг» после ночи не шлёт
-// тот же круг второй раз
+// Тело последнего сохранённого круга: повтор перехода после упавшего POST
+// не шлёт тот же круг второй раз
 let savedPhaseBody = null
 
 // PATCH затирает всё, что пришло в теле, а после перезагрузки страницы
@@ -455,7 +472,7 @@ const savePhaseData = async () => {
 }
 
 // Номер дня — это номер круга с сервера: фазу текущего круга создаёт
-// «Следующий круг», а не открытие страницы, поэтому прибавлять к ней нечего
+// переход после ночи, а не открытие страницы, поэтому прибавлять к ней нечего
 const displayPhase = computed(() => phaseId.value)
 
 // Игрок выбыл по фолам в текущем круге: в снимке начала круга был в игре,
@@ -580,25 +597,13 @@ const openRemovePlayersDialog = () => {
   removePlayersDialogVisible.value = true
 }
 
-// Обработчик завершения ночи/лучшего хода (вызывается из диалогов)
-const handleNightActionDialog = async () => {
-  console.log('Night action dialog completed', phaseData.value)
-  // Показываем кнопку "Следующий круг"
-  nextRoundButtonVisible.value = true
-  // Никаких голосований перед ночью
+// Ночь закончена (после ЛХ, если он был): новый день начинается сразу,
+// отдельной кнопки «Следующий круг» нет
+const handleNightActionDialog = () => {
+  // Выставлять в этом круге уже некого: если переход сорвётся, судья останется
+  // в дне без кнопок выставления и повторит его через «Ночь»
   handleVotingCompleted()
-
-  // Синхронизируем данные круга: данные голосования/ночи живут только
-  // в phaseData до этого PATCH. Его ответ заодно говорит, не завершилась ли игра
-  try {
-    const gameState = await savePhaseData()
-    if (gameState) {
-      gameFinished.value = FINISHED_GAME_RESULTS.includes(gameState.result)
-    }
-  } catch (error) {
-    // Итог игры savePhaseData при ошибке уже взял из состояния игры
-    console.error('Failed to save round after night:', error)
-  }
+  return handleNextRound()
 }
 
 // Обработчик принятия ППК
@@ -612,11 +617,18 @@ const handleRemovePlayersAccept = () => {
   console.log('Players removed', phaseData.value.removed_box_ids)
 }
 
-// Обработчик клика по кнопке "Следующий круг"
+// Переход в новый круг: сразу после ночи, по ППК и по «Завершить игру»
 const handleNextRound = async () => {
+  if (nextRoundPending.value) return
+  nextRoundPending.value = true
+
+  // Убитого называем уже в новом дне, а новый круг очищает phaseData.
+  // После промаха игрок не найдётся
+  const killedPlayer = playersData.value.find(player => player.box_id === phaseData.value.killed_box_id)
+
   try {
-    // Обновляем данные фазы на сервере: после ночи в круге могли появиться
-    // удаление или ППК. PATCH меняет только переданные поля и не трогает фолы,
+    // Сохраняем круг на сервере: голосование, ночь и ППК живут только в phaseData
+    // до этого PATCH. Он меняет только переданные поля и не трогает фолы,
     // разложенные по кругам сервером
     const savedState = await savePhaseData()
 
@@ -639,10 +651,28 @@ const handleNextRound = async () => {
 
     // Полная перезагрузка компонента - без перечитывания состояния
     resetComponent(roundState)
+
+    announceKilledPlayer(killedPlayer)
   } catch (error) {
     console.error('Failed to save game phase:', error)
     ElMessage.error('Не удалось сохранить фазу игры')
+  } finally {
+    nextRoundPending.value = false
   }
+}
+
+// Утром напоминаем ведущему, кого убили ночью. Отстрел к этому времени уже
+// объявлен столу, поэтому галочка ночных подтверждений тост не выключает -
+// у него своя
+const announceKilledPlayer = (player) => {
+  if (!player || !showKilledToast.value) return
+
+  ElMessage({
+    message: `Ночью убит игрок ${player.box_id} — ${player.nickname}`,
+    type: 'warning',
+    duration: 5000,
+    showClose: true
+  })
 }
 
 // Речь круга есть в каждом состоянии игры: его отдают GET /state и ручки
@@ -746,7 +776,6 @@ const resetComponent = (roundState) => {
   savedPhaseBody = null
   nominatedPlayers.value = []
   votingCompleted.value = false
-  nextRoundButtonVisible.value = false
   gameFinished.value = false
 
   // Сбрасываем phaseData
