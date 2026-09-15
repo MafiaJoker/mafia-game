@@ -2,6 +2,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { ElTooltip } from 'element-plus'
 import FoulBadges from '@/components/game/FoulBadges.vue'
 import { createPendingFouls } from '@/utils/pendingFouls.js'
 import { apiService } from '@/services/api.js'
@@ -13,6 +14,10 @@ vi.mock('@/services/api.js', () => ({
 }))
 
 const GAME_ID = 'game-1'
+
+const DESKTOP_WIDTH = 1280
+const TABLET_WIDTH = 800
+const MOBILE_WIDTH = 375
 
 // iMafia: обычные фолы с порогом 4 и техфолы с порогом 2
 const FOUL_TYPES = [
@@ -256,6 +261,36 @@ describe('FoulBadges', () => {
       expect(countAt(second, REGULAR)).toBe('3')
 
       second.unmount()
+    })
+  })
+
+  // Подсказка по наведению на тач-экране после тапа остаётся висеть
+  // и закрывает счётчики соседних бейджей
+  describe('Подсказка с типом фола', () => {
+    const tooltipsDisabled = () => wrapper.findAllComponents(ElTooltip)
+      .map(tooltip => tooltip.props('disabled'))
+
+    afterEach(() => {
+      window.innerWidth = DESKTOP_WIDTH
+    })
+
+    it.each([
+      ['компьютере', DESKTOP_WIDTH],
+      ['планшете', TABLET_WIDTH]
+    ])('на %s показывается', async (screen, width) => {
+      window.innerWidth = width
+      wrapper = mountBadges(createPlayer())
+      await flushPromises()
+
+      expect(tooltipsDisabled()).toEqual([false, false])
+    })
+
+    it('на телефоне отключена', async () => {
+      window.innerWidth = MOBILE_WIDTH
+      wrapper = mountBadges(createPlayer())
+      await flushPromises()
+
+      expect(tooltipsDisabled()).toEqual([true, true])
     })
   })
 })

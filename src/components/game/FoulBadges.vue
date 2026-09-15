@@ -1,9 +1,12 @@
 <template>
   <div class="foul-badges">
+    <!-- На телефоне подсказки нет: после тапа она остаётся висеть и закрывает
+         счётчики соседних бейджей, а тип фола и так виден по букве и цвету -->
     <el-tooltip
       v-for="foulType in foulTypes"
       :key="foulType.foul_type"
       :content="foulType.foul_type"
+      :disabled="isMobile"
       placement="top"
     >
       <div
@@ -27,6 +30,7 @@
 <script setup>
 import { ElMessage } from 'element-plus'
 import { apiService } from '@/services/api.js'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 
 const props = defineProps({
   gameId: {
@@ -51,6 +55,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['saved'])
+
+const { isMobile } = useBreakpoints()
 
 // Фолы игрока за игру из состояния игры
 const getSavedFouls = (type) => {

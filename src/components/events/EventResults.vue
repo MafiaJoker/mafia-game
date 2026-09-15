@@ -18,17 +18,28 @@
         style="width: 100%"
         stripe
       >
+        <!-- Место пишем явно: по одному порядку строк первое место не читалось,
+             а отметку MVP принимали за победителя -->
+        <el-table-column
+          prop="position"
+          label="Место"
+          :width="isMobile ? 48 : isTablet ? 70 : 76"
+          class-name="place-column"
+          align="center"
+        />
+        <!-- На телефоне колонки места, «Балл», «Доп.» и «В/П» вместе с ником
+             должны уместиться в 312px экрана шириной 360px -->
         <el-table-column 
           prop="name" 
           label="Игрок"
-          :min-width="isMobile ? 110 : 150"
+          :min-width="isMobile ? 76 : 150"
           sortable
         >
           <template #default="{ row }">
-            <span :class="{ 'mvp-player': isMvpPlayer(row) }">
-              <el-icon v-if="isMvpPlayer(row)" class="mvp-crown"><Trophy /></el-icon>
-              {{ row.name }}
-            </span>
+            <!-- MVP - отдельная награда по сумме допов, а не первое место:
+                 подписываем словом справа от ника, кубок у ника читался как победитель.
+                 Пробел между ними - на узком экране надпись переносится без отступа -->
+            <span class="player-name">{{ row.name }}</span> <span v-if="isMvpPlayer(row)" class="mvp-label">MVP</span>
           </template>
         </el-table-column>
         <el-table-column 
@@ -85,7 +96,7 @@
         <el-table-column 
           prop="winLossRatio" 
           :label="isCompact ? 'В/П' : 'Победы/Поражения'"
-          :width="isMobile ? 60 : isTablet ? 90 : 140"
+          :width="isMobile ? 48 : isTablet ? 90 : 140"
           align="center"
         >
           <template #default="{ row }">
@@ -854,18 +865,10 @@
       margin-top: 16px;
   }
 
-  /* Стили для MVP игрока */
-  .mvp-player {
+  /* MVP - жёлтая надпись справа от ника */
+  .mvp-label {
       color: #f39c12;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-  }
-
-  .mvp-crown {
-      color: #f39c12;
-      font-size: 16px;
+      font-weight: 700;
   }
   
   .results-filter {
@@ -890,6 +893,12 @@
 
       .stat-number {
           font-size: 22px;
+      }
+
+      /* Колонка места узкая: отступы меньше, подпись «Место» не рвётся посреди слова */
+      .event-results :deep(.place-column .cell) {
+          padding: 0 4px;
+          white-space: nowrap;
       }
 
       .pagination-wrapper {
