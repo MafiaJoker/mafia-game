@@ -156,6 +156,15 @@ describe('NightActionsDialog', () => {
       expect(wrapper.emitted('next-round')).toHaveLength(1)
     })
 
+    it('не спрашиваем, если в первом круге кого-то заголосовали: первым из игры вышел он', async () => {
+      const dialog = await openDialog(createPhaseData({ killed_box_id: 3, voted_box_ids: [1] }))
+
+      await footerButton(dialog).trigger('click')
+
+      expect(wrapper.emitted('show-best-move')).toBeUndefined()
+      expect(wrapper.emitted('next-round')).toHaveLength(1)
+    })
+
     it('очищает уже введённый ЛХ, если судья передумал и нажал «Промах»', async () => {
       const dialog = await openDialog(createPhaseData({ killed_box_id: 3, best_move: [1, 2, 4] }))
 

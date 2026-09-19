@@ -269,6 +269,19 @@ export const apiService = {
 	return response.data
     },
 
+    // Эфир игры: отметку ставит судья - «Начать договорку» выводит игру в
+    // эфир, «Завершить игру» уводит. Статус игры для этого не годится: круг
+    // появляется через полторы минуты после начала игры и становится
+    // финальным за минуту до её конца. Обе ручки идемпотентны и отвечают
+    // 204 без тела
+    async startGameBroadcast(gameId) {
+	await api.put(`/games/${gameId}/broadcast`)
+    },
+
+    async finishGameBroadcast(gameId) {
+	await api.delete(`/games/${gameId}/broadcast`)
+    },
+
     // Game State
     async getGameState(gameId) {
 	const response = await api.get(`/games/${gameId}/state`)

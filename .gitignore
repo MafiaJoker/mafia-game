@@ -24,3 +24,6 @@ electron-builder.log
 *.exe
 *.msi
 latest*.yml
+
+# Кэш питоновских скриптов из scripts/
+__pycache__/

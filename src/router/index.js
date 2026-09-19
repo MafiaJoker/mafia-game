@@ -42,6 +42,15 @@ const routes = [
 	props: true
     },
     {
+	// Одна ссылка на весь вечер: страница сама переключает оверлеи,
+	// менять источник в OBS от игры к игре не приходится.
+	// table_id уезжает в query - мероприятию с двумя столами он обязателен
+	path: '/event/:id/dies',
+	name: 'EventDies',
+	component: () => import('@/views/EventDiesView.vue'),
+	props: true
+    },
+    {
 	path: '/event-types',
 	name: 'EventTypes',
 	component: () => import('@/views/EventTypesView.vue')
@@ -103,7 +112,7 @@ router.beforeEach(async (to, from, next) => {
     }
     
     // Если пользователь идет на страницу авторизации или публичную страницу, пропускаем
-    if (to.path === '/login' || to.name === 'GameDies') {
+    if (to.path === '/login' || to.name === 'GameDies' || to.name === 'EventDies') {
         console.log('Router: going to public page, allowing navigation')
         next()
         return

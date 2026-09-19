@@ -314,9 +314,13 @@ const handleNightRemoveAccept = () => {
   })
 }
 
-// Лучший ход спрашиваем только за первый отстрел
+// Лучший ход спрашиваем только за первый отстрел - и только если этот отстрел
+// и есть первое выбытие в игре. Заголосованный в первом круге уходит раньше
+// ночи, первенство переходит к нему, и ЛХ не выдаётся вовсе
 const bestMoveRequired = computed(() => {
-  return props.phaseId === 1 && props.phaseData.killed_box_id != null
+  return props.phaseId === 1
+    && props.phaseData.killed_box_id != null
+    && !(props.phaseData.voted_box_ids || []).length
 })
 
 // «Продолжить»: лучший ход за первый отстрел или сразу новый круг
