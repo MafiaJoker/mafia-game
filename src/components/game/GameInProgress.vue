@@ -638,6 +638,17 @@ const handleRemovePlayersAccept = () => {
   console.log('Players removed', phaseData.value.removed_box_ids)
 }
 
+// Увести игру из эфира. Ручка идемпотентна, и её неудача не повод не пустить
+// судью в протокол
+const finishBroadcast = async () => {
+  try {
+    await apiService.finishGameBroadcast(props.gameId)
+  } catch (error) {
+    console.error('Failed to finish broadcast:', error)
+    ElMessage.warning('Не удалось увести игру из эфира - плашка трансляции останется игровой')
+  }
+}
+
 // Переход в новый круг: сразу после ночи, по ППК и по «Завершить игру»
 const handleNextRound = async () => {
   if (nextRoundPending.value) return
@@ -659,6 +670,10 @@ const handleNextRound = async () => {
       ? FINISHED_GAME_RESULTS.includes(savedState.result)
       : gameFinished.value
     if (finished) {
+      // Игра уходит из эфира по кнопке судьи, а не по финальному статусу:
+      // заголосованный выбывает в момент записи голосования, а в зале идёт
+      // уходящая минута - до «Завершить игру» экран остаётся игровым
+      await finishBroadcast()
       // replace: ведение завершённой игры - не то место, куда возвращает «Назад»
       router.replace(`/game/${props.gameId}/results`)
       return
@@ -742,6 +757,10 @@ const applyGameState = (gameState) => {
 const restoreGameState = (gameState) => {
   // Проверяем, завершена ли игра
   if (FINISHED_GAME_RESULTS.includes(gameState.result)) {
+    // Второй выход из доигранной игры: судья перезагрузил вкладку или открыл
+    // игру заново уже после финального голосования. Кнопки «Завершить игру»
+    // здесь уже нет - без этого вызова снять игру с эфира станет нечем
+    finishBroadcast()
     // Перенаправляем на страницу результатов, не оставляя записи в истории
     router.replace(`/game/${props.gameId}/results`)
     return

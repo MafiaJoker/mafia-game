@@ -256,6 +256,44 @@
                           <el-icon><CopyDocument /></el-icon>
                           {{ isMobile ? 'Копировать текст' : 'Скопировать рассадку как текст' }}
                         </el-button>
+                        <!-- Одна ссылка на весь вечер: источник в OBS
+                             переключается сам. Столов больше одного - стол
+                             обязателен, поэтому выбираем его списком, а не
+                             отдаём ссылку, по которой сервер ответит ошибкой -->
+                        <el-dropdown
+                          v-if="authStore.isJudge && obsTables.length > 1"
+                          @command="copyEventObsLink"
+                          >
+                          <el-button size="small">
+                            <el-icon><CopyDocument /></el-icon>
+                            {{ isMobile ? 'OBS' : 'Ссылка на OBS' }}
+                            <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                          </el-button>
+                          <template #dropdown>
+                            <el-dropdown-menu>
+                              <el-dropdown-item
+                                v-for="table in obsTables"
+                                :key="table.label"
+                                :command="table.tableId"
+                                >
+                                {{ table.label }}
+                              </el-dropdown-item>
+                            </el-dropdown-menu>
+                          </template>
+                        </el-dropdown>
+                        <!-- Столов ещё нет - подписываться не на что:
+                             ссылка без стола вернёт -32004 на первой же игре,
+                             и судья узнает об этом уже в эфире -->
+                        <el-button
+                          v-else-if="authStore.isJudge"
+                          size="small"
+                          :disabled="!obsTables.length"
+                          :title="obsTables.length ? '' : 'Сначала добавьте стол'"
+                          @click="copyEventObsLink(obsTables[0]?.tableId ?? null)"
+                          >
+                          <el-icon><CopyDocument /></el-icon>
+                          {{ isMobile ? 'OBS' : 'Ссылка на OBS' }}
+                        </el-button>
                         <el-button 
                           type="primary" 
                           size="small"
@@ -488,7 +526,8 @@
       Money,
       Trophy,
       Edit,
-      CopyDocument
+      CopyDocument,
+      ArrowDown
   } from '@element-plus/icons-vue'
 
   const route = useRoute()
@@ -601,10 +640,66 @@
     router.push(`/game/${gameId}`)
   }
 
-  const copyObsLink = (gameId) => {
+  // Номер стола всегда берём с сервера. Отдельной сущности стола там нет:
+  // стол - это колонка table_id у игры, а имя бек строит из неё шаблоном
+  // мероприятия (event/services.py, get_table_name) с откатом на «Стол {}»,
+  // если шаблон не развернулся. Наружу уходит только имя, поэтому номер
+  // вычитываем обратно теми же двумя шаблонами - это ровно тот номер, что
+  // стоит у игр на сервере
+  const DEFAULT_TABLE_NAME_TEMPLATE = 'Стол {}'
+
+  const tableIdFromName = (tableName) => {
+    if (!tableName) return null
+    const escapeRe = (part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    for (const template of [event.value?.table_name_template, DEFAULT_TABLE_NAME_TEMPLATE]) {
+      if (!template) continue
+      const [prefix, suffix = ''] = template.split('{}')
+      const match = tableName.match(new RegExp(`^${escapeRe(prefix)}(\\d+)${escapeRe(suffix)}$`))
+      if (match) return Number(match[1])
+    }
+    return null
+  }
+
+  // Столы для ссылки - только настоящие: виртуального стола на сервере нет,
+  // и подписаться на него нечем. Игры без стола дают ссылку без стола -
+  // такую подписку сервер принимает. Стол, чьё имя в номер не разбирается,
+  // ссылкой не отдаём вовсе: порядок в списке номером не является (сервер
+  // сортирует столы по имени как строке, и номера могут идти с пропусками),
+  // а угаданный номер молча уводит эфир на чужой стол
+  const obsTables = computed(() => {
+    return (event.value?.tables || [])
+      .filter(table => !table.table_name || tableIdFromName(table.table_name) !== null)
+      .map(table => ({
+        label: table.table_name || 'Игры без стола',
+        tableId: tableIdFromName(table.table_name)
+      }))
+  })
+
+  // Буфер обмена отказывает штатно: на небезопасном origin (http на
+  // LAN-адресе - ровно та связка, где рядом стоит OBS) navigator.clipboard
+  // вообще нет. Поэтому тост об успехе - только после удавшейся записи
+  const copyToClipboard = async (text, successMessage) => {
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch (clipboardError) {
+      console.error('Буфер обмена недоступен:', clipboardError)
+      ElMessage.error('Браузер не дал доступ к буферу обмена')
+      return
+    }
+    ElMessage.success(successMessage)
+  }
+
+  const copyEventObsLink = async (tableId = null) => {
+    const url = new URL(`/event/${route.params.id}/dies`, window.location.origin)
+    if (tableId !== null && tableId !== undefined) {
+      url.searchParams.set('table', tableId)
+    }
+    await copyToClipboard(url.toString(), 'Ссылка на OBS для мероприятия скопирована!')
+  }
+
+  const copyObsLink = async (gameId) => {
     const url = `${window.location.origin}/game/${gameId}/dies`
-    navigator.clipboard.writeText(url)
-    ElMessage.success('OBS ссылка скопирована!')
+    await copyToClipboard(url, 'OBS ссылка скопирована!')
   }
 
   // Игра не удаляется, а прячется, и снять этот флаг из интерфейса нечем -

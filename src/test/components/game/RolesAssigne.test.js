@@ -10,7 +10,8 @@ import { apiService } from '@/services/api.js'
 
 vi.mock('@/services/api.js', () => ({
   apiService: {
-    createGamePlayers: vi.fn()
+    createGamePlayers: vi.fn(),
+    startGameBroadcast: vi.fn()
   }
 }))
 
@@ -86,6 +87,7 @@ describe('RolesAssigne', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     apiService.createGamePlayers.mockResolvedValue({})
+    apiService.startGameBroadcast.mockResolvedValue()
   })
 
   it('стартует договорку с неполным раскладом', async () => {
@@ -98,6 +100,26 @@ describe('RolesAssigne', () => {
     expect(button(wrapper, 'Начать игру')).toBeDefined()
     // Кнопка была нужна только чтобы разблокировать роли
     expect(button(wrapper, 'Вернуться к раздаче')).toBeUndefined()
+  })
+
+  // Эфир переключает договорка, а не первый круг: между ними полторы минуты,
+  // которые иначе ушли бы в эфир межигровой заглушкой
+  it('выводит игру в эфир на старте договорки', async () => {
+    const wrapper = await mountRoles(fullRoles())
+
+    await startNegotiation(wrapper)
+
+    expect(apiService.startGameBroadcast).toHaveBeenCalledWith(GAME_ID)
+  })
+
+  it('оставляет судью на договорке, если эфир не включился', async () => {
+    apiService.startGameBroadcast.mockRejectedValue(new Error('network'))
+    const wrapper = await mountRoles(fullRoles())
+
+    await startNegotiation(wrapper)
+
+    expect(wrapper.emitted('negotiation-started')).toHaveLength(1)
+    expect(button(wrapper, 'Начать игру')).toBeDefined()
   })
 
   it('прячет роли на старте договорки, но открывает их глазком', async () => {

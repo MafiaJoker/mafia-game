@@ -19,7 +19,8 @@ vi.mock('@/services/api.js', () => ({
     createGamePhase: vi.fn(),
     patchGamePhase: vi.fn(),
     addGamePhaseSilentBox: vi.fn(),
-    deleteGamePhaseSilentBox: vi.fn()
+    deleteGamePhaseSilentBox: vi.fn(),
+    finishGameBroadcast: vi.fn()
   }
 }))
 
@@ -235,6 +236,22 @@ describe('GameInProgress: конец игры голосованием', () => {
 
     expect(apiService.patchGamePhase).toHaveBeenCalledTimes(1)
     expect(apiService.createGamePhase).not.toHaveBeenCalled()
+    // Игру уводит из эфира эта кнопка, а не финальный статус: до неё в зале
+    // идёт уходящая минута, и экран трансляции остаётся игровым
+    expect(apiService.finishGameBroadcast).toHaveBeenCalledWith(GAME_ID)
+    expect(router.replace).toHaveBeenCalledWith(`/game/${GAME_ID}/results`)
+  })
+
+  it('уводит в протокол, даже если эфир не выключился', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 5 }))
+    await nominate(wrapper, [1, 2])
+
+    apiService.patchGamePhase.mockResolvedValue(gameState({ result: 'civilians_win', phase_id: 5 }))
+    apiService.finishGameBroadcast.mockRejectedValueOnce(new Error('network'))
+    await finishVoting(wrapper, [1])
+    await wrapper.find('.header-right button').trigger('click')
+    await flushPromises()
+
     expect(router.replace).toHaveBeenCalledWith(`/game/${GAME_ID}/results`)
   })
 

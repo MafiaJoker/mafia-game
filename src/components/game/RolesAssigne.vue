@@ -65,6 +65,7 @@ import { User } from '@element-plus/icons-vue'
 import GameTable from './GameTable.vue'
 import RoleColumn from './RoleColumn.vue'
 import { useBreakpoints } from '@/composables/useBreakpoints'
+import { ElMessage } from 'element-plus'
 import { apiService } from '@/services/api.js'
 import { GameRolesEnum } from '@/utils/constants.js'
 import { GAME_ERROR_MESSAGES } from '@/utils/errorMessages.js'
@@ -193,13 +194,25 @@ const hasValidRoles = () => {
   return donCount === 1 && sheriffCount === 1 && mafiaCount === 2
 }
 
-const handleStartNegotiation = () => {
+const handleStartNegotiation = async () => {
   // Очищаем предыдущую ошибку
   errorMessage.value = ''
 
   // Роли прячем, чтобы их не видели игроки - глазок в шапке колонки открывает обратно
   isNegotiationStarted.value = true
   emit('negotiation-started')
+
+  // Отметка «игра пошла в эфир»: по ней плашка мероприятия переключается на
+  // игровой оверлей. Сама игра для сервера начнётся только с первым кругом -
+  // это на полторы минуты позже, и договорка ушла бы в эфир межигровой
+  // заглушкой. Ручка идемпотентна; эфир не повод мешать вести игру, поэтому
+  // неудачу показываем тостом и остаёмся на договорке
+  try {
+    await apiService.startGameBroadcast(props.gameId)
+  } catch (error) {
+    console.error('Failed to start broadcast:', error)
+    ElMessage.warning('Не удалось вывести игру в эфир - плашка трансляции не переключится')
+  }
 }
 
 const handleStartGame = async () => {

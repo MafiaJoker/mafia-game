@@ -101,7 +101,7 @@ Rules:
 
 - Adapt the pattern, not the size: on mobile a wide table becomes a card list, a calendar grid becomes an agenda, a long header becomes a drawer, primary game actions go to a bottom action bar. On tablet keep tables but drop secondary columns.
 - **Every new or changed UI element must be checked visually on all three screens** - desktop (>= 1024px), tablet (768-1023px) and mobile (<= 767px) - before it is considered done. Open the page in a real browser (dev server + test login) at those widths, not only in unit tests.
-- Exception: `/game/:id/dies` (`GameDiesView.vue`) is an OBS browser-source overlay - desktop only by design, do not add mobile/tablet layout to it.
+- Exception: the OBS browser-source overlays - `/game/:id/dies` (`GameDiesView.vue`), `/event/:id/dies` (`EventDiesView.vue`) and the shared components in `src/components/dies/` - are desktop only by design, do not add mobile/tablet layout to them.
 
 ## Development Notes
 
