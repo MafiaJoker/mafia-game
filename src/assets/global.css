@@ -61,6 +61,14 @@ h6 {
   color: #303133;
 }
 
+/* Всплывающие подсказки переносят текст по словам. Element Plus ставит всем
+   .el-popper word-break: break-all, и подсказка в пару строк рвётся посреди
+   слова: «с уч|ётом». body - чтобы правило перебивало стили Element Plus,
+   даже если их подгрузили позже этого файла */
+body .el-popper {
+  word-break: normal;
+}
+
 /* =====================================================================
    Адаптивность. Три диапазона на всё приложение:
      телефон   - до 767px
@@ -212,6 +220,23 @@ h6 {
     width: 100% !important;
   }
 
+  /* Фильтры над списком (.filters-form): подпись над полем, а не сбоку, -
+     в строке с подписью поле на узком экране сжимается */
+  .filters-form.el-form--inline .el-form-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filters-form.el-form--inline .el-form-item__label {
+    justify-content: flex-start;
+    width: auto;
+    height: auto;
+    padding: 0 0 4px;
+    font-size: 12px;
+    line-height: 1.4;
+    text-align: left;
+  }
+
   /* Поля ввода на всю ширину: узкий экран не место для фиксированных 200px */
   .el-form-item__content > .el-select,
   .el-form-item__content > .el-date-editor,
@@ -239,4 +264,70 @@ h6 {
   .el-picker__popper {
     max-width: calc(100vw - 24px);
   }
+}
+
+/* =====================================================================
+   Список рейтинга на телефоне - вкладки «По очкам» и ELO на /ratings.
+   Строка: место в кружке, игрок с подстрокой, справа число. Правила общие,
+   чтобы строки двух вкладок не разъезжались
+   ===================================================================== */
+.rating-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.rating-row {
+  border-bottom: 1px solid #f0f2f5;
+  cursor: pointer;
+}
+
+.rating-row:last-child {
+  border-bottom: none;
+}
+
+.rating-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 8px 4px;
+}
+
+.rating-position {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: #f5f7fa;
+  font-weight: 700;
+  color: #606266;
+}
+
+.rating-position.top {
+  background-color: #fdf6ec;
+  color: #e6a23c;
+}
+
+.rating-player {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rating-nickname {
+  font-weight: 500;
+  color: #303133;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rating-subline {
+  font-size: 12px;
+  color: #909399;
 }

@@ -88,6 +88,20 @@ export const getSeatingExportErrorMessage = (error) => {
   return getSeatingErrorMessage(error)
 }
 
+// detail ELO-ручек - статичные строки бекенда (app/elo/constants.py).
+// 404 там означает разное: профиля нет или у игрока нет ни одной игры в
+// профиле, и экран объясняет каждый случай по-своему
+export const ELO_ERROR_DETAILS = {
+  PROFILE_NOT_FOUND: 'elo profile not found',
+  PLAYER_NOT_FOUND: 'elo player not found'
+}
+
+// Известная причина ошибки ELO-ручки или null, если это просто сбой
+export const getEloErrorDetail = (error) => {
+  const detail = error?.response?.data?.detail
+  return Object.values(ELO_ERROR_DETAILS).includes(detail) ? detail : null
+}
+
 // Сообщения ручки слияния пользователей
 export const USER_MERGE_ERROR_MESSAGES = {
   SESSION_EXPIRED: 'Сессия истекла, войдите заново',

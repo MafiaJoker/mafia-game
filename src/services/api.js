@@ -541,6 +541,28 @@ export const apiService = {
         return response.data
     },
 
+    // ELO. Профиль задаёт выборку игр; без profile_id сервер берёт профиль по
+    // умолчанию. У профиля есть время последнего изменения рейтинга (updated_at)
+    // - им подписываем таблицу - и число игр в нём (games_count)
+    async getEloProfiles() {
+        const response = await api.get('/elo/profiles')
+        return response.data
+    },
+
+    // Страница таблицы: currentPage с единицы, pageSize больше 100 сервер
+    // режет до 100. Ответ - { items, total, limit, offset }
+    async getEloRatings(params = {}) {
+        const response = await api.get('/elo/ratings', { params })
+        return response.data
+    },
+
+    // Рейтинг игрока после каждой его игры. Игроку на калибровке сервер
+    // отдаёт только calibration_games_left, без точек
+    async getEloPlayerTrace(userId, params = {}) {
+        const response = await api.get(`/elo/players/${userId}/trace`, { params })
+        return response.data
+    },
+
     // Logout
     async logout() {
 	try {

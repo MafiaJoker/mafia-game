@@ -120,12 +120,14 @@ describe('EventResults: колонка «Суммарные доп. баллы»
     expect(value.classes()).not.toContain('positive-score')
   })
 
-  it('в заголовке подсказка с формулой, на компьютере - по наведению', async () => {
+  it('в заголовке подсказка с формулой, на компьютере - по наведению и фокусу с клавиатуры', async () => {
     wrapper = await mountResults()
+    const hint = extraPointsHeader(wrapper).find('.hint-icon')
 
     expect(extraPointsHeader(wrapper).text()).toContain('Суммарные доп. баллы')
-    expect(extraPointsHeader(wrapper).find('.hint-icon').exists()).toBe(true)
-    expect(hintTooltip(wrapper).props('trigger')).toBe('hover')
+    expect(hint.element.tagName).toBe('BUTTON')
+    expect(hint.attributes('aria-label')).toBe('Как считаются суммарные доп. баллы')
+    expect(hintTooltip(wrapper).props('trigger')).toEqual(['hover', 'focus'])
     expect(document.body.textContent).toContain('Доп. баллы − штрафы + лучший ход (ЛХ)')
     expect(document.body.textContent).toContain('Ci) сюда не входит')
   })
