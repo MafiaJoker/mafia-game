@@ -47,6 +47,19 @@ export const formatDate = (dateString, format = 'short') => {
   }
 }
 
+// Дата без времени, как её отдаёт сервер: '2026-09-21'. new Date() читает такую
+// строку как полночь по UTC, и западнее Гринвича день съехал бы на вчерашний,
+// поэтому дату собираем по частям в местном времени
+export const formatDay = (value, options = { day: 'numeric', month: 'long', year: 'numeric' }) => {
+  if (!value) return ''
+
+  const [year, month, day] = String(value).split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  if (isNaN(date.getTime())) return ''
+
+  return date.toLocaleDateString('ru-RU', options)
+}
+
 // Форматирование времени (секунды -> MM:SS)
 export const formatTime = (seconds) => {
   if (typeof seconds !== 'number' || seconds < 0) return '00:00'
@@ -120,6 +133,23 @@ export const pluralize = (count, forms) => {
   if (n1 === 1) return forms[0]
   
   return forms[2]
+}
+
+// Число игр со словом: «1 игра», «34 игры». accusative - для «осталось
+// сыграть 1 игру»
+export const formatGamesCount = (count, { accusative = false } = {}) => {
+  const value = count ?? 0
+  const forms = accusative ? ['игру', 'игры', 'игр'] : ['игра', 'игры', 'игр']
+  return `${value} ${pluralize(value, forms)}`
+}
+
+// Изменение со знаком: «+12», «−5», «+6.3». Ноль - «±0»: это «не изменился»,
+// а не «нет данных»
+export const formatSignedChange = (value, digits = 0) => {
+  const rounded = Number(value.toFixed(digits))
+  if (rounded > 0) return `+${rounded.toFixed(digits)}`
+  if (rounded < 0) return `−${Math.abs(rounded).toFixed(digits)}`
+  return '±0'
 }
 
 // Форматирование с шаблоном

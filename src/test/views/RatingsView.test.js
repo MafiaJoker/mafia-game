@@ -3,10 +3,17 @@
 // в запрос и как выглядит разбивка по ролям под строкой игрока
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
 import { ElTable, ElInputNumber } from 'element-plus'
 import RatingsView from '@/views/RatingsView.vue'
+import EloRatings from '@/components/ratings/EloRatings.vue'
 import { apiService } from '@/services/api'
+
+// Адрес реактивный, как настоящий: экран следит за вкладкой в нём
+const { route, routerReplace } = await vi.hoisted(async () => {
+  const { reactive } = await import('vue')
+  return { route: reactive({ query: {} }), routerReplace: vi.fn() }
+})
 
 vi.mock('@/services/api', () => ({
   apiService: {
@@ -15,6 +22,14 @@ vi.mock('@/services/api', () => ({
   },
   initApiUrl: vi.fn()
 }))
+
+vi.mock('vue-router', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useRoute: () => route,
+  useRouter: () => ({ replace: routerReplace })
+}))
+
+vi.mock('@/router', () => ({ default: { push: vi.fn() } }))
 
 const DESKTOP_WIDTH = 1280
 const MOBILE_WIDTH = 375
@@ -44,18 +59,102 @@ const ratingRow = (overrides = {}) => ({
   ...overrides
 })
 
+// Вкладку ELO проверяет свой тест, здесь важно только, открыта ли она
 const mountRatings = async (rows = [ratingRow()]) => {
   apiService.getRatings.mockResolvedValue(rows)
-  const wrapper = mount(RatingsView)
+  const wrapper = mount(RatingsView, {
+    global: { stubs: { EloRatings: true } }
+  })
   await flushPromises()
   return wrapper
 }
+
+// Обёртки прошлых тестов не должны жить дальше: ширина экрана у всех общая,
+// и её смена перерисовывала бы каждую, растягивая тест на секунды
+enableAutoUnmount(afterEach)
 
 describe('RatingsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setViewport(DESKTOP_WIDTH)
+    route.query = {}
     apiService.getRuleSystems.mockResolvedValue([{ slug: 'fiim', label: 'ФИИМ' }])
+  })
+
+  it('по умолчанию открыт рейтинг по очкам, а ELO не грузится', async () => {
+    const wrapper = await mountRatings()
+
+    expect(wrapper.find('#tab-points').classes()).toContain('is-active')
+    expect(wrapper.findComponent(ElTable).exists()).toBe(true)
+    expect(wrapper.findComponent(EloRatings).exists()).toBe(false)
+  })
+
+  it('вкладка из адреса открывается сразу', async () => {
+    route.query = { tab: 'elo' }
+    const wrapper = await mountRatings()
+
+    expect(wrapper.find('#tab-elo').classes()).toContain('is-active')
+    expect(wrapper.findComponent(EloRatings).exists()).toBe(true)
+  })
+
+  it('незнакомая вкладка в адресе - не ошибка, а рейтинг по очкам', async () => {
+    route.query = { tab: 'glicko' }
+    const wrapper = await mountRatings()
+
+    expect(wrapper.find('#tab-points').classes()).toContain('is-active')
+    expect(wrapper.findComponent(EloRatings).exists()).toBe(false)
+  })
+
+  it('адрес сменился без клика по вкладке - вкладка идёт за ним', async () => {
+    route.query = { tab: 'elo' }
+    const wrapper = await mountRatings()
+
+    // «Рейтинг» в шапке, логотип или «назад»: тот же экран, адрес без вкладки
+    route.query = {}
+    await flushPromises()
+    expect(wrapper.find('#tab-points').classes()).toContain('is-active')
+
+    route.query = { tab: 'elo' }
+    await flushPromises()
+    expect(wrapper.find('#tab-elo').classes()).toContain('is-active')
+    // вкладку сменил адрес - писать его заново незачем
+    expect(routerReplace).not.toHaveBeenCalled()
+  })
+
+  it('открыли по ссылке на ELO - рейтинг по очкам не грузится, пока не откроют его вкладку', async () => {
+    route.query = { tab: 'elo' }
+    const wrapper = await mountRatings()
+
+    expect(apiService.getRatings).not.toHaveBeenCalled()
+    expect(apiService.getRuleSystems).not.toHaveBeenCalled()
+    expect(wrapper.findComponent(ElTable).exists()).toBe(false)
+
+    await wrapper.find('#tab-points').trigger('click')
+    await flushPromises()
+    await wrapper.find('#tab-elo').trigger('click')
+    await flushPromises()
+    await wrapper.find('#tab-points').trigger('click')
+    await flushPromises()
+
+    // второй заход на вкладку данные не перезапрашивает
+    expect(apiService.getRatings).toHaveBeenCalledTimes(1)
+    expect(apiService.getRuleSystems).toHaveBeenCalledTimes(1)
+    expect(wrapper.findComponent(ElTable).exists()).toBe(true)
+  })
+
+  it('выбранная вкладка уходит в адрес, а вкладка по умолчанию его не засоряет', async () => {
+    const wrapper = await mountRatings()
+
+    await wrapper.find('#tab-elo').trigger('click')
+    await flushPromises()
+
+    expect(routerReplace).toHaveBeenLastCalledWith({ query: { tab: 'elo' } })
+    expect(wrapper.findComponent(EloRatings).exists()).toBe(true)
+
+    await wrapper.find('#tab-points').trigger('click')
+    await flushPromises()
+
+    expect(routerReplace).toHaveBeenLastCalledWith({ query: { tab: undefined } })
   })
 
   afterEach(() => {

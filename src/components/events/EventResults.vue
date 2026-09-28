@@ -64,14 +64,7 @@
         >
           <template #header="{ column }">
             {{ column.label }}
-            <!-- На телефоне и планшете подсказка по тапу: hover-подсказка на тач-экране
-                 остаётся висеть. .stop - клик по иконке не должен сортировать колонку -->
-            <el-tooltip placement="top" :trigger="isCompact ? 'click' : 'hover'">
-              <template #content>
-                <div class="hint-content">{{ TOTAL_EXTRA_POINTS_HINT }}</div>
-              </template>
-              <el-icon class="hint-icon" @click.stop><QuestionFilled /></el-icon>
-            </el-tooltip>
+            <HintTooltip :text="TOTAL_EXTRA_POINTS_HINT" label="Как считаются суммарные доп. баллы" />
           </template>
           <template #default="{ row }">
             <span :class="{ 'positive-score': row.totalExtraPoints > 0, 'negative-score': row.totalExtraPoints < 0 }">
@@ -366,11 +359,11 @@
   import { useRouter } from 'vue-router'
   import { apiService } from '@/services/api'
   import { useBreakpoints } from '@/composables/useBreakpoints'
-  import { 
+  import HintTooltip from '@/components/common/HintTooltip.vue'
+  import {
       Trophy,
       View,
-      User,
-      QuestionFilled
+      User
   } from '@element-plus/icons-vue'
 
   const props = defineProps({
@@ -758,17 +751,6 @@
       display: flex;
       align-items: center;
       gap: 8px;
-  }
-
-  .hint-icon {
-      vertical-align: middle;
-      color: #909399;
-      cursor: help;
-  }
-
-  .hint-content {
-      max-width: 260px;
-      word-break: normal;
   }
 
   .header-actions {
