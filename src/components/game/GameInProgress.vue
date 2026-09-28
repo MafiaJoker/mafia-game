@@ -42,6 +42,12 @@
         </div>
       </template>
 
+      <!-- Подъём всех: порядок ухода одной строкой над игроками -->
+      <div v-if="votedOutOrder" class="voted-out-order">
+        <span>Покинули игру:</span>
+        <span class="voted-out-boxes">{{ votedOutOrder }}</span>
+      </div>
+
       <!-- Телефон: таблица на пять колонок в 360px не помещается - список строк,
            где номер, роль, ник, фолы и выставление стоят в одну линию -->
       <div v-if="isMobile" class="players-list">
@@ -492,6 +498,14 @@ const leftThisPhase = (row) => (
   || leftByFouls(row)
 )
 
+// Подъём всех кандидатур выводит из игры двоих и больше разом, а ведущему
+// для протокола нужен их порядок: voted_box_ids пишется в порядке выставления.
+// Одному заголосованному порядок не нужен
+const votedOutOrder = computed(() => {
+  const votedBoxIds = phaseData.value.voted_box_ids
+  return votedBoxIds.length > 1 ? votedBoxIds.join(' → ') : null
+})
+
 // Есть ли выбывшие ДНЁМ в текущем круге (ручное удаление или удаление по
 // фолам). Ночное удаление сюда не идёт: этот флаг решает, показывать ли
 // кнопку голосования, а ночь наступает уже после него
@@ -885,6 +899,28 @@ defineExpose({
   margin-left: 8px;
   color: #909399;
   font-weight: normal;
+}
+
+/* Порядок ухода при подъёме всех - на подложке цвета отметки «покинул игру»,
+   номера тёмные: их читают с расстояния */
+.voted-out-order {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #606266;
+  background-color: #fdf6ec;
+  border: 1px solid #f3d19e;
+  border-radius: 4px;
+}
+
+.voted-out-boxes {
+  font-size: 18px;
+  font-weight: 700;
+  color: #303133;
 }
 
 :deep(.el-table .el-table__row) {

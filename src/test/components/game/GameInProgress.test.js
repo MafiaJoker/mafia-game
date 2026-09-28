@@ -85,6 +85,14 @@ const nominate = async (wrapper, boxIds) => {
   await flushPromises()
 }
 
+// Голосование закончено: диалог отдаёт круг с заголосованными
+const finishVoting = async (wrapper, votedBoxIds) => {
+  const voting = wrapper.findComponent(VotingDialog)
+  voting.vm.$emit('update:phaseData', { ...emptyPhase(), voted_box_ids: votedBoxIds })
+  voting.vm.$emit('voting-completed')
+  await flushPromises()
+}
+
 // Ночь закончена: диалог отдаёт круг, и новый день начинается сразу
 const finishNight = async (wrapper, phase = emptyPhase()) => {
   const night = wrapper.findComponent(NightActionsDialog)
@@ -206,14 +214,6 @@ describe('GameInProgress: уход завершённой игры на резу
 // Заголосованный выбывает сразу, поэтому игра может кончиться голосованием,
 // а не ночью: угадайка, равенство команд (#93). Итог приходит ответом PATCH круга
 describe('GameInProgress: конец игры голосованием', () => {
-  // Голосование закончено: диалог отдаёт круг с заголосованными
-  const finishVoting = async (wrapper, votedBoxIds) => {
-    const voting = wrapper.findComponent(VotingDialog)
-    voting.vm.$emit('update:phaseData', { ...emptyPhase(), voted_box_ids: votedBoxIds })
-    voting.vm.$emit('voting-completed')
-    await flushPromises()
-  }
-
   it('угадайка: после заголосованного красного вместо «Ночи» «Завершить игру»', async () => {
     wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 5 }))
     await nominate(wrapper, [2, 3])
@@ -428,6 +428,40 @@ describe('GameInProgress: удалённый ночью в списке игро
     expect(nominationCell(wrapper, 4)).toBe('выбыл')
     expect(nominationCell(wrapper, 5)).toBe('-')
     toast.mockRestore()
+  })
+})
+
+// Подъём всех кандидатур выводит из игры двоих и больше разом: ведущему для
+// протокола нужен порядок их ухода (#112)
+describe('GameInProgress: порядок ухода по голосованию', () => {
+  it('после подъёма всех над игроками строка с порядком ухода', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+    await nominate(wrapper, [3, 7, 1, 5])
+
+    // Перестрелка между 7, 1 и 5, стол поднял всех троих
+    await finishVoting(wrapper, [7, 1, 5])
+
+    expect(wrapper.find('.voted-out-boxes').text()).toBe('7 → 1 → 5')
+  })
+
+  it('единственный заголосованный уходит без строки с порядком', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+    await nominate(wrapper, [2, 3])
+
+    await finishVoting(wrapper, [2])
+
+    expect(wrapper.find('.voted-out-order').exists()).toBe(false)
+  })
+
+  it('новый круг убирает строку с порядком', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+    await nominate(wrapper, [7, 1])
+    await finishVoting(wrapper, [7, 1])
+
+    apiService.createGamePhase.mockResolvedValue(gameState({ result: 'in_progress', phase_id: 3 }))
+    await finishNight(wrapper, { ...emptyPhase(), voted_box_ids: [7, 1] })
+
+    expect(wrapper.find('.voted-out-order').exists()).toBe(false)
   })
 })
 

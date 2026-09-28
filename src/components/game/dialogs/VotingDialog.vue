@@ -20,6 +20,9 @@
 
       <el-divider />
 
+      <!-- Начало раунда: к нему возвращает прокрутка при переголосовании -->
+      <div ref="votingStart" />
+
       <!-- Раунды 1 и 2: показываем список игроков -->
       <div v-if="votingRound < 3">
         <!-- Счётчик над списком и прилипает к верху прокрутки: по нему ведущий видит,
@@ -120,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, nextTick } from 'vue'
 import FoulsPanel from '../FoulsPanel.vue'
 import DialogTimerHeader from './DialogTimerHeader.vue'
 import { useBreakpoints } from '@/composables/useBreakpoints'
@@ -161,6 +164,7 @@ const votingRound = ref(1)
 const currentCandidates = ref([])
 const previousTiedPlayers = ref([])
 const votesForAll = ref(0)
+const votingStart = ref(null)
 
 const visible = computed({
   get: () => props.modelValue,
@@ -288,6 +292,15 @@ const findWinners = () => {
   return voteCounts.filter(v => v.count === maxVoteCount)
 }
 
+// Голоса отдают сверху вниз: кандидаты выше последнего проголосованного
+// закрываются. Голосуя, список прокручивают вниз, и следующий раунд открывался
+// с середины - его начало возвращаем на экран. Если начало и так видно,
+// прокрутка не двигается
+const scrollToVotingStart = async () => {
+  await nextTick()
+  votingStart.value?.scrollIntoView({ block: 'nearest' })
+}
+
 const addToVotedBoxIds = (boxIds) => {
   const updatedPhaseData = {
     ...props.phaseData,
@@ -319,6 +332,7 @@ const handleContinue = () => {
       // Сбрасываем голоса
       Object.keys(votes).forEach(key => delete votes[key])
       currentCandidates.value.forEach(c => votes[c.box_id] = 0)
+      scrollToVotingStart()
     }
   } else if (votingRound.value === 2) {
     // Второй раунд (перестрелка)
@@ -339,6 +353,7 @@ const handleContinue = () => {
         votingRound.value = 3
         Object.keys(votes).forEach(key => delete votes[key])
         votesForAll.value = 0
+        scrollToVotingStart()
       } else {
         // Новая комбинация игроков - продолжаем перестрелку
         const tiedBoxIds = new Set(currentTiedPlayers)
@@ -347,6 +362,7 @@ const handleContinue = () => {
         emit('update:nominatedPlayers', previousTiedPlayers.value)
         Object.keys(votes).forEach(key => delete votes[key])
         currentCandidates.value.forEach(c => votes[c.box_id] = 0)
+        scrollToVotingStart()
       }
     }
   } else if (votingRound.value === 3) {
