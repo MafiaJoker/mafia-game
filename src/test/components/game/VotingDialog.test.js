@@ -1,7 +1,7 @@
 // Тесты диалога голосования: ноль не подсвечен как поданный голос,
 // а счётчик распределённых голосов стоит над списком кандидатур
 
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises, DOMWrapper } from '@vue/test-utils'
 import VotingDialog from '@/components/game/dialogs/VotingDialog.vue'
 import { createPendingFouls } from '@/utils/pendingFouls.js'
@@ -124,6 +124,48 @@ describe('VotingDialog', () => {
       await rowButton(candidateRows(dialog)[5], 4).trigger('click')
 
       expect(dialog.find('.voting-counter').text()).toContain('4 / 10')
+    })
+  })
+
+  // Голоса отдают сверху вниз, а список, голосуя, прокручивают вниз: новый
+  // раунд открывался с середины, и голосование начинали не с первого (#112)
+  describe('Прокрутка к началу раунда', () => {
+    let scrollIntoView
+
+    beforeEach(() => {
+      scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView')
+    })
+
+    afterEach(() => {
+      scrollIntoView.mockRestore()
+    })
+
+    it('перестрелка и подъём всех возвращают прокрутку к началу раунда', async () => {
+      const dialog = await openDialog([1, 2, 3])
+
+      // Ничья 5:5 между 2 и 3 - перестрелка
+      await rowButton(candidateRows(dialog)[1], 5).trigger('click')
+      await rowButton(candidateRows(dialog)[2], 5).trigger('click')
+      await continueButton(dialog).trigger('click')
+      await flushPromises()
+
+      expect(scrollIntoView).toHaveBeenCalledTimes(1)
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
+      // Цель прокрутки над счётчиком: прилипший к верху счётчик иначе
+      // закрыл бы первого кандидата
+      const target = scrollIntoView.mock.contexts[0]
+      expect(target.compareDocumentPosition(dialog.find('.voting-counter').element) & Node.DOCUMENT_POSITION_FOLLOWING)
+        .toBeTruthy()
+
+      // Та же ничья в перестрелке - подъём всех
+      const [second, third] = candidateRows(dialog)
+      await rowButton(second, 5).trigger('click')
+      await rowButton(third, 5).trigger('click')
+      await continueButton(dialog).trigger('click')
+      await flushPromises()
+
+      expect(dialog.findAll('.vote-btn-large').length).toBeGreaterThan(0)
+      expect(scrollIntoView).toHaveBeenCalledTimes(2)
     })
   })
 })
