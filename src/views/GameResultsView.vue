@@ -118,12 +118,34 @@
                   <span class="player-result-number">{{ row.box_id }}</span>
                   <span class="player-result-name">{{ row.nickname }}</span>
                   <el-tag
+                    v-if="isFirstKilled(row)"
+                    type="warning"
+                    size="small"
+                    title="Первый убитый"
+                  >
+                    ПУ
+                  </el-tag>
+                  <el-tag
                     :type="getRoleTagType(row.role)"
                     :class="{ 'role-tag-black': isBlackRole(row.role) }"
                     size="small"
                   >
                     {{ getRoleLabel(row.role) }}
                   </el-tag>
+                </div>
+
+                <div v-if="isFirstKilled(row)" class="best-move-line">
+                  <span class="best-move-label">ЛХ</span>
+                  <span :class="getScoreClass(bestMove.points)">{{ bestMove.pointsText }}</span>
+                  <span v-if="bestMove.note" class="best-move-note">· {{ bestMove.note }}</span>
+                  <span v-if="bestMove.boxes" class="best-move-boxes">
+                    <span
+                      v-for="box in bestMove.boxes"
+                      :key="box.boxId"
+                      class="best-move-box"
+                      :class="box.isBlack ? 'is-black' : 'is-red'"
+                    >{{ box.boxId }}</span>
+                  </span>
                 </div>
 
                 <div class="player-result-points">
@@ -196,7 +218,17 @@
               >
                 <template #default="{ row }">
                   <div class="player-cell">
-                    <span>{{ row.nickname }}</span>
+                    <div class="player-name-line">
+                      <span>{{ row.nickname }}</span>
+                      <el-tag
+                        v-if="isFirstKilled(row)"
+                        type="warning"
+                        size="small"
+                        title="Первый убитый"
+                      >
+                        ПУ
+                      </el-tag>
+                    </div>
                     <!-- Планшет: колонке роли места нет, роль уходит под ник -->
                     <el-tag
                       v-if="isTablet"
@@ -206,6 +238,21 @@
                     >
                       {{ getRoleLabel(row.role) }}
                     </el-tag>
+                    <!-- И колонке ЛХ тоже: он есть у одного игрока, прочерки
+                         остальных не стоят узкого комментария -->
+                    <div v-if="isTablet && isFirstKilled(row)" class="best-move-line">
+                      <span class="best-move-label">ЛХ</span>
+                      <span :class="getScoreClass(bestMove.points)">{{ bestMove.pointsText }}</span>
+                      <span v-if="bestMove.note" class="best-move-note">· {{ bestMove.note }}</span>
+                      <span v-if="bestMove.boxes" class="best-move-boxes">
+                        <span
+                          v-for="box in bestMove.boxes"
+                          :key="box.boxId"
+                          class="best-move-box"
+                          :class="box.isBlack ? 'is-black' : 'is-red'"
+                        >{{ box.boxId }}</span>
+                      </span>
+                    </div>
                   </div>
                 </template>
               </el-table-column>
@@ -238,9 +285,34 @@
                 </template>
               </el-table-column>
 
+              <!-- Место под колонку отдали допы, штрафы и комментарий: таблица
+                   не шире, чем была без неё, и на 1024px комментарий не уезжает -->
+              <el-table-column
+                v-if="hasFirstKilledInfo && !isTablet"
+                label="ЛХ"
+                width="100"
+                align="center"
+              >
+                <template #default="{ row }">
+                  <div v-if="isFirstKilled(row)" class="best-move-cell">
+                    <span :class="getScoreClass(bestMove.points)">{{ bestMove.pointsText }}</span>
+                    <span v-if="bestMove.note" class="best-move-note">{{ bestMove.note }}</span>
+                    <span v-if="bestMove.boxes" class="best-move-boxes">
+                      <span
+                        v-for="box in bestMove.boxes"
+                        :key="box.boxId"
+                        class="best-move-box"
+                        :class="box.isBlack ? 'is-black' : 'is-red'"
+                      >{{ box.boxId }}</span>
+                    </span>
+                  </div>
+                  <span v-else class="no-best-move">—</span>
+                </template>
+              </el-table-column>
+
               <el-table-column
                 label="Доп. баллы"
-                :width="isTablet ? 120 : 150"
+                :width="isTablet ? 120 : 130"
                 align="center"
               >
                 <template #default="{ row }">
@@ -260,7 +332,7 @@
 
               <el-table-column
                 label="Штрафы"
-                :width="isTablet ? 120 : 150"
+                :width="isTablet ? 120 : 130"
                 align="center"
               >
                 <template #default="{ row }">
@@ -280,7 +352,7 @@
 
               <el-table-column
                 label="Комментарий"
-                :min-width="isTablet ? 160 : 250"
+                :min-width="isTablet ? 160 : 190"
                 class-name="comment-column"
               >
                 <template #default="{ row }">
@@ -346,6 +418,44 @@ const sortedPlayers = computed(() => {
 })
 
 const hasChanges = computed(() => changedPlayers.value.size > 0)
+
+// ПУ (застреленный первой ночью) и его лучший ход сервер отдаёт на уровне
+// игры, null - первой ночью был промах. Сервер до backend#189 поля не знает:
+// тогда нет ни отметки, ни колонки ЛХ
+const hasFirstKilledInfo = computed(() => gameData.value?.first_killed !== undefined)
+
+const isFirstKilled = (row) => gameData.value?.first_killed?.box_id === row.box_id
+
+// Баллы за ЛХ (система правил, допы, множитель этапа) считает сервер, здесь
+// только подписи к ним. Цвет названных боксов - по ролям из того же протокола
+const bestMove = computed(() => {
+  const firstKilled = gameData.value?.first_killed
+  if (!firstKilled) return null
+
+  const players = gameData.value.players || []
+  const player = players.find(p => p.box_id === firstKilled.box_id)
+  const points = player?.best_move_points || 0
+  const roleByBox = new Map(players.map(p => [p.box_id, p.role]))
+  const boxes = firstKilled.best_move_box_ids
+  // Почему ЛХ без баллов, если это видно и без системы правил. Мафия застрелила
+  // своего - чёрному ПУ ЛХ не положен, сколько бы чёрных он ни назвал
+  let note = null
+  if (firstKilled.is_black) {
+    note = 'не положен'
+  } else if (!boxes) {
+    note = 'не заявлен'
+  }
+
+  return {
+    points,
+    // Отрицательным ЛХ не бывает, а ноль с плюсом читался бы как начисление
+    pointsText: points > 0 ? formatScore(points) : '0',
+    note,
+    boxes: boxes
+      ? boxes.map(boxId => ({ boxId, isBlack: isBlackRole(roleByBox.get(boxId)) }))
+      : null
+  }
+})
 
 // Завершённая игра уводит сюда через replace, поэтому «Назад» браузера ведёт
 // к мероприятию - но искать выход в браузере судья не обязан
@@ -552,6 +662,77 @@ onMounted(() => {
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+}
+
+.player-name-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+
+.best-move-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.4;
+}
+
+.best-move-note {
+  font-size: 12px;
+  color: #909399;
+}
+
+.no-best-move {
+  color: #c0c4cc;
+}
+
+/* ЛХ под ником на планшете и в карточке на телефоне. Не хватает места -
+   номера боксов целиком уходят на следующую строку */
+.best-move-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #606266;
+}
+
+.best-move-label {
+  font-weight: 600;
+  color: #909399;
+}
+
+.best-move-boxes {
+  display: inline-flex;
+  gap: 4px;
+}
+
+/* Кого назвал ПУ: номер бокса в цвете команды - те же красный и чёрный,
+   что у бейджа роли на плашке эфира (RoleBadge) */
+.best-move-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: #fff;
+}
+
+.best-move-box.is-red {
+  background-color: #c62828;
+}
+
+.best-move-box.is-black {
+  background-color: #17181a;
 }
 
 .points-input {
