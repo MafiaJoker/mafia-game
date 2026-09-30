@@ -1,271 +1,271 @@
-// Тесты для страницы управления событиями
+// Список мероприятий: страницы, поиск и фильтры применяет сервер - экран через стор
+// передаёт их в запрос и рисует ответ как есть. Строка ведёт на страницу мероприятия,
+// правка и удаление - прямо из списка, на телефоне вместо таблицы карточки
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { ElDialog, ElMessage, ElMessageBox, ElTable } from 'element-plus'
+import { Delete, Edit, View } from '@element-plus/icons-vue'
 import EventsView from '@/views/EventsView.vue'
-import { mountComponent, createMockApiService, mockData, flushPromises } from '../utils.js'
+import PaginationFilter from '@/components/common/PaginationFilter.vue'
+import CreateEventForm from '@/components/events/CreateEventForm.vue'
+import EditEventDialog from '@/components/events/EditEventDialog.vue'
+import { apiService } from '@/services/api'
 
-// Мокаем API сервис
+const router = vi.hoisted(() => ({ push: vi.fn() }))
+
 vi.mock('@/services/api', () => ({
-  apiService: createMockApiService()
+  apiService: {
+    getEvents: vi.fn(),
+    getEventTypes: vi.fn(),
+    deleteEvent: vi.fn()
+  },
+  initApiUrl: vi.fn()
 }))
 
-describe('EventsView', () => {
-  let wrapper
-  let mockApi
+vi.mock('vue-router', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useRouter: () => router
+}))
 
+const DESKTOP_WIDTH = 1280
+const MOBILE_WIDTH = 375
+
+const setViewport = (width) => {
+  window.innerWidth = width
+}
+
+const TOURNAMENT = { id: 'type-1', label: 'Турнир', rule_system: { slug: 'fiim', label: 'ФИИМ' } }
+const GAME_NIGHT = { id: 'type-2', label: 'Игровой вечер', rule_system: { slug: 'fiim', label: 'ФИИМ' } }
+
+// Мероприятие в списке как у сервера: статуса и числа игр в нём нет. Дата
+// приходит без времени, и экран читает её как полночь UTC: западнее UTC он
+// покажет день раньше, поэтому проверки даты рассчитаны на пояс клуба
+const CUP = { id: 'event-1', label: 'Кубок осени', language: 'rus', start_date: '2026-09-15', event_type: TOURNAMENT }
+const FRIDAY = { id: 'event-2', label: 'Пятничная мафия', language: 'rus', start_date: '2026-09-25', event_type: GAME_NIGHT }
+
+// Страница списка от сервера: элементы и общее число
+const page = (items, total = items.length) => ({ items, total })
+
+// Так PaginationFilter сообщает о фильтрах, пока их не трогали
+const NO_FILTERS = { search: '', status: '', type: '', dateRange: null, page: 1, pageSize: 20 }
+
+// Фильтр, форма и окно правки проверяются по тому, что экран им передал и что
+// от них получил. Настоящие селекты и календари фильтра стоили бы ~¼ с на тест
+const mountView = async () => {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  const wrapper = mount(EventsView, {
+    global: {
+      plugins: [pinia],
+      stubs: { PaginationFilter: true, CreateEventForm: true, EditEventDialog: true }
+    }
+  })
+  await flushPromises()
+  return wrapper
+}
+
+const bodyRows = (wrapper) => wrapper.findAll('.el-table__body tr')
+
+const button = (node, label) => node.findAll('button').find((btn) => btn.text() === label)
+
+// В строке таблицы у кнопок нет подписей - их различает только иконка
+const iconButton = (node, icon) => node.findAll('button').find((btn) => btn.findComponent(icon).exists())
+
+const dialog = (wrapper, title) => wrapper.findAllComponents(ElDialog)
+  .find((item) => item.props('title') === title)
+
+const changeFilters = async (wrapper, filters) => {
+  wrapper.findComponent(PaginationFilter).vm.$emit('filter-change', { ...NO_FILTERS, ...filters })
+  await flushPromises()
+}
+
+// Обёртки прошлых тестов не должны жить дальше: ширина экрана у всех общая,
+// и её смена перерисовывала бы каждую, растягивая тест на секунды
+enableAutoUnmount(afterEach)
+
+describe('EventsView', () => {
   beforeEach(() => {
-    mockApi = createMockApiService()
     vi.clearAllMocks()
+    setViewport(DESKTOP_WIDTH)
+    apiService.getEvents.mockResolvedValue(page([CUP, FRIDAY]))
+    apiService.getEventTypes.mockResolvedValue(page([TOURNAMENT, GAME_NIGHT]))
+    apiService.deleteEvent.mockResolvedValue(undefined)
+    vi.spyOn(ElMessage, 'success').mockImplementation(() => {})
+    vi.spyOn(ElMessage, 'error').mockImplementation(() => {})
   })
 
   afterEach(() => {
-    if (wrapper) {
-      wrapper.unmount()
-    }
+    vi.restoreAllMocks()
+    setViewport(DESKTOP_WIDTH)
   })
 
-  describe('Отображение компонента', () => {
-    it('должен отобразиться корректно', async () => {
-      wrapper = mountComponent(EventsView)
-      await flushPromises()
+  it('при открытии просит первую страницу по 20 без пустых фильтров и отдаёт типы в фильтр', async () => {
+    const wrapper = await mountView()
 
-      expect(wrapper.find('.events-view').exists()).toBe(true)
-    })
-
-    it('должен показать заголовок страницы', async () => {
-      wrapper = mountComponent(EventsView)
-      await flushPromises()
-
-      const title = wrapper.find('h1')
-      expect(title.exists()).toBe(true)
-      expect(title.text()).toContain('Мероприятия')
-    })
+    expect(apiService.getEvents).toHaveBeenCalledTimes(1)
+    expect(apiService.getEvents).toHaveBeenCalledWith({ pageSize: 20, currentPage: 1 })
+    expect(wrapper.findComponent(PaginationFilter).props('typeOptions')).toEqual([
+      { value: 'type-1', label: 'Турнир' },
+      { value: 'type-2', label: 'Игровой вечер' }
+    ])
   })
 
-  describe('Загрузка событий', () => {
-    it('должен загрузить список событий при монтировании', async () => {
-      const mockGetEvents = vi.fn().mockResolvedValue(mockData.events)
-      
-      wrapper = mountComponent(EventsView, {
-        global: {
-          mocks: {
-            $api: { getEvents: mockGetEvents }
-          }
-        }
-      })
+  it('рисует мероприятия из ответа: название, тип с системой правил и дату', async () => {
+    const wrapper = await mountView()
 
-      await flushPromises()
-      expect(mockGetEvents).toHaveBeenCalled()
-    })
-
-    it('должен показать индикатор загрузки', async () => {
-      const mockGetEvents = vi.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve([]), 100))
-      )
-      
-      wrapper = mountComponent(EventsView, {
-        global: {
-          mocks: {
-            $api: { getEvents: mockGetEvents }
-          }
-        }
-      })
-
-      // Проверяем наличие индикатора загрузки
-      expect(wrapper.find('[data-testid="loading"]').exists()).toBe(true)
-      
-      await flushPromises()
-    })
-
-    it('должен отобразить события после загрузки', async () => {
-      const mockGetEvents = vi.fn().mockResolvedValue(mockData.events)
-      
-      wrapper = mountComponent(EventsView, {
-        global: {
-          mocks: {
-            $api: { getEvents: mockGetEvents }
-          }
-        }
-      })
-
-      await flushPromises()
-
-      // Проверяем, что события отображаются
-      const eventItems = wrapper.findAll('[data-testid="event-item"]')
-      expect(eventItems).toHaveLength(mockData.events.length)
-    })
+    const rows = bodyRows(wrapper)
+    expect(rows).toHaveLength(2)
+    expect(rows[0].text()).toContain('Кубок осени')
+    expect(rows[0].text()).toContain('Турнир')
+    expect(rows[0].text()).toContain('ФИИМ')
+    expect(rows[0].text()).toContain('15.09.2026')
+    expect(rows[1].text()).toContain('Пятничная мафия')
+    expect(rows[1].text()).toContain('Игровой вечер')
   })
 
-  describe('Фильтрация событий', () => {
-    beforeEach(async () => {
-      const mockGetEvents = vi.fn().mockResolvedValue(mockData.events)
-      
-      wrapper = mountComponent(EventsView, {
-        global: {
-          mocks: {
-            $api: { getEvents: mockGetEvents }
-          }
-        }
-      })
+  it('клик по строке и кнопка просмотра открывают страницу мероприятия', async () => {
+    const wrapper = await mountView()
 
-      await flushPromises()
-    })
+    await bodyRows(wrapper)[1].trigger('click')
+    expect(router.push).toHaveBeenLastCalledWith('/event/event-2')
 
-    it('должен фильтровать события по названию', async () => {
-      const searchInput = wrapper.find('[data-testid="search-input"]')
-      expect(searchInput.exists()).toBe(true)
-
-      await searchInput.setValue('Мероприятие 1')
-      await flushPromises()
-
-      const visibleEvents = wrapper.findAll('[data-testid="event-item"]:not(.hidden)')
-      expect(visibleEvents).toHaveLength(1)
-    })
-
-    it('должен фильтровать события по статусу', async () => {
-      const statusFilter = wrapper.find('[data-testid="status-filter"]')
-      
-      if (statusFilter.exists()) {
-        await statusFilter.setValue('active')
-        await flushPromises()
-
-        const activeEvents = wrapper.findAll('[data-testid="event-item"].active')
-        expect(activeEvents.length).toBeGreaterThan(0)
-      }
-    })
+    await iconButton(bodyRows(wrapper)[0], View).trigger('click')
+    expect(router.push).toHaveBeenLastCalledWith('/event/event-1')
+    // кнопка гасит клик по своей строке: переход один, а не два
+    expect(router.push).toHaveBeenCalledTimes(2)
   })
 
-  describe('Создание нового события', () => {
-    it('должен показать кнопку создания события', async () => {
-      wrapper = mountComponent(EventsView)
-      await flushPromises()
+  it('поиск и фильтры уходят в запрос, а список показывает ответ сервера как есть', async () => {
+    const wrapper = await mountView()
+    apiService.getEvents.mockResolvedValue(page([CUP]))
 
-      const createButton = wrapper.find('[data-testid="create-event-btn"]')
-      expect(createButton.exists()).toBe(true)
-      expect(createButton.text()).toContain('Создать')
+    await changeFilters(wrapper, {
+      search: 'Кубок',
+      status: 'active',
+      type: 'type-1',
+      dateRange: ['2026-09-01', '2026-09-30']
     })
 
-    it('должен открыть диалог создания при клике на кнопку', async () => {
-      wrapper = mountComponent(EventsView)
-      await flushPromises()
-
-      const createButton = wrapper.find('[data-testid="create-event-btn"]')
-      await createButton.trigger('click')
-      await flushPromises()
-
-      // Проверяем открытие диалога/формы создания
-      const dialog = wrapper.find('[data-testid="create-event-dialog"]')
-      expect(dialog.exists() || wrapper.vm.showCreateDialog).toBe(true)
+    expect(apiService.getEvents).toHaveBeenLastCalledWith({
+      pageSize: 20,
+      currentPage: 1,
+      searchString: 'Кубок',
+      status: 'active',
+      event_type_id: 'type-1',
+      start_date_from: '2026-09-01',
+      start_date_to: '2026-09-30'
     })
+    const rows = bodyRows(wrapper)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].text()).toContain('Кубок осени')
   })
 
-  describe('Действия с событиями', () => {
-    beforeEach(async () => {
-      const mockGetEvents = vi.fn().mockResolvedValue(mockData.events)
-      
-      wrapper = mountComponent(EventsView, {
-        global: {
-          mocks: {
-            $api: { getEvents: mockGetEvents }
-          }
-        }
-      })
+  it('пагинация: сколько всего - знает сервер, страница и её размер уходят в запрос', async () => {
+    apiService.getEvents.mockResolvedValue(page([CUP, FRIDAY], 45))
+    const wrapper = await mountView()
 
-      await flushPromises()
-    })
+    // в ответе две строки, но мероприятий 45 - страницы считаются по серверу
+    expect(wrapper.findComponent(PaginationFilter).props('totalItems')).toBe(45)
 
-    it('должен перейти к странице события при клике', async () => {
-      const eventItem = wrapper.find('[data-testid="event-item"]')
-      expect(eventItem.exists()).toBe(true)
+    await changeFilters(wrapper, { page: 3 })
+    expect(apiService.getEvents).toHaveBeenLastCalledWith({ pageSize: 20, currentPage: 3 })
 
-      await eventItem.trigger('click')
-      await flushPromises()
-
-      // Проверяем навигацию (в зависимости от реализации)
-      expect(wrapper.vm.$router.push).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: 'event',
-          params: { id: expect.any(Number) }
-        })
-      )
-    })
-
-    it('должен показать меню действий для события', async () => {
-      const actionButton = wrapper.find('[data-testid="event-actions"]')
-      
-      if (actionButton.exists()) {
-        await actionButton.trigger('click')
-        await flushPromises()
-
-        const menu = wrapper.find('[data-testid="actions-menu"]')
-        expect(menu.exists()).toBe(true)
-      }
-    })
+    await changeFilters(wrapper, { pageSize: 50 })
+    expect(apiService.getEvents).toHaveBeenLastCalledWith({ pageSize: 50, currentPage: 1 })
   })
 
-  describe('Обработка ошибок', () => {
-    it('должен показать ошибку при неудачной загрузке событий', async () => {
-      const mockGetEvents = vi.fn().mockRejectedValue(new Error('API Error'))
-      
-      wrapper = mountComponent(EventsView, {
-        global: {
-          mocks: {
-            $api: { getEvents: mockGetEvents }
-          }
-        }
-      })
+  it('«Создать мероприятие» открывает форму, а созданное закрывает её и обновляет список', async () => {
+    const wrapper = await mountView()
 
-      await flushPromises()
+    await button(wrapper, 'Создать мероприятие').trigger('click')
+    await flushPromises()
+    expect(dialog(wrapper, 'Создать мероприятие').props('modelValue')).toBe(true)
 
-      // Проверяем отображение ошибки
-      const errorMessage = wrapper.find('[data-testid="error-message"]')
-      expect(errorMessage.exists() || wrapper.vm.error).toBeTruthy()
-    })
+    apiService.getEvents.mockClear()
+    wrapper.findComponent(CreateEventForm).vm.$emit('event-created', { id: 'event-3' })
+    await flushPromises()
 
-    it('должен предложить повторить попытку при ошибке', async () => {
-      const mockGetEvents = vi.fn().mockRejectedValue(new Error('API Error'))
-      
-      wrapper = mountComponent(EventsView, {
-        global: {
-          mocks: {
-            $api: { getEvents: mockGetEvents }
-          }
-        }
-      })
-
-      await flushPromises()
-
-      const retryButton = wrapper.find('[data-testid="retry-button"]')
-      if (retryButton.exists()) {
-        await retryButton.trigger('click')
-        expect(mockGetEvents).toHaveBeenCalledTimes(2)
-      }
-    })
+    expect(dialog(wrapper, 'Создать мероприятие').props('modelValue')).toBe(false)
+    expect(apiService.getEvents).toHaveBeenCalledTimes(1)
   })
 
-  describe('Пагинация', () => {
-    it('должен показать пагинацию при большом количестве событий', async () => {
-      const manyEvents = Array.from({ length: 50 }, (_, i) => ({
-        id: i + 1,
-        label: `Мероприятие ${i + 1}`,
-        start_date: '2024-01-15',
-        status: 'active'
-      }))
+  it('правка открывает окно с этим мероприятием, не уходя со списка, а сохранение обновляет список', async () => {
+    const wrapper = await mountView()
 
-      const mockGetEvents = vi.fn().mockResolvedValue(manyEvents)
-      
-      wrapper = mountComponent(EventsView, {
-        global: {
-          mocks: {
-            $api: { getEvents: mockGetEvents }
-          }
-        }
-      })
+    await iconButton(bodyRows(wrapper)[1], Edit).trigger('click')
+    await flushPromises()
 
-      await flushPromises()
+    const editDialog = wrapper.findComponent(EditEventDialog)
+    expect(editDialog.props('visible')).toBe(true)
+    expect(editDialog.props('event')).toMatchObject({ id: 'event-2', label: 'Пятничная мафия' })
+    expect(router.push).not.toHaveBeenCalled()
 
-      const pagination = wrapper.find('[data-testid="pagination"]')
-      expect(pagination.exists()).toBe(true)
-    })
+    apiService.getEvents.mockClear()
+    editDialog.vm.$emit('event-updated', { ...FRIDAY, label: 'Пятничная мафия #2' })
+    await flushPromises()
+
+    expect(editDialog.props('visible')).toBe(false)
+    expect(apiService.getEvents).toHaveBeenCalledTimes(1)
+  })
+
+  it('удаляет только после подтверждения и затем перечитывает список', async () => {
+    const confirm = vi.spyOn(ElMessageBox, 'confirm').mockRejectedValueOnce('cancel')
+    const wrapper = await mountView()
+
+    await iconButton(bodyRows(wrapper)[0], Delete).trigger('click')
+    await flushPromises()
+
+    expect(confirm).toHaveBeenCalledWith(
+      expect.stringContaining('Кубок осени'), 'Подтверждение', expect.any(Object)
+    )
+    // отказ - не ошибка: ничего не удалено и ругаться не на что
+    expect(apiService.deleteEvent).not.toHaveBeenCalled()
+    expect(ElMessage.error).not.toHaveBeenCalled()
+    expect(router.push).not.toHaveBeenCalled()
+
+    confirm.mockResolvedValueOnce('confirm')
+    apiService.getEvents.mockResolvedValue(page([FRIDAY]))
+    await iconButton(bodyRows(wrapper)[0], Delete).trigger('click')
+    await flushPromises()
+
+    expect(apiService.deleteEvent).toHaveBeenCalledWith('event-1')
+    expect(ElMessage.success).toHaveBeenCalledWith('Мероприятие удалено')
+    const rows = bodyRows(wrapper)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].text()).toContain('Пятничная мафия')
+  })
+
+  it('сбой загрузки не выдаёт прежний список за результат нового поиска', async () => {
+    const wrapper = await mountView()
+    apiService.getEvents.mockRejectedValue(new Error('Network Error'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await changeFilters(wrapper, { search: 'Кубок' })
+
+    expect(bodyRows(wrapper)).toHaveLength(0)
+    expect(wrapper.findComponent(PaginationFilter).props('totalItems')).toBe(0)
+  })
+
+  it('на телефоне вместо таблицы карточки: карточка ведёт на мероприятие, «Изменить» - в правку', async () => {
+    setViewport(MOBILE_WIDTH)
+    const wrapper = await mountView()
+
+    expect(wrapper.findComponent(ElTable).exists()).toBe(false)
+    const cards = wrapper.findAll('.event-card')
+    expect(cards).toHaveLength(2)
+    expect(cards[0].text()).toContain('Кубок осени')
+    expect(cards[0].text()).toContain('Турнир')
+    expect(cards[0].text()).toContain('15.09.2026')
+
+    await cards[1].trigger('click')
+    expect(router.push).toHaveBeenCalledWith('/event/event-2')
+
+    router.push.mockClear()
+    await button(cards[0], 'Изменить').trigger('click')
+    await flushPromises()
+    expect(wrapper.findComponent(EditEventDialog).props()).toMatchObject({ visible: true, event: { id: 'event-1' } })
+    expect(router.push).not.toHaveBeenCalled()
   })
 })

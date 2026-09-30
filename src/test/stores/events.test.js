@@ -1,326 +1,222 @@
-// Тесты для store управления событиями
+// Стор мероприятий держит страницу списка такой, какой её отдал сервер: ответ
+// любой из известных форм разворачивается, сбой загрузки не оставляет старую
+// страницу, а неудачное удаление отвечает false вместо исключения
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useEventsStore } from '@/stores/events'
-import { createMockApiService, mockData } from '../utils.js'
+import { apiService } from '@/services/api.js'
 
-// Мокаем API сервис
-vi.mock('@/services/api', () => ({
-  apiService: createMockApiService()
+vi.mock('@/services/api.js', () => ({
+  apiService: {
+    getEvents: vi.fn(),
+    createEvent: vi.fn(),
+    updateEvent: vi.fn(),
+    deleteEvent: vi.fn(),
+    getEventTypes: vi.fn()
+  }
 }))
 
-describe('Events Store', () => {
-  let store
-  let mockApi
+const cup = { id: 'ev-1', label: 'Кубок осени' }
+const league = { id: 'ev-2', label: 'Лига четверга' }
 
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    store = useEventsStore()
-    mockApi = createMockApiService({
-      getEvents: vi.fn().mockResolvedValue(mockData.events),
-      getEvent: vi.fn().mockResolvedValue(mockData.event),
-      createEvent: vi.fn().mockResolvedValue({ id: 3, ...mockData.event }),
-      updateEvent: vi.fn().mockResolvedValue(mockData.event),
-      deleteEvent: vi.fn().mockResolvedValue({})
-    })
-    vi.clearAllMocks()
-  })
+const serverTypes = [{ id: 'type-1', label: 'Рейтинговая игра' }]
 
-  describe('Инициализация', () => {
-    it('должен иметь корректное начальное состояние', () => {
-      expect(store.events).toEqual([])
-      expect(store.currentEvent).toBeNull()
-      expect(store.loading).toBe(false)
-      expect(store.error).toBeNull()
-    })
-  })
+// Типы, которые стор подставляет, когда сервер своих не отдал
+const FALLBACK_TYPES = [
+  { id: 'tournament', label: 'Турнир' },
+  { id: 'training', label: 'Тренировка' },
+  { id: 'special', label: 'Специальное' }
+]
 
-  describe('Загрузка событий', () => {
-    it('должен загрузить все события', async () => {
-      store.$api = mockApi
+let store
 
-      await store.fetchEvents()
+// Стор пишет в консоль каждую загрузку и каждую ошибку: в выводе тестов это шум
+beforeAll(() => {
+  for (const level of ['log', 'warn', 'error']) {
+    vi.spyOn(console, level).mockImplementation(() => {})
+  }
+})
 
-      expect(mockApi.getEvents).toHaveBeenCalled()
-      expect(store.events).toEqual(mockData.events)
-      expect(store.loading).toBe(false)
-      expect(store.error).toBeNull()
-    })
+beforeEach(() => {
+  vi.clearAllMocks()
+  setActivePinia(createPinia())
+  store = useEventsStore()
+  apiService.getEvents.mockResolvedValue({ items: [], total: 0 })
+})
 
-    it('должен установить состояние loading при загрузке', async () => {
-      store.$api = mockApi
-      
-      // Создаем промис, который можем контролировать
-      let resolvePromise
-      const controlledPromise = new Promise(resolve => {
-        resolvePromise = resolve
-      })
-      mockApi.getEvents = vi.fn().mockReturnValue(controlledPromise)
+describe('useEventsStore: загрузка страницы мероприятий', () => {
+  it('шлёт страницу, размер и все фильтры, обрезая пробелы в поиске', async () => {
+    await store.loadEvents(2, 50, '  Кубок  ', 'active', 'type-1', ['2026-09-01', '2026-09-30'])
 
-      const fetchPromise = store.fetchEvents()
-      
-      // Проверяем состояние loading
-      expect(store.loading).toBe(true)
-
-      resolvePromise(mockData.events)
-      await fetchPromise
-
-      expect(store.loading).toBe(false)
-    })
-
-    it('должен обработать ошибку при загрузке событий', async () => {
-      const error = new Error('API Error')
-      mockApi.getEvents = vi.fn().mockRejectedValue(error)
-      store.$api = mockApi
-
-      await store.fetchEvents()
-
-      expect(store.error).toBe(error.message)
-      expect(store.loading).toBe(false)
-      expect(store.events).toEqual([])
+    expect(apiService.getEvents).toHaveBeenCalledWith({
+      pageSize: 50,
+      currentPage: 2,
+      searchString: 'Кубок',
+      status: 'active',
+      event_type_id: 'type-1',
+      start_date_from: '2026-09-01',
+      start_date_to: '2026-09-30'
     })
   })
 
-  describe('Загрузка отдельного события', () => {
-    it('должен загрузить событие по ID', async () => {
-      store.$api = mockApi
+  it('пустые фильтры не шлёт: уходят только страница и размер', async () => {
+    await store.loadEvents()
+    // Поиск из одних пробелов и диапазон без второй даты — тоже пустые
+    await store.loadEvents(1, 20, '   ', '', '', ['2026-09-01'])
 
-      await store.fetchEvent(1)
-
-      expect(mockApi.getEvent).toHaveBeenCalledWith(1)
-      expect(store.currentEvent).toEqual(mockData.event)
-    })
-
-    it('должен обработать ошибку при загрузке события', async () => {
-      const error = new Error('Event not found')
-      mockApi.getEvent = vi.fn().mockRejectedValue(error)
-      store.$api = mockApi
-
-      await store.fetchEvent(999)
-
-      expect(store.error).toBe(error.message)
-      expect(store.currentEvent).toBeNull()
-    })
+    expect(apiService.getEvents.mock.calls).toEqual([
+      [{ pageSize: 20, currentPage: 1 }],
+      [{ pageSize: 20, currentPage: 1 }]
+    ])
   })
 
-  describe('Создание события', () => {
-    it('должен создать новое событие', async () => {
-      store.$api = mockApi
-      const newEventData = {
-        label: 'Новое мероприятие',
-        description: 'Описание',
-        start_date: '2024-02-01'
-      }
+  it.each([
+    ['{ items, total }', { items: [cup, league], total: 42 }, 42],
+    ['{ data, total }', { data: [cup, league], total: 42 }, 42],
+    ['{ events } без total', { events: [cup, league] }, 2]
+  ])('ответ %s разворачивает в список и счётчик', async (shape, answer, total) => {
+    apiService.getEvents.mockResolvedValue(answer)
 
-      const result = await store.createEvent(newEventData)
+    await store.loadEvents()
 
-      expect(mockApi.createEvent).toHaveBeenCalledWith(newEventData)
-      expect(result).toEqual({ id: 3, ...mockData.event })
-    })
-
-    it('должен добавить созданное событие в список', async () => {
-      store.events = [...mockData.events] // Инициализируем текущие события
-      store.$api = mockApi
-
-      const newEventData = { label: 'Новое мероприятие' }
-      await store.createEvent(newEventData)
-
-      expect(store.events).toHaveLength(3)
-      expect(store.events[2].id).toBe(3)
-    })
-
-    it('должен обработать ошибку при создании события', async () => {
-      const error = new Error('Validation Error')
-      mockApi.createEvent = vi.fn().mockRejectedValue(error)
-      store.$api = mockApi
-
-      await expect(store.createEvent({})).rejects.toThrow('Validation Error')
-      expect(store.error).toBe(error.message)
-    })
+    expect(store.events).toEqual([cup, league])
+    expect(store.serverTotalEvents).toBe(total)
   })
 
-  describe('Обновление события', () => {
-    beforeEach(() => {
-      store.events = [...mockData.events]
-    })
+  it('голый массив кладёт в список как есть', async () => {
+    apiService.getEvents.mockResolvedValue([cup, league])
 
-    it('должен обновить событие', async () => {
-      store.$api = mockApi
-      const updatedData = {
-        label: 'Обновленное название',
-        description: 'Новое описание'
-      }
+    await store.loadEvents()
 
-      const result = await store.updateEvent(1, updatedData)
-
-      expect(mockApi.updateEvent).toHaveBeenCalledWith(1, updatedData)
-      expect(result).toEqual(mockData.event)
-    })
-
-    it('должен обновить событие в списке', async () => {
-      store.$api = mockApi
-      const updatedData = { label: 'Обновленное название' }
-
-      await store.updateEvent(1, updatedData)
-
-      const updatedEvent = store.events.find(event => event.id === 1)
-      expect(updatedEvent.label).toBe('Обновленное название')
-    })
-
-    it('должен обновить currentEvent если оно обновляется', async () => {
-      store.currentEvent = { ...mockData.event }
-      store.$api = mockApi
-      
-      const updatedData = { label: 'Обновленное название' }
-      await store.updateEvent(1, updatedData)
-
-      expect(store.currentEvent.label).toBe('Обновленное название')
-    })
-
-    it('должен обработать ошибку при обновлении события', async () => {
-      const error = new Error('Update Error')
-      mockApi.updateEvent = vi.fn().mockRejectedValue(error)
-      store.$api = mockApi
-
-      await expect(store.updateEvent(1, {})).rejects.toThrow('Update Error')
-      expect(store.error).toBe(error.message)
-    })
+    expect(store.events).toEqual([cup, league])
   })
 
-  describe('Удаление события', () => {
-    beforeEach(() => {
-      store.events = [...mockData.events]
-    })
+  it('непонятный ответ очищает список и счётчик, а не оставляет прошлую страницу', async () => {
+    apiService.getEvents.mockResolvedValueOnce({ items: [cup], total: 21 })
+    await store.loadEvents()
 
-    it('должен удалить событие', async () => {
-      store.$api = mockApi
+    apiService.getEvents.mockResolvedValueOnce({ results: [league] })
+    await store.loadEvents(2)
 
-      await store.deleteEvent(1)
-
-      expect(mockApi.deleteEvent).toHaveBeenCalledWith(1)
-    })
-
-    it('должен удалить событие из списка', async () => {
-      store.$api = mockApi
-      const initialCount = store.events.length
-
-      await store.deleteEvent(1)
-
-      expect(store.events).toHaveLength(initialCount - 1)
-      expect(store.events.find(event => event.id === 1)).toBeUndefined()
-    })
-
-    it('должен очистить currentEvent если оно удаляется', async () => {
-      store.currentEvent = { ...mockData.event }
-      store.$api = mockApi
-
-      await store.deleteEvent(1)
-
-      expect(store.currentEvent).toBeNull()
-    })
-
-    it('должен обработать ошибку при удалении события', async () => {
-      const error = new Error('Delete Error')
-      mockApi.deleteEvent = vi.fn().mockRejectedValue(error)
-      store.$api = mockApi
-
-      await expect(store.deleteEvent(1)).rejects.toThrow('Delete Error')
-      expect(store.error).toBe(error.message)
-    })
+    expect(store.events).toEqual([])
+    expect(store.serverTotalEvents).toBe(0)
   })
 
-  describe('Геттеры', () => {
-    beforeEach(() => {
-      store.events = [...mockData.events]
-    })
+  // Так отвечает фронт, если адрес API смотрит не на бекенд
+  it('HTML-страница вместо JSON не попадает в список', async () => {
+    apiService.getEvents.mockResolvedValueOnce({ items: [cup], total: 1 })
+    await store.loadEvents()
 
-    it('должен фильтровать активные события', () => {
-      const activeEvents = store.activeEvents
-      expect(activeEvents).toHaveLength(1)
-      expect(activeEvents[0].status).toBe('active')
-    })
+    apiService.getEvents.mockResolvedValueOnce('<!DOCTYPE html><html><body></body></html>')
+    await store.loadEvents()
 
-    it('должен фильтровать завершенные события', () => {
-      const completedEvents = store.completedEvents
-      expect(completedEvents).toHaveLength(1)
-      expect(completedEvents[0].status).toBe('completed')
-    })
-
-    it('должен сортировать события по дате', () => {
-      const sortedEvents = store.eventsByDate
-      expect(sortedEvents[0].start_date).toBe('2024-01-15')
-      expect(sortedEvents[1].start_date).toBe('2024-01-20')
-    })
-
-    it('должен найти событие по ID', () => {
-      const event = store.getEventById(1)
-      expect(event).toEqual(mockData.events[0])
-    })
-
-    it('должен вернуть null для несуществующего ID', () => {
-      const event = store.getEventById(999)
-      expect(event).toBeNull()
-    })
+    expect(store.events).toEqual([])
+    expect(store.loading).toBe(false)
   })
 
-  describe('Поиск и фильтрация', () => {
-    beforeEach(() => {
-      store.events = [
-        { id: 1, label: 'Турнир по мафии', status: 'active', start_date: '2024-01-15' },
-        { id: 2, label: 'Чемпионат города', status: 'completed', start_date: '2024-01-20' },
-        { id: 3, label: 'Кубок новичков', status: 'active', start_date: '2024-01-25' }
-      ]
-    })
+  it('держит loading, пока сервер отвечает', async () => {
+    let answer
+    apiService.getEvents.mockReturnValue(new Promise(resolve => { answer = resolve }))
 
-    it('должен искать события по названию', () => {
-      const results = store.searchEvents('турнир')
-      expect(results).toHaveLength(1)
-      expect(results[0].label).toContain('Турнир')
-    })
+    const loading = store.loadEvents()
+    expect(store.loading).toBe(true)
 
-    it('должен искать события без учета регистра', () => {
-      const results = store.searchEvents('ТУРНИР')
-      expect(results).toHaveLength(1)
-    })
+    answer({ items: [cup], total: 1 })
+    await loading
 
-    it('должен фильтровать по статусу', () => {
-      const activeEvents = store.filterEventsByStatus('active')
-      expect(activeEvents).toHaveLength(2)
-      expect(activeEvents.every(event => event.status === 'active')).toBe(true)
-    })
-
-    it('должен фильтровать по диапазону дат', () => {
-      const eventsInRange = store.filterEventsByDateRange('2024-01-15', '2024-01-20')
-      expect(eventsInRange).toHaveLength(2)
-    })
+    expect(store.loading).toBe(false)
   })
 
-  describe('Очистка состояния', () => {
-    it('должен очистить ошибки', () => {
-      store.error = 'Test error'
-      store.clearError()
-      expect(store.error).toBeNull()
-    })
+  it('ошибка загрузки очищает список и счётчик и уходит вызывающему', async () => {
+    apiService.getEvents.mockResolvedValueOnce({ items: [cup, league], total: 2 })
+    await store.loadEvents()
 
-    it('должен сбросить состояние', () => {
-      store.events = [...mockData.events]
-      store.currentEvent = mockData.event
-      store.error = 'Error'
-      store.loading = true
+    const failure = new Error('Network Error')
+    apiService.getEvents.mockRejectedValueOnce(failure)
 
-      store.reset()
+    await expect(store.loadEvents(2)).rejects.toBe(failure)
+    expect(store.events).toEqual([])
+    expect(store.serverTotalEvents).toBe(0)
+    expect(store.loading).toBe(false)
+  })
 
-      expect(store.events).toEqual([])
-      expect(store.currentEvent).toBeNull()
-      expect(store.error).toBeNull()
-      expect(store.loading).toBe(false)
-    })
+  it('getEventById ищет мероприятие на загруженной странице', async () => {
+    apiService.getEvents.mockResolvedValue({ items: [cup, league], total: 2 })
+    await store.loadEvents()
 
-    it('должен очистить текущее событие', () => {
-      store.currentEvent = mockData.event
-      store.clearCurrentEvent()
-      expect(store.currentEvent).toBeNull()
-    })
+    expect(store.getEventById('ev-2')).toEqual(league)
+    expect(store.getEventById('ev-404')).toBeUndefined()
+  })
+})
+
+describe('useEventsStore: создание, правка и удаление', () => {
+  it('createEvent создаёт мероприятие и перечитывает список с сервера', async () => {
+    apiService.createEvent.mockResolvedValue(cup)
+    apiService.getEvents.mockResolvedValue({ items: [cup, league], total: 2 })
+
+    await expect(store.createEvent({ label: 'Кубок осени' })).resolves.toEqual(cup)
+
+    expect(apiService.createEvent).toHaveBeenCalledWith({ label: 'Кубок осени' })
+    expect(apiService.getEvents).toHaveBeenCalledTimes(1)
+    expect(store.events).toEqual([cup, league])
+  })
+
+  // Стор ждёт мероприятие в ответе, а бек на PATCH /events/{id} отвечает 204
+  // без тела - тогда в список ляжет пустая строка
+  it('updateEvent заменяет мероприятие в списке ответом сервера', async () => {
+    store.events = [cup, league]
+    const renamed = { ...league, label: 'Лига пятницы' }
+    apiService.updateEvent.mockResolvedValue(renamed)
+
+    await expect(store.updateEvent('ev-2', { label: 'Лига пятницы' })).resolves.toEqual(renamed)
+
+    expect(apiService.updateEvent).toHaveBeenCalledWith('ev-2', { label: 'Лига пятницы' })
+    expect(store.events).toEqual([cup, renamed])
+  })
+
+  it('deleteEvent убирает мероприятие из списка и отвечает true', async () => {
+    store.events = [cup, league]
+    apiService.deleteEvent.mockResolvedValue(undefined)
+
+    await expect(store.deleteEvent('ev-1')).resolves.toBe(true)
+
+    expect(apiService.deleteEvent).toHaveBeenCalledWith('ev-1')
+    expect(store.events).toEqual([league])
+  })
+
+  it('deleteEvent при ошибке не бросает: отвечает false и оставляет список', async () => {
+    store.events = [cup, league]
+    apiService.deleteEvent.mockRejectedValue(new Error('Request failed with status code 409'))
+
+    await expect(store.deleteEvent('ev-1')).resolves.toBe(false)
+
+    expect(store.events).toEqual([cup, league])
+  })
+})
+
+describe('useEventsStore: типы мероприятий', () => {
+  it.each([
+    ['массивом', serverTypes],
+    ['в { items }', { items: serverTypes }],
+    ['в { data }', { data: serverTypes }]
+  ])('принимает типы сервера, пришедшие %s', async (shape, answer) => {
+    apiService.getEventTypes.mockResolvedValue(answer)
+
+    await store.loadEventTypes()
+
+    expect(store.eventTypes).toEqual(serverTypes)
+  })
+
+  // Фильтр по типу на экране мероприятий не должен остаться пустым
+  it.each([
+    ['непонятный ответ', async () => ({ results: serverTypes })],
+    ['ошибку сервера', async () => { throw new Error('Network Error') }]
+  ])('на %s подставляет три статичных типа, не бросая', async (reason, answer) => {
+    apiService.getEventTypes.mockImplementation(answer)
+
+    await store.loadEventTypes()
+
+    expect(store.eventTypes).toEqual(FALLBACK_TYPES)
   })
 })

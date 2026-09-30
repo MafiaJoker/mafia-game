@@ -1,435 +1,258 @@
-// Тесты для страницы управления пользователями
+// Список пользователей: страницы, поиск и роль отбирает сервер - экран собирает
+// из фильтров запрос и показывает ответ. Создание и правка идут через окна
+// и после ответа сервера перечитывают список
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { ElMessage, ElDialog, ElSelect } from 'element-plus'
 import UsersView from '@/views/UsersView.vue'
-import { mountComponent, createMockApiService, mockData, flushPromises } from '../utils.js'
+import UserEditCombinedDialog from '@/components/users/UserEditCombinedDialog.vue'
+import { useAuthStore } from '@/stores/auth'
+import { apiService } from '@/services/api'
 
-// Мокаем API сервис
 vi.mock('@/services/api', () => ({
-  apiService: createMockApiService()
+  apiService: {
+    getUsers: vi.fn(),
+    createUser: vi.fn(),
+    updateUser: vi.fn(),
+    getRoles: vi.fn()
+  },
+  initApiUrl: vi.fn()
 }))
 
-describe('UsersView', () => {
-  let wrapper
-  let mockApi
+vi.mock('@/router', () => ({ default: { push: vi.fn() } }))
 
+const DESKTOP_WIDTH = 1280
+const MOBILE_WIDTH = 375
+
+const baton = {
+  id: 'user-1',
+  nickname: 'Батон',
+  is_unregistered: false,
+  roles: ['player'],
+  avatars: [
+    { role: 'mafia', avatar_url: 'https://cdn/mafia.webp' },
+    { role: 'civilian', avatar_url: 'https://cdn/civilian.webp' }
+  ]
+}
+
+const yorsh = {
+  id: 'user-2',
+  nickname: 'Ёрш',
+  is_unregistered: false,
+  roles: ['player', 'game_master'],
+  avatars: []
+}
+
+// Ответ ручки списка: страница строк и сколько их всего на сервере
+const usersPage = (items, total = items.length) => ({ items, total })
+
+const mountView = async () => {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  const authStore = useAuthStore()
+  authStore.user = { id: 'admin-1', nickname: 'Админ', roles: ['admin'] }
+
+  const wrapper = mount(UsersView, { global: { plugins: [pinia] } })
+  await flushPromises()
+  return wrapper
+}
+
+const button = (wrapper, label) => wrapper.findAll('button')
+  .find(btn => btn.text() === label)
+
+const nicknames = (wrapper) => wrapper.findAll('.user-cell-nickname')
+  .map(cell => cell.text())
+
+const createDialog = (wrapper) => wrapper.findAllComponents(ElDialog)
+  .find(dialog => dialog.props('title') === 'Создать пользователя')
+
+const search = async (wrapper, text) => {
+  await wrapper.find('input[placeholder^="Поиск"]').setValue(text)
+  await button(wrapper, 'Найти').trigger('click')
+  await flushPromises()
+}
+
+const submitNewUser = async (wrapper, nickname) => {
+  await button(wrapper, 'Создать пользователя').trigger('click')
+  await flushPromises()
+  await wrapper.find('input[placeholder="Введите никнейм"]').setValue(nickname)
+  await button(wrapper, 'Создать').trigger('click')
+  await flushPromises()
+}
+
+// Кнопки в строке - иконки без подписи, правка среди них единственная синяя
+const openEdit = async (wrapper, rowIndex) => {
+  await wrapper.findAll('.el-table__row')[rowIndex].find('.el-button--primary').trigger('click')
+  await flushPromises()
+  return wrapper.findComponent(UserEditCombinedDialog)
+}
+
+// Обёртки прошлых тестов не должны жить дальше: ширина экрана у всех общая,
+// и её смена перерисовывала бы каждую, растягивая тест на секунды
+enableAutoUnmount(afterEach)
+
+describe('UsersView', () => {
   beforeEach(() => {
-    mockApi = createMockApiService({
-      getUsers: vi.fn().mockResolvedValue(mockData.users)
-    })
     vi.clearAllMocks()
+    window.innerWidth = DESKTOP_WIDTH
+    vi.spyOn(ElMessage, 'success').mockImplementation(() => {})
+    vi.spyOn(ElMessage, 'error').mockImplementation(() => {})
+    apiService.getUsers.mockResolvedValue(usersPage([baton, yorsh]))
+    apiService.getRoles.mockResolvedValue([])
   })
 
   afterEach(() => {
-    if (wrapper) {
-      wrapper.unmount()
-    }
+    window.innerWidth = DESKTOP_WIDTH
   })
 
-  describe('Отображение компонента', () => {
-    it('должен отобразиться корректно', async () => {
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
+  it('при открытии грузит с сервера первую страницу без фильтров', async () => {
+    apiService.getUsers.mockResolvedValue(usersPage([baton, yorsh], 57))
+    const wrapper = await mountView()
 
-      expect(wrapper.find('.users-view').exists()).toBe(true)
-    })
-
-    it('должен показать заголовок страницы', async () => {
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
-
-      const title = wrapper.find('h1')
-      expect(title.exists()).toBe(true)
-      expect(title.text()).toContain('Пользователи')
-    })
+    // Размер страницы не проверяем: первая загрузка берёт 100 строк, а
+    // пагинатор считает по 20 - это расхождение ещё предстоит поправить
+    expect(apiService.getUsers).toHaveBeenCalledTimes(1)
+    const [params] = apiService.getUsers.mock.calls[0]
+    expect(params.currentPage).toBe(1)
+    expect(params).not.toHaveProperty('nickname')
+    expect(params).not.toHaveProperty('role')
+    // Сколько всего пользователей, знает только сервер
+    expect(wrapper.text()).toContain('Найдено: 57 пользователей')
   })
 
-  describe('Загрузка пользователей', () => {
-    it('должен загрузить список пользователей при монтировании', async () => {
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
+  it('показывает ник и одну аватарку - в приоритете мирный житель, без картинок заглушку', async () => {
+    const wrapper = await mountView()
 
-      await flushPromises()
-      expect(mockApi.getUsers).toHaveBeenCalled()
+    expect(nicknames(wrapper)).toEqual(['Батон', 'Ёрш'])
+    const [withAvatars, withoutAvatars] = wrapper.findAll('.user-cell')
+    expect(withAvatars.find('img').attributes('src')).toBe('https://cdn/civilian.webp')
+    expect(withoutAvatars.find('img').exists()).toBe(false)
+    expect(withoutAvatars.find('.user-cell-avatar-empty').exists()).toBe(true)
+  })
+
+  it('поиск и роль уходят в запрос к серверу, а на экране его ответ', async () => {
+    const wrapper = await mountView()
+    apiService.getUsers.mockResolvedValue(usersPage([baton]))
+
+    await search(wrapper, '  Батон ')
+
+    expect(apiService.getUsers).toHaveBeenLastCalledWith({
+      pageSize: 20, currentPage: 1, nickname: 'Батон'
     })
+    expect(nicknames(wrapper)).toEqual(['Батон'])
 
-    it('должен отобразить пользователей в таблице', async () => {
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
+    // Общий фильтр держит роль в своём поле статуса
+    const roleSelect = wrapper.findAllComponents(ElSelect)
+      .find(select => select.props('placeholder') === 'Все статусы')
+    roleSelect.vm.$emit('update:modelValue', 'admin')
+    roleSelect.vm.$emit('change', 'admin')
+    await flushPromises()
 
-      await flushPromises()
-
-      const userRows = wrapper.findAll('[data-testid="user-row"]')
-      expect(userRows).toHaveLength(mockData.users.length)
-    })
-
-    it('должен показать информацию о пользователе', async () => {
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-
-      await flushPromises()
-
-      const firstUser = mockData.users[0]
-      expect(wrapper.text()).toContain(firstUser.nickname)
-      expect(wrapper.text()).toContain(firstUser.email)
+    expect(apiService.getUsers).toHaveBeenLastCalledWith({
+      pageSize: 20, currentPage: 1, nickname: 'Батон', role: 'admin'
     })
   })
 
-  describe('Поиск пользователей', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
-    })
+  it('другую страницу грузит с сервера, не теряя поиск', async () => {
+    apiService.getUsers.mockResolvedValue(usersPage([baton, yorsh], 45))
+    const wrapper = await mountView()
+    await search(wrapper, 'Ба')
 
-    it('должен показать поле поиска', () => {
-      const searchInput = wrapper.find('[data-testid="search-users"]')
-      expect(searchInput.exists()).toBe(true)
-    })
+    await wrapper.findAll('.el-pager li').find(item => item.text() === '2').trigger('click')
+    await flushPromises()
 
-    it('должен фильтровать пользователей по никнейму', async () => {
-      const searchInput = wrapper.find('[data-testid="search-users"]')
-      await searchInput.setValue('user1')
-      await flushPromises()
-
-      // Проверяем, что отображается только один пользователь
-      const visibleRows = wrapper.findAll('[data-testid="user-row"]:not(.hidden)')
-      expect(visibleRows).toHaveLength(1)
-      expect(visibleRows[0].text()).toContain('user1')
-    })
-
-    it('должен фильтровать пользователей по email', async () => {
-      const searchInput = wrapper.find('[data-testid="search-users"]')
-      await searchInput.setValue('admin@example.com')
-      await flushPromises()
-
-      const visibleRows = wrapper.findAll('[data-testid="user-row"]:not(.hidden)')
-      expect(visibleRows).toHaveLength(1)
-      expect(visibleRows[0].text()).toContain('admin@example.com')
-    })
-
-    it('должен показать "не найдено" при отсутствии результатов', async () => {
-      const searchInput = wrapper.find('[data-testid="search-users"]')
-      await searchInput.setValue('nonexistent')
-      await flushPromises()
-
-      const noResults = wrapper.find('[data-testid="no-users-found"]')
-      expect(noResults.exists()).toBe(true)
+    expect(apiService.getUsers).toHaveBeenLastCalledWith({
+      pageSize: 20, currentPage: 2, nickname: 'Ба'
     })
   })
 
-  describe('Фильтрация по ролям', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
+  it('создаёт пользователя из окна и перезагружает список', async () => {
+    // Экран отдаёт в запрос саму форму и после ответа очищает её -
+    // снимаем копию в момент вызова
+    let sent = null
+    apiService.createUser.mockImplementation(async (data) => {
+      sent = { ...data }
+      return { id: 'user-3' }
     })
+    const wrapper = await mountView()
 
-    it('должен показать фильтр по ролям', () => {
-      const roleFilter = wrapper.find('[data-testid="role-filter"]')
-      expect(roleFilter.exists()).toBe(true)
-    })
+    await submitNewUser(wrapper, 'Новичок')
 
-    it('должен фильтровать пользователей по роли', async () => {
-      const roleFilter = wrapper.find('[data-testid="role-filter"]')
-      await roleFilter.setValue('admin')
-      await flushPromises()
-
-      const visibleRows = wrapper.findAll('[data-testid="user-row"]:not(.hidden)')
-      expect(visibleRows).toHaveLength(1)
-      expect(visibleRows[0].text()).toContain('admin')
-    })
+    expect(sent).toMatchObject({ nickname: 'Новичок' })
+    expect(ElMessage.success).toHaveBeenCalledWith('Пользователь создан')
+    expect(createDialog(wrapper).props('modelValue')).toBe(false)
+    expect(apiService.getUsers).toHaveBeenCalledTimes(2)
   })
 
-  describe('Создание пользователя', () => {
-    it('должен показать кнопку создания пользователя', async () => {
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
+  it('сервер не создал пользователя - ошибка, окно с введённым ником остаётся', async () => {
+    apiService.createUser.mockRejectedValue(new Error('Request failed with status code 500'))
+    const wrapper = await mountView()
 
-      const createButton = wrapper.find('[data-testid="create-user-btn"]')
-      expect(createButton.exists()).toBe(true)
-    })
+    await submitNewUser(wrapper, 'Новичок')
 
-    it('должен открыть диалог создания пользователя', async () => {
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
-
-      const createButton = wrapper.find('[data-testid="create-user-btn"]')
-      await createButton.trigger('click')
-      await flushPromises()
-
-      const dialog = wrapper.find('[data-testid="create-user-dialog"]')
-      expect(dialog.exists() || wrapper.vm.showCreateDialog).toBe(true)
-    })
-
-    it('должен создать пользователя с валидными данными', async () => {
-      const mockCreateUser = vi.fn().mockResolvedValue({ id: 3, nickname: 'newuser' })
-      mockApi.createUser = mockCreateUser
-
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
-
-      // Эмулируем создание пользователя
-      const userData = {
-        nickname: 'newuser',
-        email: 'newuser@example.com',
-        role: 'user'
-      }
-
-      if (wrapper.vm.createUser) {
-        await wrapper.vm.createUser(userData)
-        expect(mockCreateUser).toHaveBeenCalledWith(userData)
-      }
-    })
+    expect(ElMessage.error).toHaveBeenCalledWith('Ошибка сохранения изменений')
+    expect(createDialog(wrapper).props('modelValue')).toBe(true)
+    expect(wrapper.find('input[placeholder="Введите никнейм"]').element.value).toBe('Новичок')
+    expect(apiService.getUsers).toHaveBeenCalledTimes(1)
   })
 
-  describe('Редактирование пользователя', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
-    })
+  it('правку из окна отправляет на сервер и перезагружает список', async () => {
+    apiService.updateUser.mockResolvedValue(undefined)
+    const wrapper = await mountView()
 
-    it('должен показать кнопку редактирования для каждого пользователя', () => {
-      const editButtons = wrapper.findAll('[data-testid="edit-user-btn"]')
-      expect(editButtons.length).toBeGreaterThan(0)
-    })
+    const dialog = await openEdit(wrapper, 1)
 
-    it('должен открыть диалог редактирования', async () => {
-      const editButton = wrapper.find('[data-testid="edit-user-btn"]')
-      await editButton.trigger('click')
-      await flushPromises()
+    expect(dialog.props('modelValue')).toBe(true)
+    expect(dialog.props('user')).toEqual(yorsh)
 
-      const dialog = wrapper.find('[data-testid="edit-user-dialog"]')
-      expect(dialog.exists() || wrapper.vm.showEditDialog).toBe(true)
-    })
+    dialog.vm.$emit('confirm', 'user-2', { nickname: 'Ёршик', roles: ['player'] })
+    await flushPromises()
 
-    it('должен заполнить форму данными пользователя', async () => {
-      const editButton = wrapper.find('[data-testid="edit-user-btn"]')
-      await editButton.trigger('click')
-      await flushPromises()
-
-      // Проверяем, что форма заполнена
-      const nicknameField = wrapper.find('[data-testid="edit-nickname"]')
-      const emailField = wrapper.find('[data-testid="edit-email"]')
-
-      if (nicknameField.exists() && emailField.exists()) {
-        expect(nicknameField.element.value).toBe(mockData.users[0].nickname)
-        expect(emailField.element.value).toBe(mockData.users[0].email)
-      }
-    })
-
-    it('должен обновить пользователя', async () => {
-      const mockUpdateUser = vi.fn().mockResolvedValue({ id: 1 })
-      mockApi.updateUser = mockUpdateUser
-
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
-
-      const updatedData = {
-        id: 1,
-        nickname: 'updated_user',
-        email: 'updated@example.com'
-      }
-
-      if (wrapper.vm.updateUser) {
-        await wrapper.vm.updateUser(1, updatedData)
-        expect(mockUpdateUser).toHaveBeenCalledWith(1, updatedData)
-      }
-    })
+    expect(apiService.updateUser).toHaveBeenCalledWith('user-2', { nickname: 'Ёршик', roles: ['player'] })
+    expect(ElMessage.success).toHaveBeenCalledWith('Данные пользователя обновлены')
+    expect(apiService.getUsers).toHaveBeenCalledTimes(2)
   })
 
-  describe('Удаление пользователя', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
-    })
+  it('аватарку из окна правки ставит в строку сразу, без перезагрузки списка', async () => {
+    const wrapper = await mountView()
+    const dialog = await openEdit(wrapper, 1)
+    const userInDialog = dialog.props('user')
 
-    it('должен показать кнопку удаления для каждого пользователя', () => {
-      const deleteButtons = wrapper.findAll('[data-testid="delete-user-btn"]')
-      expect(deleteButtons.length).toBeGreaterThan(0)
-    })
+    dialog.vm.$emit('avatars-updated', 'user-2', [
+      { role: 'civilian', avatar_url: 'https://cdn/new.webp' }
+    ])
+    await flushPromises()
 
-    it('должен показать подтверждение удаления', async () => {
-      const deleteButton = wrapper.find('[data-testid="delete-user-btn"]')
-      await deleteButton.trigger('click')
-      await flushPromises()
-
-      const confirmation = wrapper.find('[data-testid="delete-confirmation"]')
-      expect(confirmation.exists() || wrapper.vm.showDeleteConfirmation).toBe(true)
-    })
-
-    it('должен удалить пользователя после подтверждения', async () => {
-      const mockDeleteUser = vi.fn().mockResolvedValue({})
-      mockApi.deleteUser = mockDeleteUser
-
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
-
-      if (wrapper.vm.deleteUser) {
-        await wrapper.vm.deleteUser(1)
-        expect(mockDeleteUser).toHaveBeenCalledWith(1)
-      }
-    })
+    expect(wrapper.findAll('.user-cell')[1].find('img').attributes('src'))
+      .toBe('https://cdn/new.webp')
+    expect(apiService.getUsers).toHaveBeenCalledTimes(1)
+    // Окну остаётся прежний объект: на новом оно сбросило бы недописанный ник
+    expect(dialog.props('user')).toBe(userInDialog)
   })
 
-  describe('Сортировка', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
-    })
+  it('не загрузил список - показывает ошибку, таблица пустая', async () => {
+    apiService.getUsers.mockRejectedValue(new Error('Network Error'))
+    const wrapper = await mountView()
 
-    it('должен позволить сортировку по имени', async () => {
-      const nameHeader = wrapper.find('[data-testid="sort-by-name"]')
-      
-      if (nameHeader.exists()) {
-        await nameHeader.trigger('click')
-        await flushPromises()
-
-        // Проверяем, что сортировка применилась
-        expect(wrapper.vm.sortBy).toBe('nickname')
-      }
-    })
-
-    it('должен позволить сортировку по дате регистрации', async () => {
-      const dateHeader = wrapper.find('[data-testid="sort-by-date"]')
-      
-      if (dateHeader.exists()) {
-        await dateHeader.trigger('click')
-        await flushPromises()
-
-        expect(wrapper.vm.sortBy).toBe('created_at')
-      }
-    })
+    expect(ElMessage.error).toHaveBeenCalledWith('Ошибка загрузки данных')
+    expect(nicknames(wrapper)).toEqual([])
+    expect(wrapper.text()).not.toContain('Найдено')
   })
 
-  describe('Обработка ошибок', () => {
-    it('должен показать ошибку при неудачной загрузке пользователей', async () => {
-      const mockGetUsersError = vi.fn().mockRejectedValue(new Error('API Error'))
-      
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: { getUsers: mockGetUsersError }
-          }
-        }
-      })
+  it('на телефоне кнопки шапки - круглые иконки с подписью, окно создания открывается', async () => {
+    window.innerWidth = MOBILE_WIDTH
+    const wrapper = await mountView()
 
-      await flushPromises()
+    const create = wrapper.find('button[aria-label="Создать пользователя"]')
+    expect(create.classes()).toContain('is-circle')
+    expect(create.text()).toBe('')
+    expect(wrapper.find('button[aria-label="Объединить пользователей"]').exists()).toBe(true)
 
-      const errorMessage = wrapper.find('[data-testid="error-message"]')
-      expect(errorMessage.exists() || wrapper.vm.error).toBeTruthy()
-    })
+    await create.trigger('click')
+    await flushPromises()
 
-    it('должен показать ошибку при неудачном создании пользователя', async () => {
-      const mockCreateUser = vi.fn().mockRejectedValue(new Error('Validation Error'))
-      mockApi.createUser = mockCreateUser
-
-      wrapper = mountComponent(UsersView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
-
-      const userData = {
-        nickname: '', // Невалидные данные
-        email: 'invalid-email'
-      }
-
-      if (wrapper.vm.createUser) {
-        try {
-          await wrapper.vm.createUser(userData)
-        } catch (error) {
-          expect(error.message).toContain('Validation Error')
-        }
-      }
-    })
+    expect(createDialog(wrapper).props('modelValue')).toBe(true)
   })
 })
