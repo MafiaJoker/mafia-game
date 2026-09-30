@@ -296,6 +296,7 @@ import {
   Calendar
 } from '@element-plus/icons-vue'
 import { UI_MESSAGES } from '@/utils/uiConstants'
+import { formatDay } from '@/utils/formatters'
 
 const router = useRouter()
 const eventsStore = useEventsStore()
@@ -464,10 +465,9 @@ const handleEventUpdated = () => {
 }
 
 // Утилиты
-const formatDate = (date) => {
-  if (!date) return '-'
-  return new Date(date).toLocaleDateString('ru-RU')
-}
+// Дата начала приходит днём без времени: new Date() прочёл бы её полночью по
+// UTC, и западнее UTC день съехал бы на вчера. formatDay разбирает её локально
+const formatDate = (date) => formatDay(date, { day: '2-digit', month: '2-digit', year: 'numeric' }) || '-'
 
 const getStatusType = (status) => {
   const types = {

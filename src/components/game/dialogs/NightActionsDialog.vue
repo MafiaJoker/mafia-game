@@ -166,6 +166,12 @@ const props = defineProps({
     type: Number,
     default: null
   },
+  // Покинувшие стол днём этого круга: заголосованные, удалённые судьёй и по
+  // фолам. Собирает их GameInProgress: выбывших по фолам видит только он
+  dayLeftBoxIds: {
+    type: Array,
+    default: () => []
+  },
   // Тост с убитым утром: показывает его GameInProgress уже в новом дне
   showKilledToast: {
     type: Boolean,
@@ -185,16 +191,12 @@ const visible = computed({
 })
 
 // Активные игроки — для отстрела и ночного удаления. Ночь идёт после дня:
-// заголосованный и удалённый днём уже вне игры. Список чистим здесь, а не
+// покинувший стол днём уже вне игры. Список чистим здесь, а не
 // надеемся на судью: бек отвергает круг, где игрок покинул его и днём, и
 // ночью (app/game/serializers.py: check_round_halves_do_not_overlap), а
 // круг уезжает одним PATCH — 400 унесёт и отстрел, и проверки, и голосование
 const activePlayers = computed(() => {
-  const dayLeftBoxIds = [
-    ...(props.phaseData.voted_box_ids || []),
-    ...(props.phaseData.removed_box_ids || [])
-  ]
-  return props.playersData.filter(p => p.is_in_game && !dayLeftBoxIds.includes(p.box_id))
+  return props.playersData.filter(p => p.is_in_game && !props.dayLeftBoxIds.includes(p.box_id))
 })
 
 // Все игроки (для проверок дона и шерифа)
@@ -314,13 +316,14 @@ const handleNightRemoveAccept = () => {
   })
 }
 
-// Лучший ход спрашиваем только за первый отстрел - и только если этот отстрел
-// и есть первое выбытие в игре. Заголосованный в первом круге уходит раньше
-// ночи, первенство переходит к нему, и ЛХ не выдаётся вовсе
+// Лучший ход спрашиваем только за отстрел в первую ночь - и только если днём
+// стол покинули не больше одного игрока, заголосованный или удалённый. Двое
+// и больше выбывших днём снимают фазу ЛХ. Удаление ночью её не отменяет:
+// выбывших считаем только за день
 const bestMoveRequired = computed(() => {
   return props.phaseId === 1
     && props.phaseData.killed_box_id != null
-    && !(props.phaseData.voted_box_ids || []).length
+    && props.dayLeftBoxIds.length < 2
 })
 
 // «Продолжить»: лучший ход за первый отстрел или сразу новый круг
@@ -329,6 +332,11 @@ const handleNextRound = () => {
     // Первая ночь с отстрелом — показываем модальное окно лучшего хода
     emit('show-best-move')
   } else {
+    // Фазы ЛХ нет, а отметки могли остаться: судья открыл окно ЛХ, закрыл
+    // его и дописал второе дневное выбывание. В круг они уйти не должны
+    if (props.phaseData.best_move?.length) {
+      emit('update:phaseData', { ...props.phaseData, best_move: [] })
+    }
     // Иначе переходим к следующему кругу
     emit('next-round')
   }

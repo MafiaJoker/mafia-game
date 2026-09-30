@@ -1,319 +1,194 @@
-// Тесты для компонента AppHeader
+// Шапка приложения: пункты меню собираются из ролей пользователя, выход -
+// только после подтверждения, на телефоне меню уезжает в выдвижную панель
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { createRouter, createMemoryHistory } from 'vue-router'
+import { ElMessage, ElMessageBox, ElMenuItem, ElDrawer } from 'element-plus'
 import AppHeader from '@/components/common/AppHeader.vue'
-import { mountComponent, createMockApiService, mockData, flushPromises } from '../../utils.js'
+import { useAuthStore } from '@/stores/auth'
 
-describe('AppHeader', () => {
-  let wrapper
-  let mockApi
+// Выход подменяется на уровне стора, до API шапка не доходит
+vi.mock('@/services/api', () => ({
+  apiService: {},
+  initApiUrl: vi.fn()
+}))
 
+vi.mock('@/router', () => ({ default: { push: vi.fn() } }))
+
+const DESKTOP_WIDTH = window.innerWidth
+
+const Blank = { render: () => null }
+
+const currentUser = (overrides = {}) => ({
+  id: 'user-1',
+  nickname: 'Батон',
+  first_name: 'Иван',
+  last_name: 'Петров',
+  roles: ['player'],
+  ...overrides
+})
+
+const mountHeader = async (user = currentUser()) => {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  const authStore = useAuthStore()
+  authStore.user = user
+
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: ['/', '/ratings', '/event-types', '/users', '/tariffs', '/profile']
+      .map(path => ({ path, component: Blank }))
+  })
+  router.push('/ratings')
+  await router.isReady()
+
+  const wrapper = mount(AppHeader, { global: { plugins: [pinia, router] } })
+  await flushPromises()
+  return { wrapper, router, authStore }
+}
+
+// Панель на телефоне уходит в body - findAllComponents находит пункты и там
+const menuLabels = (wrapper) => wrapper.findAllComponents(ElMenuItem)
+  .map(item => item.text())
+
+const menuItem = (wrapper, label) => wrapper.findAllComponents(ElMenuItem)
+  .find(item => item.text() === label)
+
+// Выпадающее меню пользователя Element Plus тоже рисует в body, а в тестовом
+// окружении - сразу, без открытия: пункт можно нажимать напрямую
+const userMenuItem = (label) => [...document.querySelectorAll('.el-dropdown-menu__item')]
+  .find(item => item.textContent.trim() === label)
+
+const chooseUserMenuItem = async (label) => {
+  userMenuItem(label).click()
+  await flushPromises()
+}
+
+// Ширина экрана у всех обёрток общая: без автоотмонтирования её смена
+// перерисовывала бы шапки прошлых тестов
+enableAutoUnmount(afterEach)
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  vi.spyOn(ElMessage, 'success').mockImplementation(() => {})
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+describe('AppHeader: меню по ролям', () => {
+  it.each([
+    ['игроку', 'Рейтинг', ['player']],
+    ['ведущему', 'Рейтинг, Мероприятия, Категории', ['game_master']],
+    ['кассиру', 'Рейтинг, Тарифы', ['cashier']],
+    ['админу', 'Рейтинг, Пользователи', ['admin']]
+  ])('%s показывает в меню: %s', async (who, items, roles) => {
+    const { wrapper } = await mountHeader(currentUser({ roles }))
+
+    expect(menuLabels(wrapper).join(', ')).toBe(items)
+  })
+
+  it('выбор пункта меню открывает его страницу', async () => {
+    const { wrapper, router } = await mountHeader(currentUser({ roles: ['admin'] }))
+
+    await menuItem(wrapper, 'Пользователи').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/users')
+  })
+})
+
+describe('AppHeader: блок пользователя', () => {
+  const avatarText = (wrapper) => wrapper.find('.user-info .el-avatar').text()
+
+  it('показывает ник, а в аватаре - инициалы имени и фамилии или первую букву ника', async () => {
+    const { wrapper } = await mountHeader(currentUser({ first_name: 'иван', last_name: 'петров' }))
+
+    expect(wrapper.find('.user-name').text()).toBe('Батон')
+    expect(avatarText(wrapper)).toBe('ИП')
+
+    // Имени в Telegram может не быть - тогда инициал берётся из ника
+    const { wrapper: noName } = await mountHeader(
+      currentUser({ nickname: 'батон', first_name: null, last_name: null })
+    )
+    expect(avatarText(noName)).toBe('Б')
+  })
+
+  it('«Профиль» открывает страницу профиля', async () => {
+    const { router } = await mountHeader()
+
+    await chooseUserMenuItem('Профиль')
+
+    expect(router.currentRoute.value.path).toBe('/profile')
+  })
+
+  it('«Выйти» сначала спрашивает подтверждение и выходит только после него', async () => {
+    let confirm
+    vi.spyOn(ElMessageBox, 'confirm')
+      .mockReturnValue(new Promise(resolve => { confirm = resolve }))
+    const { authStore } = await mountHeader()
+    const logout = vi.spyOn(authStore, 'logout').mockResolvedValue()
+
+    await chooseUserMenuItem('Выйти')
+
+    expect(ElMessageBox.confirm).toHaveBeenCalledTimes(1)
+    expect(logout).not.toHaveBeenCalled()
+
+    confirm('confirm')
+    await flushPromises()
+
+    expect(logout).toHaveBeenCalledTimes(1)
+    expect(ElMessage.success).toHaveBeenCalledWith('Вы вышли из системы')
+  })
+
+  it('отмена подтверждения оставляет пользователя в системе', async () => {
+    vi.spyOn(ElMessageBox, 'confirm').mockRejectedValue('cancel')
+    const { authStore } = await mountHeader()
+    const logout = vi.spyOn(authStore, 'logout').mockResolvedValue()
+
+    await chooseUserMenuItem('Выйти')
+
+    expect(logout).not.toHaveBeenCalled()
+    expect(ElMessage.success).not.toHaveBeenCalled()
+  })
+})
+
+describe('AppHeader на телефоне', () => {
   beforeEach(() => {
-    mockApi = createMockApiService()
-    vi.clearAllMocks()
+    window.innerWidth = 375
   })
 
   afterEach(() => {
-    if (wrapper) {
-      wrapper.unmount()
-    }
+    window.innerWidth = DESKTOP_WIDTH
   })
 
-  describe('Отображение компонента', () => {
-    it('должен отобразиться корректно', async () => {
-      wrapper = mountComponent(AppHeader)
-      await flushPromises()
+  const openDrawer = async (wrapper) => {
+    await wrapper.find('button[aria-label="Открыть меню"]').trigger('click')
+    await flushPromises()
+  }
 
-      expect(wrapper.find('.app-header').exists()).toBe(true)
-    })
+  it('вместо горизонтального меню - кнопка, открывающая панель с теми же пунктами', async () => {
+    const { wrapper } = await mountHeader(currentUser({ roles: ['game_master'] }))
 
-    it('должен показать логотип', async () => {
-      wrapper = mountComponent(AppHeader)
-      await flushPromises()
+    expect(wrapper.find('.el-menu--horizontal').exists()).toBe(false)
 
-      const logo = wrapper.find('[data-testid="app-logo"]')
-      expect(logo.exists()).toBe(true)
-    })
+    await openDrawer(wrapper)
 
-    it('должен показать навигационное меню', async () => {
-      wrapper = mountComponent(AppHeader)
-      await flushPromises()
-
-      const nav = wrapper.find('[data-testid="main-navigation"]')
-      expect(nav.exists()).toBe(true)
-    })
+    expect(wrapper.findComponent(ElDrawer).props('modelValue')).toBe(true)
+    expect(menuLabels(wrapper)).toEqual(['Рейтинг', 'Мероприятия', 'Категории'])
   })
 
-  describe('Навигационные ссылки', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(AppHeader, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
-    })
+  it('выбор пункта в панели закрывает её и открывает страницу', async () => {
+    const { wrapper, router } = await mountHeader(currentUser({ roles: ['game_master'] }))
+    await openDrawer(wrapper)
 
-    it('должен показать ссылку на события', () => {
-      const eventsLink = wrapper.find('[data-testid="events-link"]')
-      expect(eventsLink.exists()).toBe(true)
-      expect(eventsLink.text()).toContain('События')
-    })
+    await menuItem(wrapper, 'Категории').trigger('click')
+    await flushPromises()
 
-    it('должен показать ссылку на пользователей для админа', async () => {
-      // Эмулируем авторизованного админа
-      wrapper.vm.$store = {
-        auth: {
-          user: { ...mockData.user, role: 'admin' }
-        }
-      }
-      await wrapper.vm.$nextTick()
-
-      const usersLink = wrapper.find('[data-testid="users-link"]')
-      expect(usersLink.exists()).toBe(true)
-    })
-
-    it('не должен показывать ссылку на пользователей для обычного пользователя', async () => {
-      wrapper.vm.$store = {
-        auth: {
-          user: { ...mockData.user, role: 'user' }
-        }
-      }
-      await wrapper.vm.$nextTick()
-
-      const usersLink = wrapper.find('[data-testid="users-link"]')
-      expect(usersLink.exists()).toBe(false)
-    })
-  })
-
-  describe('Профиль пользователя', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(AppHeader, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
-    })
-
-    it('должен показать кнопку профиля для авторизованного пользователя', async () => {
-      wrapper.vm.$store = {
-        auth: {
-          user: mockData.user,
-          isAuthenticated: true
-        }
-      }
-      await wrapper.vm.$nextTick()
-
-      const profileButton = wrapper.find('[data-testid="profile-button"]')
-      expect(profileButton.exists()).toBe(true)
-    })
-
-    it('должен показать имя пользователя', async () => {
-      wrapper.vm.$store = {
-        auth: {
-          user: mockData.user,
-          isAuthenticated: true
-        }
-      }
-      await wrapper.vm.$nextTick()
-
-      expect(wrapper.text()).toContain(mockData.user.nickname)
-    })
-
-    it('должен показать кнопку входа для неавторизованного пользователя', async () => {
-      wrapper.vm.$store = {
-        auth: {
-          user: null,
-          isAuthenticated: false
-        }
-      }
-      await wrapper.vm.$nextTick()
-
-      const loginButton = wrapper.find('[data-testid="login-button"]')
-      expect(loginButton.exists()).toBe(true)
-      expect(loginButton.text()).toContain('Войти')
-    })
-  })
-
-  describe('Выпадающее меню пользователя', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(AppHeader, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      
-      wrapper.vm.$store = {
-        auth: {
-          user: mockData.user,
-          isAuthenticated: true
-        }
-      }
-      await wrapper.vm.$nextTick()
-    })
-
-    it('должен открыть меню при клике на профиль', async () => {
-      const profileButton = wrapper.find('[data-testid="profile-button"]')
-      await profileButton.trigger('click')
-      await flushPromises()
-
-      const dropdown = wrapper.find('[data-testid="profile-dropdown"]')
-      expect(dropdown.exists()).toBe(true)
-    })
-
-    it('должен показать пункт "Профиль" в меню', async () => {
-      const profileButton = wrapper.find('[data-testid="profile-button"]')
-      await profileButton.trigger('click')
-      await flushPromises()
-
-      const profileItem = wrapper.find('[data-testid="profile-menu-item"]')
-      expect(profileItem.exists()).toBe(true)
-      expect(profileItem.text()).toContain('Профиль')
-    })
-
-    it('должен показать пункт "Выйти" в меню', async () => {
-      const profileButton = wrapper.find('[data-testid="profile-button"]')
-      await profileButton.trigger('click')
-      await flushPromises()
-
-      const logoutItem = wrapper.find('[data-testid="logout-menu-item"]')
-      expect(logoutItem.exists()).toBe(true)
-      expect(logoutItem.text()).toContain('Выйти')
-    })
-  })
-
-  describe('Функция выхода', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(AppHeader, {
-        global: {
-          mocks: {
-            $api: mockApi,
-            $router: { push: vi.fn() }
-          }
-        }
-      })
-      
-      wrapper.vm.$store = {
-        auth: {
-          user: mockData.user,
-          isAuthenticated: true,
-          logout: vi.fn()
-        }
-      }
-      await wrapper.vm.$nextTick()
-    })
-
-    it('должен вызвать функцию выхода при клике на "Выйти"', async () => {
-      const profileButton = wrapper.find('[data-testid="profile-button"]')
-      await profileButton.trigger('click')
-      await flushPromises()
-
-      const logoutItem = wrapper.find('[data-testid="logout-menu-item"]')
-      await logoutItem.trigger('click')
-      await flushPromises()
-
-      expect(wrapper.vm.$store.auth.logout).toHaveBeenCalled()
-    })
-
-    it('должен перенаправить на страницу входа после выхода', async () => {
-      const mockPush = vi.fn()
-      wrapper.vm.$router = { push: mockPush }
-
-      const profileButton = wrapper.find('[data-testid="profile-button"]')
-      await profileButton.trigger('click')
-      await flushPromises()
-
-      const logoutItem = wrapper.find('[data-testid="logout-menu-item"]')
-      await logoutItem.trigger('click')
-      await flushPromises()
-
-      expect(mockPush).toHaveBeenCalledWith('/login')
-    })
-  })
-
-  describe('Адаптивность', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(AppHeader)
-      await flushPromises()
-    })
-
-    it('должен показать мобильное меню на малых экранах', async () => {
-      // Эмулируем малый экран
-      Object.defineProperty(window, 'innerWidth', {
-        writable: true,
-        configurable: true,
-        value: 600,
-      })
-
-      window.dispatchEvent(new Event('resize'))
-      await wrapper.vm.$nextTick()
-
-      const mobileMenu = wrapper.find('[data-testid="mobile-menu-button"]')
-      expect(mobileMenu.exists()).toBe(true)
-    })
-
-    it('должен скрыть полное меню на мобильных устройствах', async () => {
-      Object.defineProperty(window, 'innerWidth', {
-        writable: true,
-        configurable: true,
-        value: 600,
-      })
-
-      window.dispatchEvent(new Event('resize'))
-      await wrapper.vm.$nextTick()
-
-      const fullMenu = wrapper.find('[data-testid="desktop-menu"]')
-      expect(fullMenu.exists()).toBe(false)
-    })
-  })
-
-  describe('Уведомления', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(AppHeader, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      
-      wrapper.vm.$store = {
-        auth: {
-          user: mockData.user,
-          isAuthenticated: true
-        },
-        notifications: {
-          unreadCount: 3,
-          items: []
-        }
-      }
-      await wrapper.vm.$nextTick()
-    })
-
-    it('должен показать иконку уведомлений', () => {
-      const notificationsIcon = wrapper.find('[data-testid="notifications-icon"]')
-      expect(notificationsIcon.exists()).toBe(true)
-    })
-
-    it('должен показать количество непрочитанных уведомлений', () => {
-      const badge = wrapper.find('[data-testid="notifications-badge"]')
-      expect(badge.exists()).toBe(true)
-      expect(badge.text()).toBe('3')
-    })
-
-    it('не должен показать badge при отсутствии уведомлений', async () => {
-      wrapper.vm.$store.notifications.unreadCount = 0
-      await wrapper.vm.$nextTick()
-
-      const badge = wrapper.find('[data-testid="notifications-badge"]')
-      expect(badge.exists()).toBe(false)
-    })
+    expect(router.currentRoute.value.path).toBe('/event-types')
+    expect(wrapper.findComponent(ElDrawer).props('modelValue')).toBe(false)
   })
 })

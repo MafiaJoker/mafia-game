@@ -1,5 +1,6 @@
-// Тесты ночного диалога: лучший ход спрашиваем только за первый отстрел,
-// а подпись кнопки не выдаёт факт отстрела проснувшимся игрокам
+// Тесты ночного диалога: лучший ход спрашиваем только за первый отстрел и
+// только если днём стол покинули не больше одного игрока, а подпись кнопки
+// не выдаёт факт отстрела проснувшимся игрокам
 
 import { describe, it, expect, afterEach } from 'vitest'
 import { mount, flushPromises, DOMWrapper } from '@vue/test-utils'
@@ -33,9 +34,11 @@ const dialogOf = (bodyClass) => new DOMWrapper(
 const nightDialog = () => dialogOf('.night-container')
 const removeDialog = () => dialogOf('.voting-container')
 
-const openDialog = async (phaseData = createPhaseData(), phaseId = 1) => {
+// dayLeftBoxIds - покинувшие стол днём: их собирает GameInProgress, потому что
+// выбывших по фолам видит только он
+const openDialog = async (phaseData = createPhaseData(), phaseId = 1, dayLeftBoxIds = []) => {
   wrapper = mount(NightActionsDialog, {
-    props: { modelValue: true, playersData: PLAYERS, phaseData, phaseId },
+    props: { modelValue: true, playersData: PLAYERS, phaseData, phaseId, dayLeftBoxIds },
     attachTo: document.body
   })
   await flushPromises()
@@ -156,13 +159,46 @@ describe('NightActionsDialog', () => {
       expect(wrapper.emitted('next-round')).toHaveLength(1)
     })
 
-    it('не спрашиваем, если в первом круге кого-то заголосовали: первым из игры вышел он', async () => {
-      const dialog = await openDialog(createPhaseData({ killed_box_id: 3, voted_box_ids: [1] }))
+    // Фаза ЛХ есть, пока днём стол покинули не больше одного игрока. Кто его
+    // покинул - заголосованные, удалённые судьёй, по фолам, без ночи, - считает
+    // GameInProgress (его тесты «покинувшие стол днём»), диалог смотрит только
+    // на их число (#118)
+    it('спрашиваем, если днём стол покинул один игрок', async () => {
+      const dialog = await openDialog(createPhaseData({ killed_box_id: 3 }), 1, [1])
+
+      await footerButton(dialog).trigger('click')
+
+      expect(wrapper.emitted('show-best-move')).toHaveLength(1)
+      expect(wrapper.emitted('next-round')).toBeUndefined()
+    })
+
+    it('не спрашиваем, если днём стол покинули двое: круг закрывается сразу', async () => {
+      const dialog = await openDialog(createPhaseData({ killed_box_id: 3 }), 1, [1, 2])
 
       await footerButton(dialog).trigger('click')
 
       expect(wrapper.emitted('show-best-move')).toBeUndefined()
       expect(wrapper.emitted('next-round')).toHaveLength(1)
+    })
+
+    // Судья открыл окно ЛХ, отметил боксы, закрыл окно и дописал второе
+    // дневное выбывание: фаза ЛХ пропала, отметки в круг уйти не должны
+    it('снимает введённый ЛХ, если фазы ЛХ больше нет', async () => {
+      const dialog = await openDialog(createPhaseData({ killed_box_id: 3, best_move: [1, 2, 4] }), 1, [1, 2])
+
+      await footerButton(dialog).trigger('click')
+
+      expect(lastPhaseData()).toMatchObject({ killed_box_id: 3, best_move: [] })
+      expect(wrapper.emitted('next-round')).toHaveLength(1)
+    })
+
+    it('не трогает введённый ЛХ, пока фаза ЛХ есть', async () => {
+      const dialog = await openDialog(createPhaseData({ killed_box_id: 3, best_move: [1, 2, 4] }), 1, [1])
+
+      await footerButton(dialog).trigger('click')
+
+      expect(wrapper.emitted('update:phaseData')).toBeUndefined()
+      expect(wrapper.emitted('show-best-move')).toHaveLength(1)
     })
 
     it('очищает уже введённый ЛХ, если судья передумал и нажал «Промах»', async () => {
@@ -295,7 +331,7 @@ describe('NightActionsDialog', () => {
     })
 
     it('не предлагает заголосованного в этом круге', async () => {
-      const dialog = await openDialog(createPhaseData({ voted_box_ids: [2] }))
+      const dialog = await openDialog(createPhaseData({ voted_box_ids: [2] }), 1, [2])
 
       expect(await removableBoxIds(dialog)).toEqual([1, 3])
     })
@@ -303,7 +339,7 @@ describe('NightActionsDialog', () => {
     // Бек отвергает круг, где игрок вышел и днём, и ночью, а круг уезжает
     // одним PATCH: 400 унесёт весь круг целиком
     it('не предлагает удалённого днём — ни на удаление, ни на отстрел', async () => {
-      const dialog = await openDialog(createPhaseData({ removed_box_ids: [3] }))
+      const dialog = await openDialog(createPhaseData({ removed_box_ids: [3] }), 1, [3])
 
       expect(rowBoxIds(dialog, ROW.kill)).toEqual([1, 2])
       expect(await removableBoxIds(dialog)).toEqual([1, 2])

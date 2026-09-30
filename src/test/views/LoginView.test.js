@@ -1,457 +1,147 @@
-// Тесты для страницы авторизации
+// Вход: основной путь - виджет Telegram, на стендах с VITE_SHOW_TEST_LOGIN=true
+// рядом кнопка тестового пользователя; вошедшего страница сразу уводит на главную
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { createRouter, createMemoryHistory } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import LoginView from '@/views/LoginView.vue'
-import { mountComponent, createMockApiService, mockData, flushPromises, fillForm } from '../utils.js'
+import TelegramLoginWidget from '@/components/auth/TelegramLoginWidget.vue'
+import { useAuthStore } from '@/stores/auth'
 
-// Мокаем API сервис
+// Сам вход подменяется на уровне стора, до API страница не доходит
 vi.mock('@/services/api', () => ({
-  apiService: createMockApiService()
+  apiService: {},
+  initApiUrl: vi.fn()
 }))
 
-describe('LoginView', () => {
-  let wrapper
-  let mockApi
+vi.mock('@/router', () => ({ default: { push: vi.fn() } }))
 
+const Blank = { render: () => null }
+
+const mountLogin = async (user = null) => {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  const authStore = useAuthStore()
+  authStore.user = user
+
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/', component: Blank },
+      { path: '/login', component: Blank }
+    ]
+  })
+  router.push('/login')
+  await router.isReady()
+
+  // Настоящий виджет грузит скрипт с telegram.org - в тестах только его пропсы
+  const wrapper = mount(LoginView, {
+    global: { plugins: [pinia, router], stubs: { TelegramLoginWidget: true } }
+  })
+  await flushPromises()
+  return { wrapper, router, authStore }
+}
+
+const testLoginButton = (wrapper) => wrapper.findAll('button')
+  .find(btn => btn.text() === 'Войти как тестовый пользователь')
+
+enableAutoUnmount(afterEach)
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  vi.spyOn(ElMessage, 'success').mockImplementation(() => {})
+  vi.spyOn(ElMessage, 'error').mockImplementation(() => {})
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllEnvs()
+})
+
+describe('LoginView: виджет Telegram', () => {
+  it('отдаёт виджету бота из окружения, без настройки - бота dev-стенда', async () => {
+    vi.stubEnv('VITE_TELEGRAM_BOT_USERNAME', 'joker_mafia_bot')
+    const { wrapper } = await mountLogin()
+    expect(wrapper.findComponent(TelegramLoginWidget).props('botUsername')).toBe('joker_mafia_bot')
+
+    vi.stubEnv('VITE_TELEGRAM_BOT_USERNAME', undefined)
+    const { wrapper: unset } = await mountLogin()
+    expect(unset.findComponent(TelegramLoginWidget).props('botUsername'))
+      .toBe('dev_mafia_joker_widget_bot')
+  })
+})
+
+describe('LoginView: тестовый пользователь', () => {
+  // Флаг страница читает при каждом монтировании, а не при импорте модуля:
+  // перезагружать модули ради него не нужно
   beforeEach(() => {
-    mockApi = createMockApiService()
-    vi.clearAllMocks()
+    vi.stubEnv('VITE_SHOW_TEST_LOGIN', 'true')
   })
 
-  afterEach(() => {
-    if (wrapper) {
-      wrapper.unmount()
-    }
+  it('кнопку показывает только при VITE_SHOW_TEST_LOGIN=true', async () => {
+    const { wrapper: stand } = await mountLogin()
+    expect(testLoginButton(stand)).toBeDefined()
+
+    vi.stubEnv('VITE_SHOW_TEST_LOGIN', 'false')
+    const { wrapper: prod } = await mountLogin()
+    expect(testLoginButton(prod)).toBeUndefined()
   })
 
-  describe('Отображение компонента', () => {
-    it('должен отобразиться корректно', async () => {
-      wrapper = mountComponent(LoginView)
-      await flushPromises()
+  it('после входа показывает тост и уводит на главную', async () => {
+    const { wrapper, router, authStore } = await mountLogin()
+    const testUserLogin = vi.spyOn(authStore, 'testUserLogin').mockResolvedValue({ success: true })
 
-      expect(wrapper.find('.login-view').exists()).toBe(true)
-    })
+    await testLoginButton(wrapper).trigger('click')
+    await flushPromises()
 
-    it('должен показать форму входа', async () => {
-      wrapper = mountComponent(LoginView)
-      await flushPromises()
-
-      const loginForm = wrapper.find('[data-testid="login-form"]')
-      expect(loginForm.exists()).toBe(true)
-    })
-
-    it('должен показать поля для ввода логина и пароля', async () => {
-      wrapper = mountComponent(LoginView)
-      await flushPromises()
-
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      const passwordField = wrapper.find('[data-testid="password-field"]')
-      
-      expect(emailField.exists()).toBe(true)
-      expect(passwordField.exists()).toBe(true)
-    })
-
-    it('должен показать кнопку входа', async () => {
-      wrapper = mountComponent(LoginView)
-      await flushPromises()
-
-      const loginButton = wrapper.find('[data-testid="login-btn"]')
-      expect(loginButton.exists()).toBe(true)
-      expect(loginButton.text()).toContain('Войти')
-    })
+    expect(testUserLogin).toHaveBeenCalledTimes(1)
+    expect(ElMessage.success).toHaveBeenCalledWith('Вход выполнен как тестовый пользователь')
+    expect(router.currentRoute.value.path).toBe('/')
   })
 
-  describe('Валидация формы', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(LoginView)
-      await flushPromises()
-    })
+  it('при отказе показывает ошибку и оставляет на странице входа', async () => {
+    const { wrapper, router, authStore } = await mountLogin()
+    vi.spyOn(authStore, 'testUserLogin')
+      .mockResolvedValue({ success: false, error: 'Тестовый вход отключён' })
 
-    it('должен показать ошибку при пустом email', async () => {
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      const loginButton = wrapper.find('[data-testid="login-btn"]')
+    await testLoginButton(wrapper).trigger('click')
+    await flushPromises()
 
-      await emailField.setValue('')
-      await loginButton.trigger('click')
-      await flushPromises()
-
-      const emailError = wrapper.find('[data-testid="email-error"]')
-      expect(emailError.exists()).toBe(true)
-      expect(emailError.text()).toContain('обязательно')
-    })
-
-    it('должен показать ошибку при невалидном email', async () => {
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      
-      await emailField.setValue('invalid-email')
-      await emailField.trigger('blur')
-      await flushPromises()
-
-      const emailError = wrapper.find('[data-testid="email-error"]')
-      expect(emailError.exists()).toBe(true)
-      expect(emailError.text()).toContain('неверный формат')
-    })
-
-    it('должен показать ошибку при пустом пароле', async () => {
-      const passwordField = wrapper.find('[data-testid="password-field"]')
-      const loginButton = wrapper.find('[data-testid="login-btn"]')
-
-      await passwordField.setValue('')
-      await loginButton.trigger('click')
-      await flushPromises()
-
-      const passwordError = wrapper.find('[data-testid="password-error"]')
-      expect(passwordError.exists()).toBe(true)
-      expect(passwordError.text()).toContain('обязательно')
-    })
-
-    it('должен показать ошибку при коротком пароле', async () => {
-      const passwordField = wrapper.find('[data-testid="password-field"]')
-      
-      await passwordField.setValue('123')
-      await passwordField.trigger('blur')
-      await flushPromises()
-
-      const passwordError = wrapper.find('[data-testid="password-error"]')
-      expect(passwordError.exists()).toBe(true)
-      expect(passwordError.text()).toContain('минимум')
-    })
-
-    it('должен отключить кнопку входа при невалидных данных', async () => {
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      const passwordField = wrapper.find('[data-testid="password-field"]')
-      const loginButton = wrapper.find('[data-testid="login-btn"]')
-
-      await emailField.setValue('invalid')
-      await passwordField.setValue('123')
-      await flushPromises()
-
-      expect(loginButton.attributes('disabled')).toBeDefined()
-    })
+    expect(ElMessage.error).toHaveBeenCalledWith('Тестовый вход отключён')
+    expect(ElMessage.success).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.path).toBe('/login')
   })
 
-  describe('Процесс авторизации', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(LoginView, {
-        global: {
-          mocks: {
-            $api: mockApi,
-            $router: { push: vi.fn() }
-          }
-        }
-      })
-      await flushPromises()
-    })
+  it('пока вход идёт, повторный клик второй вход не запускает', async () => {
+    const { wrapper, authStore } = await mountLogin()
+    let answer
+    const testUserLogin = vi.spyOn(authStore, 'testUserLogin')
+      .mockReturnValue(new Promise(resolve => { answer = resolve }))
 
-    it('должен отправить данные на сервер при валидной форме', async () => {
-      const mockLogin = vi.fn().mockResolvedValue({ 
-        token: 'mock-token',
-        user: mockData.user
-      })
-      mockApi.login = mockLogin
+    await testLoginButton(wrapper).trigger('click')
+    await testLoginButton(wrapper).trigger('click')
 
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      const passwordField = wrapper.find('[data-testid="password-field"]')
-      const loginButton = wrapper.find('[data-testid="login-btn"]')
+    expect(testUserLogin).toHaveBeenCalledTimes(1)
+    expect(testLoginButton(wrapper).classes()).toContain('is-loading')
 
-      await emailField.setValue('test@example.com')
-      await passwordField.setValue('password123')
-      await loginButton.trigger('click')
-      await flushPromises()
+    // После ответа кнопка снова рабочая: неудачный вход можно повторить
+    answer({ success: false, error: 'Тестовый вход отключён' })
+    await flushPromises()
+    await testLoginButton(wrapper).trigger('click')
+    await flushPromises()
 
-      expect(mockLogin).toHaveBeenCalledWith({
-        email: 'test@example.com',
-        password: 'password123'
-      })
-    })
-
-    it('должен показать индикатор загрузки во время авторизации', async () => {
-      const mockLogin = vi.fn().mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve({ token: 'token' }), 100))
-      )
-      mockApi.login = mockLogin
-
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      const passwordField = wrapper.find('[data-testid="password-field"]')
-      const loginButton = wrapper.find('[data-testid="login-btn"]')
-
-      await emailField.setValue('test@example.com')
-      await passwordField.setValue('password123')
-      await loginButton.trigger('click')
-
-      // Проверяем состояние загрузки
-      expect(wrapper.find('[data-testid="loading-spinner"]').exists()).toBe(true)
-      expect(loginButton.attributes('disabled')).toBeDefined()
-
-      await flushPromises()
-    })
-
-    it('должен сохранить токен при успешной авторизации', async () => {
-      const mockLogin = vi.fn().mockResolvedValue({ 
-        token: 'mock-token',
-        user: mockData.user
-      })
-      mockApi.login = mockLogin
-
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      const passwordField = wrapper.find('[data-testid="password-field"]')
-      const loginButton = wrapper.find('[data-testid="login-btn"]')
-
-      await emailField.setValue('test@example.com')
-      await passwordField.setValue('password123')
-      await loginButton.trigger('click')
-      await flushPromises()
-
-      // Проверяем, что токен сохранен в localStorage
-      expect(localStorage.setItem).toHaveBeenCalledWith('auth-token', 'mock-token')
-    })
-
-    it('должен перенаправить на главную страницу после успешной авторизации', async () => {
-      const mockLogin = vi.fn().mockResolvedValue({ 
-        token: 'mock-token',
-        user: mockData.user
-      })
-      const mockPush = vi.fn()
-      mockApi.login = mockLogin
-
-      wrapper = mountComponent(LoginView, {
-        global: {
-          mocks: {
-            $api: mockApi,
-            $router: { push: mockPush }
-          }
-        }
-      })
-      await flushPromises()
-
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      const passwordField = wrapper.find('[data-testid="password-field"]')
-      const loginButton = wrapper.find('[data-testid="login-btn"]')
-
-      await emailField.setValue('test@example.com')
-      await passwordField.setValue('password123')
-      await loginButton.trigger('click')
-      await flushPromises()
-
-      expect(mockPush).toHaveBeenCalledWith('/')
-    })
-
-    it('должен перенаправить на запрашиваемую страницу после авторизации', async () => {
-      const mockLogin = vi.fn().mockResolvedValue({ 
-        token: 'mock-token',
-        user: mockData.user
-      })
-      const mockPush = vi.fn()
-
-      wrapper = mountComponent(LoginView, {
-        global: {
-          mocks: {
-            $api: mockApi,
-            $router: { push: mockPush },
-            $route: { query: { redirect: '/events' } }
-          }
-        }
-      })
-      await flushPromises()
-
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      const passwordField = wrapper.find('[data-testid="password-field"]')
-      const loginButton = wrapper.find('[data-testid="login-btn"]')
-
-      await emailField.setValue('test@example.com')
-      await passwordField.setValue('password123')
-      await loginButton.trigger('click')
-      await flushPromises()
-
-      expect(mockPush).toHaveBeenCalledWith('/events')
-    })
+    expect(testUserLogin).toHaveBeenCalledTimes(2)
   })
+})
 
-  describe('Обработка ошибок', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(LoginView, {
-        global: {
-          mocks: {
-            $api: mockApi
-          }
-        }
-      })
-      await flushPromises()
-    })
+describe('LoginView: уже вошедший пользователь', () => {
+  it('сразу уводит на главную, гостя оставляет на входе', async () => {
+    const { router } = await mountLogin({ id: 'user-1', nickname: 'Батон', roles: ['player'] })
+    expect(router.currentRoute.value.path).toBe('/')
 
-    it('должен показать ошибку при неверных учетных данных', async () => {
-      const mockLogin = vi.fn().mockRejectedValue({
-        status: 401,
-        message: 'Неверный email или пароль'
-      })
-      mockApi.login = mockLogin
-
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      const passwordField = wrapper.find('[data-testid="password-field"]')
-      const loginButton = wrapper.find('[data-testid="login-btn"]')
-
-      await emailField.setValue('wrong@example.com')
-      await passwordField.setValue('wrongpassword')
-      await loginButton.trigger('click')
-      await flushPromises()
-
-      const errorMessage = wrapper.find('[data-testid="login-error"]')
-      expect(errorMessage.exists()).toBe(true)
-      expect(errorMessage.text()).toContain('Неверный email или пароль')
-    })
-
-    it('должен показать ошибку сервера', async () => {
-      const mockLogin = vi.fn().mockRejectedValue({
-        status: 500,
-        message: 'Ошибка сервера'
-      })
-      mockApi.login = mockLogin
-
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      const passwordField = wrapper.find('[data-testid="password-field"]')
-      const loginButton = wrapper.find('[data-testid="login-btn"]')
-
-      await emailField.setValue('test@example.com')
-      await passwordField.setValue('password123')
-      await loginButton.trigger('click')
-      await flushPromises()
-
-      const errorMessage = wrapper.find('[data-testid="login-error"]')
-      expect(errorMessage.exists()).toBe(true)
-      expect(errorMessage.text()).toContain('Ошибка сервера')
-    })
-
-    it('должен очистить ошибку при повторной попытке входа', async () => {
-      // Сначала создаем ошибку
-      const mockLoginError = vi.fn().mockRejectedValue({
-        status: 401,
-        message: 'Ошибка'
-      })
-      mockApi.login = mockLoginError
-
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      const passwordField = wrapper.find('[data-testid="password-field"]')
-      const loginButton = wrapper.find('[data-testid="login-btn"]')
-
-      await emailField.setValue('wrong@example.com')
-      await passwordField.setValue('wrong')
-      await loginButton.trigger('click')
-      await flushPromises()
-
-      // Проверяем, что ошибка есть
-      expect(wrapper.find('[data-testid="login-error"]').exists()).toBe(true)
-
-      // Теперь делаем успешный вход
-      const mockLoginSuccess = vi.fn().mockResolvedValue({
-        token: 'token',
-        user: mockData.user
-      })
-      mockApi.login = mockLoginSuccess
-
-      await emailField.setValue('correct@example.com')
-      await passwordField.setValue('correct')
-      await loginButton.trigger('click')
-      await flushPromises()
-
-      // Проверяем, что ошибки нет
-      expect(wrapper.find('[data-testid="login-error"]').exists()).toBe(false)
-    })
-  })
-
-  describe('Дополнительные возможности', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(LoginView)
-      await flushPromises()
-    })
-
-    it('должен показать ссылку на восстановление пароля', () => {
-      const forgotLink = wrapper.find('[data-testid="forgot-password-link"]')
-      expect(forgotLink.exists()).toBe(true)
-    })
-
-    it('должен показать ссылку на регистрацию', () => {
-      const registerLink = wrapper.find('[data-testid="register-link"]')
-      expect(registerLink.exists()).toBe(true)
-    })
-
-    it('должен позволить вход по Enter', async () => {
-      const mockLogin = vi.fn().mockResolvedValue({ 
-        token: 'mock-token',
-        user: mockData.user
-      })
-
-      wrapper = mountComponent(LoginView, {
-        global: {
-          mocks: {
-            $api: { login: mockLogin }
-          }
-        }
-      })
-      await flushPromises()
-
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      const passwordField = wrapper.find('[data-testid="password-field"]')
-
-      await emailField.setValue('test@example.com')
-      await passwordField.setValue('password123')
-      await passwordField.trigger('keydown.enter')
-      await flushPromises()
-
-      expect(mockLogin).toHaveBeenCalled()
-    })
-
-    it('должен показать/скрыть пароль при клике на иконку', async () => {
-      const passwordField = wrapper.find('[data-testid="password-field"]')
-      const toggleIcon = wrapper.find('[data-testid="password-toggle"]')
-
-      if (toggleIcon.exists()) {
-        // Изначально пароль скрыт
-        expect(passwordField.attributes('type')).toBe('password')
-
-        await toggleIcon.trigger('click')
-        await flushPromises()
-
-        // После клика пароль показан
-        expect(passwordField.attributes('type')).toBe('text')
-      }
-    })
-  })
-
-  describe('Запоминание пользователя', () => {
-    beforeEach(async () => {
-      wrapper = mountComponent(LoginView)
-      await flushPromises()
-    })
-
-    it('должен показать чекбокс "Запомнить меня"', () => {
-      const rememberCheckbox = wrapper.find('[data-testid="remember-me"]')
-      expect(rememberCheckbox.exists()).toBe(true)
-    })
-
-    it('должен сохранить email при включенном "Запомнить меня"', async () => {
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      const rememberCheckbox = wrapper.find('[data-testid="remember-me"]')
-
-      await emailField.setValue('test@example.com')
-      await rememberCheckbox.setChecked(true)
-
-      // Эмулируем отправку формы и проверяем сохранение
-      if (wrapper.vm.saveCredentials) {
-        wrapper.vm.saveCredentials('test@example.com', true)
-        expect(localStorage.setItem).toHaveBeenCalledWith('remembered-email', 'test@example.com')
-      }
-    })
-
-    it('должен загрузить сохраненный email при монтировании', async () => {
-      localStorage.getItem.mockReturnValue('saved@example.com')
-
-      wrapper = mountComponent(LoginView)
-      await flushPromises()
-
-      const emailField = wrapper.find('[data-testid="email-field"]')
-      if (emailField.exists()) {
-        expect(emailField.element.value).toBe('saved@example.com')
-      }
-    })
+    const { router: guestRouter } = await mountLogin()
+    expect(guestRouter.currentRoute.value.path).toBe('/login')
   })
 })

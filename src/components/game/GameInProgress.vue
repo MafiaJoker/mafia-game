@@ -283,6 +283,7 @@
       :players-data="playersData"
       :phase-data="phaseData"
       :phase-id="displayPhase"
+      :day-left-box-ids="dayLeftBoxIds"
       @update:phase-data="phaseData = $event"
       @show-best-move="openBestMoveDialog"
       @next-round="handleNightActionDialog"
@@ -489,14 +490,26 @@ const displayPhase = computed(() => phaseId.value)
 // а после перечитывания состояния с сервера — уже нет
 const leftByFouls = (row) => row.was_in_game && !row.is_in_game
 
-// Игрок выбыл в текущем круге: голосование, удаление днём или ночью, фолы.
-// Отстрел сюда не входит: ночь ничего не рассказывает столу
-const leftThisPhase = (row) => (
+// Игрок покинул стол днём текущего круга: голосование, удаление судьёй, фолы.
+// Фолы ночью не дают, поэтому удаление по ним всегда дневное
+const leftThisDay = (row) => (
   phaseData.value.voted_box_ids.includes(row.box_id)
   || phaseData.value.removed_box_ids.includes(row.box_id)
-  || phaseData.value.night_removed_box_ids.includes(row.box_id)
   || leftByFouls(row)
 )
+
+// Игрок выбыл в текущем круге: днём или удалением ночью.
+// Отстрел сюда не входит: ночь ничего не рассказывает столу
+const leftThisPhase = (row) => (
+  leftThisDay(row) || phaseData.value.night_removed_box_ids.includes(row.box_id)
+)
+
+// Покинувшие стол днём: от их числа зависит, будет ли в первую ночь фаза ЛХ.
+// Считаем по строкам игроков, а не суммой списков: перечитанное состояние
+// выводит заголосованного ещё и по фолам
+const dayLeftBoxIds = computed(() => playersData.value
+  .filter(leftThisDay)
+  .map(row => row.box_id))
 
 // Подъём всех кандидатур выводит из игры двоих и больше разом, а ведущему
 // для протокола нужен их порядок: voted_box_ids пишется в порядке выставления.

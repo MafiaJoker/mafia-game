@@ -698,6 +698,138 @@ describe('GameInProgress: запросы круга', () => {
   })
 })
 
+// Фаза ЛХ в первую ночь зависит от того, сколько игроков покинули стол днём
+// (#118). Выбывших по фолам видит только этот экран, поэтому список для ночного
+// диалога собирает он
+describe('GameInProgress: покинувшие стол днём', () => {
+  const dayLeftBoxIds = (wrapper) => wrapper.findComponent(NightActionsDialog).props('dayLeftBoxIds')
+
+  // Состояние игры с сервера, где игроки boxIds уже вне игры
+  const stateWithout = (boxIds, overrides = {}) => gameState({
+    result: 'in_progress',
+    phase_id: 1,
+    players: players().map(player => ({ ...player, is_in_game: !boxIds.includes(player.box_id) })),
+    ...overrides
+  })
+
+  // Ответ ручки фолов - состояние игры. Бейджи таблицы и панель фолов
+  // голосования применяют его одинаково, а таблица здесь застаблена
+  const saveFouls = async (wrapper, state) => {
+    wrapper.findComponent(VotingDialog).vm.$emit('fouls-saved', state)
+    await flushPromises()
+  }
+
+  // Удаление днём: у ночного диалога своя модалка удаления, она пишет ночное поле
+  const removeAtDay = async (wrapper, phase) => {
+    wrapper.findAllComponents(RemovePlayersDialog)
+      .find(dialog => dialog.props('phaseField') === 'removed_box_ids')
+      .vm.$emit('update:phaseData', phase)
+    await flushPromises()
+  }
+
+  const firstDay = () => mountGame(gameState({ result: 'in_progress', phase_id: 1 }))
+
+  it('собирает заголосованных, удалённых судьёй и выбывших по фолам', async () => {
+    wrapper = await firstDay()
+    await nominate(wrapper, [2, 3])
+    await finishVoting(wrapper, [2])
+    await removeAtDay(wrapper, { ...emptyPhase(), voted_box_ids: [2], removed_box_ids: [5] })
+    // Четвёртый фол седьмому. Удаление судьёй сервер узнает только с ночью,
+    // а голосование уже сохранено
+    await saveFouls(wrapper, stateWithout([2, 7]))
+
+    expect(dayLeftBoxIds(wrapper)).toEqual([2, 5, 7])
+  })
+
+  // Суммой списков заголосованный посчитался бы дважды, и ЛХ бы пропал
+  it('заголосованного считает один раз, когда перечитанное состояние выводит его и по фолам', async () => {
+    wrapper = await firstDay()
+    await nominate(wrapper, [2, 3])
+    await finishVoting(wrapper, [2])
+    // Фол четвёртому: он в игре, а заголосованного сервер уже вывел
+    await saveFouls(wrapper, stateWithout([2]))
+
+    expect(dayLeftBoxIds(wrapper)).toEqual([2])
+  })
+
+  it('удалённого ночью в список не берёт', async () => {
+    wrapper = await firstDay()
+    await nominate(wrapper, [2, 3])
+    await finishVoting(wrapper, [2])
+    wrapper.findComponent(NightActionsDialog).vm.$emit('update:phaseData', {
+      ...emptyPhase(),
+      voted_box_ids: [2],
+      night_removed_box_ids: [4],
+      killed_box_id: 6
+    })
+    await flushPromises()
+
+    expect(dayLeftBoxIds(wrapper)).toEqual([2])
+  })
+
+  it('выбывших в прошлых кругах не считает', async () => {
+    wrapper = await firstDay()
+    await nominate(wrapper, [2, 3])
+    await finishVoting(wrapper, [2, 3])
+
+    apiService.createGamePhase.mockResolvedValue(stateWithout([2, 3], { phase_id: 2 }))
+    await finishNight(wrapper, { ...emptyPhase(), voted_box_ids: [2, 3] })
+
+    expect(dayLeftBoxIds(wrapper)).toEqual([])
+  })
+
+  // Сценарий из жалобы: заголосовали одного, первой ночью отстрелили другого
+  it('после одного заголосованного «Продолжить» первой ночи открывает лучший ход', async () => {
+    wrapper = await firstDay()
+    await nominate(wrapper, [2, 3])
+    await finishVoting(wrapper, [2])
+
+    await wrapper.find('.header-right button').trigger('click')
+    const night = wrapper.findComponent(NightActionsDialog)
+    night.vm.$emit('update:phaseData', { ...emptyPhase(), voted_box_ids: [2], killed_box_id: 6 })
+    await flushPromises()
+    await night.findAll('.el-dialog__footer button').at(-1).trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findComponent(BestMoveDialog).props('modelValue')).toBe(true)
+    expect(apiService.createGamePhase).not.toHaveBeenCalled()
+  })
+
+  // Судья отметил ЛХ, закрыл окно крестиком и дописал забытое дневное удаление:
+  // фазы ЛХ больше нет, и старые отметки не должны уйти в круг и в баллы
+  it('ЛХ, введённый до второго дневного выбывания, в круг не уходит', async () => {
+    wrapper = await firstDay()
+    await nominate(wrapper, [2, 3])
+    await finishVoting(wrapper, [2])
+
+    await wrapper.find('.header-right button').trigger('click')
+    const night = wrapper.findComponent(NightActionsDialog)
+    night.vm.$emit('update:phaseData', { ...emptyPhase(), voted_box_ids: [2], killed_box_id: 6 })
+    await flushPromises()
+    await night.findAll('.el-dialog__footer button').at(-1).trigger('click')
+    await flushPromises()
+
+    const bestMove = wrapper.findComponent(BestMoveDialog)
+    const withBestMove = { ...emptyPhase(), voted_box_ids: [2], killed_box_id: 6, best_move: [1, 3, 4] }
+    bestMove.vm.$emit('update:phaseData', withBestMove)
+    bestMove.vm.$emit('update:modelValue', false)
+    await flushPromises()
+    await removeAtDay(wrapper, { ...withBestMove, removed_box_ids: [5] })
+
+    await wrapper.find('.header-right button').trigger('click')
+    await night.findAll('.el-dialog__footer button').at(-1).trigger('click')
+    await flushPromises()
+
+    expect(bestMove.props('modelValue')).toBe(false)
+    expect(apiService.patchGamePhase).toHaveBeenLastCalledWith(GAME_ID, {
+      voted_box_ids: [2],
+      removed_box_ids: [5],
+      killed_box_id: 6
+    })
+    expect(apiService.createGamePhase).toHaveBeenCalledTimes(1)
+  })
+})
+
 // Утром ведущему напоминают, кого убили ночью. Тост показывает уже новый день,
 // а галочка для него живёт в ночном диалоге
 describe('GameInProgress: тост об убитом ночью', () => {

@@ -1,4 +1,4 @@
-// Конфигурация Vitest для тестирования CRM функциональности
+// Конфигурация Vitest
 
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
@@ -78,8 +78,7 @@ export default defineConfig({
       '.idea',
       '.git',
       '.cache',
-      'src/test/setup.js',
-      'src/test/utils.js'
+      'src/test/setup.js'
     ],
 
     // Репортеры
