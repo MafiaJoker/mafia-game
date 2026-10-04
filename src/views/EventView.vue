@@ -506,6 +506,7 @@
   import { useEventTypesStore } from '@/stores/eventTypes'
   import { useAuthStore } from '@/stores/auth'
   import { useBreakpoints } from '@/composables/useBreakpoints'
+  import { useClipboard } from '@/composables/useClipboard'
   import { apiService } from '@/services/api'
   import { getSeatingExportErrorMessage } from '@/utils/errorMessages.js'
   import { ElMessage, ElMessageBox } from 'element-plus'
@@ -536,6 +537,7 @@
   const eventTypesStore = useEventTypesStore()
   const authStore = useAuthStore()
   const { isMobile } = useBreakpoints()
+  const { copyToClipboard } = useClipboard()
 
   const event = ref(null)
   const selectedTable = ref(null)
@@ -674,20 +676,6 @@
         tableId: tableIdFromName(table.table_name)
       }))
   })
-
-  // Буфер обмена отказывает штатно: на небезопасном origin (http на
-  // LAN-адресе - ровно та связка, где рядом стоит OBS) navigator.clipboard
-  // вообще нет. Поэтому тост об успехе - только после удавшейся записи
-  const copyToClipboard = async (text, successMessage) => {
-    try {
-      await navigator.clipboard.writeText(text)
-    } catch (clipboardError) {
-      console.error('Буфер обмена недоступен:', clipboardError)
-      ElMessage.error('Браузер не дал доступ к буферу обмена')
-      return
-    }
-    ElMessage.success(successMessage)
-  }
 
   const copyEventObsLink = async (tableId = null) => {
     const url = new URL(`/event/${route.params.id}/dies`, window.location.origin)
@@ -1081,14 +1069,7 @@
       copyingSeating.value = true
       try {
           const seatingText = await apiService.exportSeating(route.params.id)
-          try {
-              await navigator.clipboard.writeText(seatingText)
-          } catch (clipboardError) {
-              console.error('Буфер обмена недоступен:', clipboardError)
-              ElMessage.error('Браузер не дал доступ к буферу обмена')
-              return
-          }
-          ElMessage.success('Рассадка скопирована в буфер обмена')
+          await copyToClipboard(seatingText, 'Рассадка скопирована в буфер обмена')
       } catch (error) {
           console.error('Ошибка при выгрузке рассадки:', error)
           ElMessage.error(getSeatingExportErrorMessage(error))

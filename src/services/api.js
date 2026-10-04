@@ -223,6 +223,20 @@ export const apiService = {
 	return response.data
     },
 
+    // Публичная рассадка: без входа и без мероприятия. Каждая генерация -
+    // новая запись на сервере: id для ссылки, игры той же формы, что у
+    // рассадки мероприятия, и готовый текст для мессенджера
+    async createPublicSeating(seatingData) {
+	const response = await api.post('/seating', seatingData)
+	return response.data
+    },
+
+    // id приходит из адреса страницы, поэтому кодируем его
+    async getPublicSeating(seatingId) {
+	const response = await api.get(`/seating/${encodeURIComponent(seatingId)}`)
+	return response.data
+    },
+
     // Event Types
     async getEventTypes() {
 	const response = await api.get('/event-types')
