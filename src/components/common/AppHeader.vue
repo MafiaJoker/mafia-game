@@ -1,5 +1,8 @@
 <template>
-  <div class="app-header-content" :class="{ 'is-mobile': isMobile, 'is-tablet': isTablet }">
+  <div
+    class="app-header-content"
+    :class="{ 'is-mobile': isMobile, 'is-tablet': isTablet, 'menu-over-5': menuItems.length > 5 }"
+  >
     <!-- Телефон: меню прячется в выдвижную панель, в шапке остаётся кнопка -->
     <el-button
       v-if="isMobile"
@@ -26,7 +29,7 @@
         mode="horizontal"
         @select="handleSelect"
         class="app-menu"
-        :class="{ 'app-menu--compact': isTablet }"
+        :class="menuClasses"
         data-testid="desktop-menu"
         :ellipsis="false"
 	>
@@ -43,7 +46,7 @@
     </div>
 
     <div class="user-section">
-      <el-dropdown @command="handleUserCommand">
+      <el-dropdown v-if="authStore.isAuthenticated" @command="handleUserCommand">
         <div class="user-info">
           <el-avatar :size="32" :src="authStore.user?.photo_url">
             {{ userInitials }}
@@ -64,6 +67,18 @@
           </el-dropdown-menu>
         </template>
       </el-dropdown>
+      <!-- Аноним на публичной странице: профиля и выхода у него нет, есть вход.
+           Пока проверка сессии не закончилась, не показываем ни то ни другое -
+           иначе вошедший увидел бы мелькнувшее «Войти» -->
+      <el-button
+        v-else-if="authStore.isInitialized"
+        type="primary"
+        class="login-button"
+        data-testid="login-button"
+        @click="goToLogin"
+      >
+        Войти
+      </el-button>
     </div>
 
     <!-- Выдвижное меню для телефона -->
@@ -76,7 +91,7 @@
       class="app-nav-drawer"
       append-to-body
     >
-      <div class="drawer-user" @click="goToProfile">
+      <div v-if="authStore.isAuthenticated" class="drawer-user" @click="goToProfile">
         <el-avatar :size="44" :src="authStore.user?.photo_url">
           {{ userInitials }}
         </el-avatar>
@@ -102,8 +117,21 @@
       </el-menu>
 
       <div class="drawer-footer">
-        <el-button class="drawer-logout" :icon="SwitchButton" @click="handleUserCommand('logout')">
+        <el-button
+          v-if="authStore.isAuthenticated"
+          class="drawer-action"
+          :icon="SwitchButton"
+          @click="handleUserCommand('logout')"
+        >
           Выйти
+        </el-button>
+        <el-button
+          v-else-if="authStore.isInitialized"
+          type="primary"
+          class="drawer-action"
+          @click="goToLogin"
+        >
+          Войти
         </el-button>
       </div>
     </el-drawer>
@@ -126,17 +154,19 @@
       ArrowDown,
       CreditCard,
       Medal,
-      Menu
+      Menu,
+      Grid
   } from '@element-plus/icons-vue'
 
   const route = useRoute()
   const router = useRouter()
   const authStore = useAuthStore()
-  const { isMobile, isTablet } = useBreakpoints()
+  const { isMobile, isTablet, viewportWidth } = useBreakpoints()
 
   const drawerVisible = ref(false)
 
-  const activeIndex = computed(() => route.path)
+  // Рассадку по ссылке (/seating/<id>) подсвечивает тот же пункт «Рассадка»
+  const activeIndex = computed(() => (route.name === 'Seating' ? '/seating' : route.path))
 
   // Инициалы пользователя для аватара
   const userInitials = computed(() => {
@@ -178,14 +208,39 @@
       return hasRole('cashier')
   })
 
-  // Один список пунктов на горизонтальное меню и на выдвижную панель
+  // Один список пунктов на горизонтальное меню и на выдвижную панель.
+  // Рассадка открывается без входа, поэтому ее видят все, и аноним тоже
   const menuItems = computed(() => [
       { index: '/ratings', label: 'Рейтинг', icon: Medal, visible: showRatings.value },
       { index: '/', label: 'Мероприятия', icon: Calendar, visible: showEvents.value },
       { index: '/event-types', label: 'Категории', icon: Collection, visible: showEventType.value },
       { index: '/users', label: 'Пользователи', icon: UserFilled, visible: showUsers.value },
-      { index: '/tariffs', label: 'Тарифы', icon: CreditCard, visible: showTariffs.value }
+      { index: '/tariffs', label: 'Тарифы', icon: CreditCard, visible: showTariffs.value },
+      { index: '/seating', label: 'Рассадка', icon: Grid, visible: true }
   ].filter(item => item.visible))
+
+  // Подписи пунктов помещаются не всегда: чем уже экран и длиннее меню, тем
+  // раньше остаются одни иконки (подпись - в title). Сколько пунктов с
+  // подписями влезает: в портретный планшет - три (у анонима одна
+  // «Рассадка», ей подпись оставляем), в альбомный - четыре, в узкий
+  // компьютер - пять. Пороги подобраны по ширине подписей, у пользователя
+  // со всеми ролями пунктов шесть
+  const LABELED_MENU_ITEMS = [
+      { maxWidth: 899, items: 3 },
+      { maxWidth: 1023, items: 4 },
+      { maxWidth: 1199, items: 5 }
+  ]
+
+  const menuIconsOnly = computed(() => {
+      if (isMobile.value) return false
+      const range = LABELED_MENU_ITEMS.find(({ maxWidth }) => viewportWidth.value <= maxWidth)
+      return Boolean(range) && menuItems.value.length > range.items
+  })
+
+  const menuClasses = computed(() => ({
+      'app-menu--compact': isTablet.value,
+      'app-menu--icons': menuIconsOnly.value
+  }))
 
   const handleSelect = (index) => {
       router.push(index)
@@ -199,6 +254,11 @@
   const goToProfile = () => {
       drawerVisible.value = false
       router.push('/profile')
+  }
+
+  const goToLogin = () => {
+      drawerVisible.value = false
+      router.push('/login')
   }
 
   // Переход по ссылке из шапки или «Назад» в браузере: панель закрывается
@@ -347,20 +407,26 @@
       }
   }
 
-  /* Планшет в портрете: пять пунктов с подписями в 768px не влезают,
-     остаются иконки, подпись - во всплывающей подсказке (title) */
-  @media (min-width: 768px) and (max-width: 899px) {
-      .app-menu--compact :deep(.el-menu-item span) {
+  /* Подписи не помещаются (menuIconsOnly) - остаются иконки, подпись -
+     во всплывающей подсказке (title) */
+  .app-menu--icons :deep(.el-menu-item span) {
+      display: none;
+  }
+
+  .app-menu--icons :deep(.el-menu-item .el-icon) {
+      margin-right: 0;
+      font-size: 20px;
+  }
+
+  .app-menu.app-menu--icons :deep(.el-menu-item) {
+      padding: 0 12px;
+  }
+
+  /* Шесть пунктов с подписями и имя пользователя рядом встают только с
+     1280px - до того имя уходит, аватар остается */
+  @media (min-width: 1200px) and (max-width: 1279px) {
+      .menu-over-5 .user-name {
           display: none;
-      }
-
-      .app-menu--compact :deep(.el-menu-item .el-icon) {
-          margin-right: 0;
-          font-size: 20px;
-      }
-
-      .app-menu--compact :deep(.el-menu-item) {
-          padding: 0 12px;
       }
   }
 
@@ -449,7 +515,7 @@
       border-top: 1px solid #ebeef5;
   }
 
-  .drawer-logout {
+  .drawer-action {
       width: 100%;
   }
 </style>

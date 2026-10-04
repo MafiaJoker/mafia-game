@@ -85,6 +85,19 @@ export const CATEGORY_PRIORITIES = {
 export const DEFAULT_PLAYERS_COUNT = 10
 export const NO_CANDIDATES_MAX_ROUNDS = 3
 
+// Рассадка: границы бекенда (app/game/seating/constants.py), чтобы не гонять
+// заведомо неверные запросы. Общие у рассадки мероприятия и публичной
+export const SEATING_MAX_TABLES_COUNT = 20
+export const SEATING_MAX_GAMES_COUNT = 200
+export const SEATING_SEED_MAX_LENGTH = 64
+export const SEATING_TITLE_MAX_LENGTH = 100
+export const DEFAULT_TABLE_NAME_TEMPLATE = 'Стол {}'
+
+export const SEATING_SEED_HINT = 'Сид — ключ, из которого сервер собирает случайную рассадку. '
+  + 'Один и тот же сид с тем же составом игроков дает ту же самую рассадку, '
+  + 'поэтому ее можно повторить или проверить. Оставьте поле пустым — сервер '
+  + 'придумает сид сам и покажет его вместе с рассадкой.'
+
 // Фазы таймера обратного отсчета
 export const COUNTDOWN_PHASES = {
     MAFIA_NEGOTIATION: 'mafia_negotiation', // 60 секунд

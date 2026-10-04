@@ -10,7 +10,8 @@ const routes = [
     {
 	path: '/login',
 	name: 'Login',
-	component: () => import('@/views/LoginView.vue')
+	component: () => import('@/views/LoginView.vue'),
+	meta: { public: true }
     },
     {
 	path: '/',
@@ -39,7 +40,8 @@ const routes = [
 	path: '/game/:id/dies',
 	name: 'GameDies',
 	component: () => import('@/views/GameDiesView.vue'),
-	props: true
+	props: true,
+	meta: { public: true }
     },
     {
 	// Одна ссылка на весь вечер: страница сама переключает оверлеи,
@@ -48,7 +50,16 @@ const routes = [
 	path: '/event/:id/dies',
 	name: 'EventDies',
 	component: () => import('@/views/EventDiesView.vue'),
-	props: true
+	props: true,
+	meta: { public: true }
+    },
+    {
+	// Рассадка без входа: id - сохраненная на сервере рассадка, по ссылке
+	// ее откроет любой. Без id - пустая форма
+	path: '/seating/:id?',
+	name: 'Seating',
+	component: () => import('@/views/SeatingView.vue'),
+	meta: { public: true }
     },
     {
 	path: '/event-types',
@@ -111,8 +122,8 @@ router.beforeEach(async (to, from, next) => {
         console.log(`Router: navigating from ${from.path} to ${to.path}`)
     }
     
-    // Если пользователь идет на страницу авторизации или публичную страницу, пропускаем
-    if (to.path === '/login' || to.name === 'GameDies' || to.name === 'EventDies') {
+    // Вход, плашки OBS и рассадка открываются без входа: у них meta.public
+    if (to.meta.public) {
         console.log('Router: going to public page, allowing navigation')
         next()
         return

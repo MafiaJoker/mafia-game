@@ -10,17 +10,22 @@ export const GAME_ERROR_MESSAGES = {
   UNKNOWN_ERROR: 'Произошла неизвестная ошибка'
 }
 
-// Сообщения об ошибках генерации рассадки мероприятия
+// Сообщения об ошибках генерации рассадки: мероприятия и публичной
 export const SEATING_ERROR_MESSAGES = {
   EVENT_NOT_FOUND: 'Мероприятие не найдено. Обновите страницу',
+  SEATING_NOT_FOUND: 'Рассадка не найдена',
   NO_SEATING: 'Рассадки пока нет: сгенерируйте ее и создайте игры',
   FORBIDDEN: 'Рассадку мероприятия генерирует судья',
   SESSION_EXPIRED: 'Сессия истекла, войдите заново',
   CONFLICT: 'Данные мероприятия изменились. Обновите страницу и попробуйте снова',
+  TOO_MANY_REQUESTS: 'Слишком много рассадок подряд, попробуйте через минуту',
   NO_CONNECTION: 'Сервер не отвечает. Проверьте соединение',
   INVALID_PARAMS: 'Сервер не принял параметры рассадки. Проверьте их и попробуйте снова',
   UNKNOWN_ERROR: 'Не удалось получить рассадку. Попробуйте еще раз'
 }
+
+// Ник публичной рассадки после чистки на сервере (app/game/seating/constants.py)
+const SEATING_NICKNAME_MAX_LENGTH = 50
 
 // Ошибки этапов: у мероприятия с этапами игра обязана знать свой этап
 const SEATING_STAGE_MESSAGES = {
@@ -46,10 +51,32 @@ const validationMessage = (extra) => {
   return null
 }
 
-// Ошибка ответа /events/{id}/seating человеческим языком.
+// Ники публичной рассадки сервер называет позицией в списке, а человек
+// видит строки поля: пустые строки в список не попадают, поэтому номер
+// строки по позиции знает playerLines. Без него позиция и есть строка
+const nicknameLines = (indexes, playerLines) => indexes
+  .map(index => playerLines[index] ?? index + 1)
+
+const emptyNicknamesMessage = (lines) => lines.length === 1
+  ? `Ник в строке ${lines[0]} пустой — в нем только невидимые символы`
+  : `Ники в строках ${lines.join(', ')} пустые — в них только невидимые символы`
+
+const longNicknamesMessage = (lines, maxLength) => lines.length === 1
+  ? `Ник в строке ${lines[0]} длиннее ${maxLength} символов`
+  : `Ники в строках ${lines.join(', ')} длиннее ${maxLength} символов`
+
+// Ник длиннее, чем сервер готов хотя бы чистить, отбивает сериализатор -
+// такую ошибку отличает ключ players.N
+const overlongNicknameIndexes = (extra) => extra
+  .map(item => item?.key?.match(/^players\.(\d+)$/)?.[1])
+  .filter(Boolean)
+  .map(Number)
+
+// Ошибка ответа ручек рассадки человеческим языком: /events/{id}/seating
+// и публичной /seating - контракт ошибок у них общий.
 // fromRegistrations меняет только рассказ о нехватке игроков: список игроков
 // судья видит перед собой, а регистрации — нет
-export const getSeatingErrorMessage = (error, { fromRegistrations = false } = {}) => {
+export const getSeatingErrorMessage = (error, { fromRegistrations = false, playerLines = [] } = {}) => {
   const response = error?.response
   if (!response) return SEATING_ERROR_MESSAGES.NO_CONNECTION
 
@@ -68,15 +95,43 @@ export const getSeatingErrorMessage = (error, { fromRegistrations = false } = {}
     if (detail === 'unknown player ids') {
       return 'Часть игроков больше не существует. Удалите их из списка и добавьте заново'
     }
+    // Сервер сравнивает ники без учета регистра и называет каждый повтор
+    // так, как его записали первым
+    if (detail === 'duplicate players' && extra?.duplicate_players?.length) {
+      return `Ники повторяются (без учета регистра): ${extra.duplicate_players.join(', ')}`
+    }
+    if (detail === 'empty player nicknames' && extra?.empty_player_indexes?.length) {
+      return emptyNicknamesMessage(nicknameLines(extra.empty_player_indexes, playerLines))
+    }
+    if (detail === 'too long player nicknames' && extra?.too_long_player_indexes?.length) {
+      return longNicknamesMessage(
+        nicknameLines(extra.too_long_player_indexes, playerLines),
+        extra.max_nickname_length || SEATING_NICKNAME_MAX_LENGTH
+      )
+    }
     if (SEATING_STAGE_MESSAGES[detail]) return SEATING_STAGE_MESSAGES[detail]
-    if (Array.isArray(extra)) return validationMessage(extra) || SEATING_ERROR_MESSAGES.INVALID_PARAMS
+    if (Array.isArray(extra)) {
+      const overlong = overlongNicknameIndexes(extra)
+      if (overlong.length) {
+        return longNicknamesMessage(nicknameLines(overlong, playerLines), SEATING_NICKNAME_MAX_LENGTH)
+      }
+      return validationMessage(extra) || SEATING_ERROR_MESSAGES.INVALID_PARAMS
+    }
     return SEATING_ERROR_MESSAGES.INVALID_PARAMS
   }
   if (status === 401) return SEATING_ERROR_MESSAGES.SESSION_EXPIRED
   if (status === 403) return SEATING_ERROR_MESSAGES.FORBIDDEN
   if (status === 404) return SEATING_ERROR_MESSAGES.EVENT_NOT_FOUND
   if (status === 409) return SEATING_ERROR_MESSAGES.CONFLICT
+  if (status === 429) return SEATING_ERROR_MESSAGES.TOO_MANY_REQUESTS
   return SEATING_ERROR_MESSAGES.UNKNOWN_ERROR
+}
+
+// Публичная рассадка: мероприятия у нее нет, и 404 значит «нет такой
+// рассадки» - ссылку обрезали при пересылке или набрали с ошибкой
+export const getPublicSeatingErrorMessage = (error, options) => {
+  if (error?.response?.status === 404) return SEATING_ERROR_MESSAGES.SEATING_NOT_FOUND
+  return getSeatingErrorMessage(error, options)
 }
 
 // Выгрузка отвечает 404 и когда мероприятия нет, и когда игр с рассадкой еще нет

@@ -1,5 +1,6 @@
 // Шапка приложения: пункты меню собираются из ролей пользователя, выход -
-// только после подтверждения, на телефоне меню уезжает в выдвижную панель
+// только после подтверждения, на телефоне меню уезжает в выдвижную панель.
+// Рассадку видят все, и аноним тоже: вместо аватара у него «Войти»
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
@@ -30,18 +31,23 @@ const currentUser = (overrides = {}) => ({
   ...overrides
 })
 
-const mountHeader = async (user = currentUser()) => {
+// Аноним - user: null после законченной проверки сессии
+const mountHeader = async (user = currentUser(), { path = '/ratings', initialized = true } = {}) => {
   const pinia = createPinia()
   setActivePinia(pinia)
   const authStore = useAuthStore()
   authStore.user = user
+  authStore.isInitialized = initialized
 
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: ['/', '/ratings', '/event-types', '/users', '/tariffs', '/profile']
-      .map(path => ({ path, component: Blank }))
+    routes: [
+      ...['/', '/ratings', '/event-types', '/users', '/tariffs', '/profile', '/login']
+        .map(path => ({ path, component: Blank })),
+      { path: '/seating/:id?', name: 'Seating', component: Blank }
+    ]
   })
-  router.push('/ratings')
+  router.push(path)
   await router.isReady()
 
   const wrapper = mount(AppHeader, { global: { plugins: [pinia, router] } })
@@ -81,10 +87,10 @@ afterEach(() => {
 
 describe('AppHeader: меню по ролям', () => {
   it.each([
-    ['игроку', 'Рейтинг', ['player']],
-    ['ведущему', 'Рейтинг, Мероприятия, Категории', ['game_master']],
-    ['кассиру', 'Рейтинг, Тарифы', ['cashier']],
-    ['админу', 'Рейтинг, Пользователи', ['admin']]
+    ['игроку', 'Рейтинг, Рассадка', ['player']],
+    ['ведущему', 'Рейтинг, Мероприятия, Категории, Рассадка', ['game_master']],
+    ['кассиру', 'Рейтинг, Тарифы, Рассадка', ['cashier']],
+    ['админу', 'Рейтинг, Пользователи, Рассадка', ['admin']]
   ])('%s показывает в меню: %s', async (who, items, roles) => {
     const { wrapper } = await mountHeader(currentUser({ roles }))
 
@@ -98,6 +104,38 @@ describe('AppHeader: меню по ролям', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.path).toBe('/users')
+  })
+
+  it('рассадка по ссылке подсвечивает пункт «Рассадка»', async () => {
+    const { wrapper } = await mountHeader(currentUser(), { path: '/seating/seating-1' })
+
+    expect(menuItem(wrapper, 'Рассадка').classes()).toContain('is-active')
+  })
+})
+
+describe('AppHeader для анонима', () => {
+  it('в меню только «Рассадка», вместо аватара - «Войти»', async () => {
+    const { wrapper } = await mountHeader(null, { path: '/seating' })
+
+    expect(menuLabels(wrapper)).toEqual(['Рассадка'])
+    expect(wrapper.find('.user-info').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="login-button"]').text()).toBe('Войти')
+  })
+
+  it('«Войти» ведет на страницу входа', async () => {
+    const { wrapper, router } = await mountHeader(null, { path: '/seating' })
+
+    await wrapper.find('[data-testid="login-button"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/login')
+  })
+
+  it('пока сессия проверяется, не показывает ни аватар, ни «Войти»', async () => {
+    const { wrapper } = await mountHeader(null, { path: '/seating', initialized: false })
+
+    expect(wrapper.find('.user-info').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="login-button"]').exists()).toBe(false)
   })
 })
 
@@ -156,6 +194,28 @@ describe('AppHeader: блок пользователя', () => {
   })
 })
 
+describe('AppHeader: подписи пунктов на узких экранах', () => {
+  afterEach(() => {
+    window.innerWidth = DESKTOP_WIDTH
+  })
+
+  const ALL_ROLES = ['admin', 'cashier', 'game_master', 'player']
+  const iconsOnly = (wrapper) => wrapper.find('.app-menu').classes().includes('app-menu--icons')
+
+  it.each([
+    ['у анонима одна «Рассадка» - с подписью и на портретном планшете', null, 800, false],
+    ['четыре пункта ведущего на портретном планшете - иконками', ['game_master'], 800, true],
+    ['четыре пункта ведущего на альбомном планшете - с подписями', ['game_master'], 960, false],
+    ['шесть пунктов на узком компьютере - иконками', ALL_ROLES, 1100, true],
+    ['шесть пунктов на широком экране - с подписями', ALL_ROLES, 1366, false]
+  ])('%s', async (title, roles, width, expected) => {
+    window.innerWidth = width
+    const { wrapper } = await mountHeader(roles ? currentUser({ roles }) : null, { path: '/seating' })
+
+    expect(iconsOnly(wrapper)).toBe(expected)
+  })
+})
+
 describe('AppHeader на телефоне', () => {
   beforeEach(() => {
     window.innerWidth = 375
@@ -178,7 +238,23 @@ describe('AppHeader на телефоне', () => {
     await openDrawer(wrapper)
 
     expect(wrapper.findComponent(ElDrawer).props('modelValue')).toBe(true)
-    expect(menuLabels(wrapper)).toEqual(['Рейтинг', 'Мероприятия', 'Категории'])
+    expect(menuLabels(wrapper)).toEqual(['Рейтинг', 'Мероприятия', 'Категории', 'Рассадка'])
+  })
+
+  it('аноним видит в панели вход вместо профиля и выхода', async () => {
+    const { wrapper, router } = await mountHeader(null, { path: '/seating' })
+    await openDrawer(wrapper)
+
+    expect(menuLabels(wrapper)).toEqual(['Рассадка'])
+    expect(document.querySelector('.app-nav-drawer .drawer-user')).toBeNull()
+    const drawerButton = document.querySelector('.app-nav-drawer .drawer-action')
+    expect(drawerButton.textContent.trim()).toBe('Войти')
+
+    drawerButton.click()
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/login')
+    expect(wrapper.findComponent(ElDrawer).props('modelValue')).toBe(false)
   })
 
   it('выбор пункта в панели закрывает её и открывает страницу', async () => {

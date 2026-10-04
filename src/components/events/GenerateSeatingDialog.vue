@@ -11,7 +11,7 @@
         <el-input-number
           v-model="form.tablesCount"
           :min="1"
-          :max="MAX_TABLES_COUNT"
+          :max="SEATING_MAX_TABLES_COUNT"
         />
       </el-form-item>
 
@@ -19,7 +19,7 @@
         <el-input-number
           v-model="form.gamesCount"
           :min="1"
-          :max="MAX_GAMES_COUNT"
+          :max="SEATING_MAX_GAMES_COUNT"
         />
         <div class="field-hint">
           Всего игр на всех столах, делится на количество столов
@@ -30,7 +30,7 @@
         <template #label>
           <span class="label-with-hint">
             Сид (необязательно)
-            <el-tooltip placement="top" :content="SEED_HINT">
+            <el-tooltip placement="top" :content="SEATING_SEED_HINT">
               <el-icon class="hint-icon"><QuestionFilled /></el-icon>
             </el-tooltip>
           </span>
@@ -39,7 +39,7 @@
           v-model="form.seed"
           class="seed-input"
           placeholder="Пусто — сервер придумает сид сам"
-          :maxlength="SEED_MAX_LENGTH"
+          :maxlength="SEATING_SEED_MAX_LENGTH"
           clearable
         />
       </el-form-item>
@@ -104,34 +104,13 @@
     />
 
     <!-- Готовая рассадка от сервера: игра x место, по столам -->
-    <div v-if="seating" class="seating-preview">
-      <div class="preview-header">
-        <span class="preview-title">Рассадка</span>
-        <span class="preview-seed">Сид: {{ seating.seed }}</span>
-      </div>
-
-      <div v-for="table in previewTables" :key="table.tableId" class="preview-table">
-        <div class="preview-table-name">{{ table.tableName }}</div>
-        <div class="preview-scroll">
-          <table class="seating-table">
-            <thead>
-              <tr>
-                <th class="seat-column">Место</th>
-                <th v-for="game in table.games" :key="game.label">{{ game.label }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in table.rows" :key="row.boxId">
-                <td class="seat-column">{{ row.boxId }}</td>
-                <td v-for="(nickname, index) in row.nicknames" :key="index">
-                  {{ nickname }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+    <SeatingPreview
+      v-if="seating"
+      class="dialog-preview"
+      :games="seating.games"
+      :seed="seating.seed"
+      :table-name-template="tableNameTemplate"
+    />
 
     <template #footer>
       <div class="dialog-footer">
@@ -163,19 +142,16 @@ import { ElMessage } from 'element-plus'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import { apiService } from '@/services/api'
 import PlayerSearchInput from '@/components/common/PlayerSearchInput.vue'
-import { DEFAULT_PLAYERS_COUNT } from '@/utils/constants.js'
+import SeatingPreview from '@/components/common/SeatingPreview.vue'
+import {
+  DEFAULT_PLAYERS_COUNT,
+  DEFAULT_TABLE_NAME_TEMPLATE,
+  SEATING_MAX_TABLES_COUNT,
+  SEATING_MAX_GAMES_COUNT,
+  SEATING_SEED_MAX_LENGTH,
+  SEATING_SEED_HINT
+} from '@/utils/constants.js'
 import { getSeatingErrorMessage } from '@/utils/errorMessages.js'
-
-// Границы бекенда, чтобы не гонять заведомо неверные запросы
-const MAX_TABLES_COUNT = 20
-const MAX_GAMES_COUNT = 200
-const SEED_MAX_LENGTH = 64
-const DEFAULT_TABLE_NAME_TEMPLATE = 'Стол {}'
-
-const SEED_HINT = 'Сид — ключ, из которого сервер собирает случайную рассадку. '
-  + 'Один и тот же сид с тем же составом игроков дает ту же самую рассадку, '
-  + 'поэтому ее можно повторить или проверить. Оставьте поле пустым — сервер '
-  + 'придумает сид сам и покажет его вместе с рассадкой.'
 
 const props = defineProps({
   modelValue: {
@@ -216,42 +192,6 @@ const seating = ref(null)
 const requiredPlayersCount = computed(() => DEFAULT_PLAYERS_COUNT * form.tablesCount)
 
 const addedPlayerIds = computed(() => form.players.map(player => player.id))
-
-// Рассадка приходит списком игр, а судья читает ее по столам
-const previewTables = computed(() => {
-  if (!seating.value) return []
-
-  const gamesByTable = new Map()
-  seating.value.games.forEach(game => {
-    if (!gamesByTable.has(game.table_id)) gamesByTable.set(game.table_id, [])
-    gamesByTable.get(game.table_id).push(game)
-  })
-
-  return [...gamesByTable.keys()].sort((a, b) => a - b).map(tableId => {
-    const games = gamesByTable.get(tableId)
-    return {
-      tableId,
-      tableName: tableName(tableId),
-      games,
-      rows: Array.from({ length: DEFAULT_PLAYERS_COUNT }, (_, index) => {
-        const boxId = index + 1
-        return {
-          boxId,
-          nicknames: games.map(
-            game => game.seats.find(seat => seat.box_id === boxId)?.nickname || ''
-          )
-        }
-      })
-    }
-  })
-})
-
-const tableName = (tableId) => {
-  const template = props.tableNameTemplate || DEFAULT_TABLE_NAME_TEMPLATE
-  return template.includes('{}')
-    ? template.replace('{}', tableId)
-    : DEFAULT_TABLE_NAME_TEMPLATE.replace('{}', tableId)
-}
 
 // Параметры изменились - показанная рассадка больше им не отвечает
 watch(
@@ -441,67 +381,9 @@ const createGames = async () => {
   margin-bottom: 16px;
 }
 
-.seating-preview {
+.dialog-preview {
   border-top: 1px solid #e4e7ed;
   padding-top: 16px;
-}
-
-.preview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.preview-title {
-  font-weight: 600;
-  color: #303133;
-}
-
-.preview-seed {
-  font-size: 12px;
-  color: #909399;
-}
-
-.preview-table {
-  margin-bottom: 16px;
-}
-
-.preview-table-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #606266;
-  margin-bottom: 6px;
-}
-
-.preview-scroll {
-  overflow-x: auto;
-}
-
-.seating-table {
-  border-collapse: collapse;
-  font-size: 13px;
-  min-width: 100%;
-}
-
-.seating-table th,
-.seating-table td {
-  border: 1px solid #e4e7ed;
-  padding: 4px 10px;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.seating-table th {
-  background-color: #f5f7fa;
-  color: #606266;
-  font-weight: 600;
-}
-
-.seating-table .seat-column {
-  width: 60px;
-  color: #909399;
-  text-align: center;
 }
 
 .dialog-footer {
