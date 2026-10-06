@@ -81,6 +81,10 @@ export const CATEGORY_PRIORITIES = {
     'funky': 4
 }
 
+// Заголовок вкладки - тот же, что в <title> index.html. Страница со своим
+// заголовком (meta.title маршрута) после ухода с нее возвращает этот
+export const APP_TITLE = 'Мафия Helper - Помощник для игры в Мафию'
+
 // Настройки игры
 export const DEFAULT_PLAYERS_COUNT = 10
 export const NO_CANDIDATES_MAX_ROUNDS = 3

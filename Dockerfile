@@ -22,6 +22,7 @@ RUN npm ci --include=dev --no-audit --no-fund
 
 COPY index.html vite.config.mjs ./
 COPY src ./src
+COPY public ./public
 COPY favicon.ico ./
 
 RUN npm run build

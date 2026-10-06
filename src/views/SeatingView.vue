@@ -2,12 +2,8 @@
   <div class="seating-view">
     <div class="seating-container">
       <div class="seating-heading">
-        <h1 class="seating-title">Рассадка</h1>
-        <p class="seating-subtitle">
-          Рассадка игроков по столам на вечер или турнир. Задайте число столов
-          и игр, по желанию — название и ники, а готовую рассадку отправьте
-          текстом в мессенджер или ссылкой.
-        </p>
+        <h1 class="seating-title">{{ SEATING_PAGE_HEADING }}</h1>
+        <p class="seating-subtitle">{{ SEATING_PAGE_SUBTITLE }}</p>
       </div>
 
       <el-alert
@@ -175,6 +171,20 @@
           />
         </el-card>
       </div>
+
+      <!-- Для пришедших из поиска. Тот же текст сборка кладет в seating.html -->
+      <section class="seating-about">
+        <h2 class="about-title">{{ SEATING_GUIDE.title }}</h2>
+        <ul class="about-list">
+          <li v-for="point in SEATING_GUIDE.points" :key="point">{{ point }}</li>
+        </ul>
+
+        <h2 class="about-title">{{ SEATING_FAQ.title }}</h2>
+        <div v-for="item in SEATING_FAQ.items" :key="item.question" class="faq-item">
+          <h3 class="faq-question">{{ item.question }}</h3>
+          <p>{{ item.answer }}</p>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -197,6 +207,12 @@ import {
 } from '@/utils/constants.js'
 import { getPublicSeatingErrorMessage } from '@/utils/errorMessages.js'
 import { getSeatingClientId, pickUtmTags } from '@/utils/seatingVisitor.js'
+import {
+  SEATING_PAGE_HEADING,
+  SEATING_PAGE_SUBTITLE,
+  SEATING_GUIDE,
+  SEATING_FAQ
+} from '@/utils/seatingPage.js'
 
 const PLAYERS_PLACEHOLDER = 'По одному нику на строку, например:\nАлиса\nБорис\nВера'
 
@@ -561,6 +577,35 @@ const copySeatingLink = () => copyToClipboard(
 
 .result-empty {
   padding: 48px 0;
+}
+
+/* Текст под рассадкой - узкой колонкой, как подзаголовок: так легче читать */
+.seating-about {
+  max-width: 720px;
+  margin-top: 32px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #606266;
+}
+
+.about-title {
+  margin: 32px 0 8px;
+  font-size: 18px;
+  color: #303133;
+}
+
+.about-title:first-child {
+  margin-top: 0;
+}
+
+.about-list {
+  padding-left: 20px;
+}
+
+.faq-question {
+  margin: 16px 0 4px;
+  font-size: 15px;
+  color: #303133;
 }
 
 /* Планшет и телефон: одна колонка, рассадка под формой */

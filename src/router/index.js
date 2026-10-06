@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { APP_TITLE } from '@/utils/constants.js'
+import { SEATING_PAGE_TITLE } from '@/utils/seatingPage.js'
 
 const routes = [
     {
@@ -59,7 +61,7 @@ const routes = [
 	path: '/seating/:id?',
 	name: 'Seating',
 	component: () => import('@/views/SeatingView.vue'),
-	meta: { public: true }
+	meta: { public: true, title: SEATING_PAGE_TITLE }
     },
     {
 	path: '/event-types',
@@ -255,6 +257,13 @@ router.beforeEach(async (to, from, next) => {
     }
 
     next()
+})
+
+// Заголовок вкладки: у страницы, которую ищут поисковики, свой (meta.title),
+// у остальных - общий. Иначе ушедший с рассадки унес бы ее заголовок дальше
+router.afterEach((to, from, failure) => {
+    if (failure) return
+    document.title = to.meta.title || APP_TITLE
 })
 
 // Заглушка для совместимости с main.js
