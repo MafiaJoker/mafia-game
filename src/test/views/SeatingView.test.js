@@ -9,6 +9,7 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import { ElInputNumber, ElMessage } from 'element-plus'
 import SeatingView from '@/views/SeatingView.vue'
 import { apiService } from '@/services/api'
+import { SEATING_PAGE_HEADING, SEATING_GUIDE, SEATING_FAQ } from '@/utils/seatingPage.js'
 
 vi.mock('@/services/api', () => ({
   apiService: {
@@ -476,5 +477,18 @@ describe('SeatingView на телефоне', () => {
     expect(wrapper.find('.seating-table').exists()).toBe(false)
     expect(wrapper.findAll('.preview-game-label').map(label => label.text()))
       .toEqual(['Игра 1', 'Игра 2'])
+  })
+})
+
+// Тот же текст сборка кладет в seating.html - его проверяет seatingPage.test.js
+describe('SeatingView: текст для пришедших из поиска', () => {
+  it('заголовок под запрос, под формой - как устроена рассадка и частые вопросы', async () => {
+    const { wrapper } = await mountPage()
+
+    expect(wrapper.find('h1').text()).toBe(SEATING_PAGE_HEADING)
+    expect(wrapper.findAll('.about-list li').map(point => point.text()))
+      .toEqual(SEATING_GUIDE.points)
+    expect(wrapper.findAll('.faq-question').map(question => question.text()))
+      .toEqual(SEATING_FAQ.items.map(item => item.question))
   })
 })

@@ -4,6 +4,28 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { execSync } from 'node:child_process'
+import { renderSeatingPageHtml } from './src/utils/seatingPage.js'
+
+// seating.html - HTML страницы /seating для поисковиков и превью ссылок в
+// мессенджерах: index.html сборки со своими заголовком, описанием и текстом
+// страницы (src/utils/seatingPage.js). Отдает его nginx (nginx/default.conf).
+// enforce: 'post' - к этому моменту index.html уже собран
+const seatingPagePlugin = () => ({
+  name: 'seating-page-html',
+  apply: 'build',
+  enforce: 'post',
+  generateBundle(_, bundle) {
+    const indexHtml = bundle['index.html']
+    if (!indexHtml) {
+      this.error('seating.html: в сборке нет index.html')
+    }
+    this.emitFile({
+      type: 'asset',
+      fileName: 'seating.html',
+      source: renderSeatingPageHtml(indexHtml.source)
+    })
+  }
+})
 
 export default defineConfig(({ command, mode }) => {
   const isDev = command === 'serve'
@@ -31,7 +53,9 @@ export default defineConfig(({ command, mode }) => {
       }),
       Components({
         resolvers: [ElementPlusResolver()]
-      })
+      }),
+      // Electron открывает файлы с диска: поисковиков и превью там нет
+      ...(isElectron ? [] : [seatingPagePlugin()])
     ],
     resolve: {
       alias: {
