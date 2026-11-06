@@ -24,6 +24,7 @@
 <script setup>
 import GameOverlay from '@/components/dies/GameOverlay.vue'
 import BetweenGamesOverlay from '@/components/dies/BetweenGamesOverlay.vue'
+import { useBroadcastSound } from '@/composables/useBroadcastSound.js'
 
 const props = defineProps({
   id: {
@@ -39,6 +40,9 @@ const onAir = ref(false)
 const currentGame = ref(null)
 const previousGame = ref(null)
 const error = ref(null)
+
+// Звук эфира: днём микрофон, иначе музыка. Включается паролем OBS в ссылке
+const { applyMicrophone } = useBroadcastSound()
 
 // Стол подписки. Начинаем с того, что в ссылке, а дальше держим тот, который
 // вернул сервер: мероприятие может начаться с одним столом и обзавестись
@@ -82,6 +86,7 @@ function applyState(state) {
   currentGame.value = state.current_game || null
   previousGame.value = state.previous_game || null
   error.value = null
+  applyMicrophone(state.microphone_enabled)
 }
 
 function sendSubscribe() {

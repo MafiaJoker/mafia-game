@@ -296,6 +296,24 @@ export const apiService = {
 	await api.delete(`/games/${gameId}/broadcast`)
     },
 
+    // Ночь эфира: судья открыл окно «Ночь» - плашка мероприятия глушит
+    // микрофон и играет музыку, закрыл - снова микрофон. Обе ручки
+    // идемпотентны и отвечают 204 без тела
+    async startGameNight(gameId) {
+	await api.put(`/games/${gameId}/broadcast/night`)
+    },
+
+    async finishGameNight(gameId) {
+	await api.delete(`/games/${gameId}/broadcast/night`)
+    },
+
+    // Случайный трек для плашки мероприятия, без входа: { url }. exclude -
+    // трек, который только что доиграл, чтобы он не повторился подряд
+    async getRandomBroadcastTrack(exclude) {
+	const response = await api.get('/broadcast/music/random', { params: { exclude } })
+	return response.data
+    },
+
     // Game State
     async getGameState(gameId) {
 	const response = await api.get(`/games/${gameId}/state`)
