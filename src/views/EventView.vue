@@ -256,6 +256,19 @@
                           <el-icon><CopyDocument /></el-icon>
                           {{ isMobile ? 'Копировать текст' : 'Скопировать рассадку как текст' }}
                         </el-button>
+                        <!-- Пароль сервера WebSocket в OBS: с ним ссылка на
+                             плашку сама переключает звук эфира - днём
+                             микрофон, иначе музыка -->
+                        <el-input
+                          v-if="authStore.isJudge"
+                          v-model="obsPassword"
+                          class="obs-password"
+                          size="small"
+                          type="password"
+                          show-password
+                          placeholder="Пароль OBS"
+                          aria-label="Пароль OBS"
+                          />
                         <!-- Одна ссылка на весь вечер: источник в OBS
                              переключается сам. Столов больше одного - стол
                              обязателен, поэтому выбираем его списком, а не
@@ -500,7 +513,7 @@
 </template>
 
 <script setup>
-  import { ref, computed, reactive, onMounted } from 'vue'
+  import { ref, computed, reactive, watch, onMounted } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useEventsStore } from '@/stores/events'
   import { useEventTypesStore } from '@/stores/eventTypes'
@@ -677,10 +690,24 @@
       }))
   })
 
+  // Пароль OBS хранится только на этом устройстве. В ссылке он стоит после #:
+  // эта часть не уходит на сервер и в логи
+  const OBS_PASSWORD_STORAGE_KEY = 'event_obs_password'
+  const obsPassword = ref(localStorage.getItem(OBS_PASSWORD_STORAGE_KEY) || '')
+
+  watch(obsPassword, (value) => {
+    localStorage.setItem(OBS_PASSWORD_STORAGE_KEY, value)
+  })
+
   const copyEventObsLink = async (tableId = null) => {
     const url = new URL(`/event/${route.params.id}/dies`, window.location.origin)
     if (tableId !== null && tableId !== undefined) {
       url.searchParams.set('table', tableId)
+    }
+    // Без пароля плашка молчит и микрофон не трогает
+    const password = obsPassword.value.trim()
+    if (password) {
+      url.hash = new URLSearchParams({ obs: password }).toString()
     }
     await copyToClipboard(url.toString(), 'Ссылка на OBS для мероприятия скопирована!')
   }
@@ -1435,6 +1462,10 @@
       gap: 8px;
   }
 
+  .obs-password {
+      width: 140px;
+  }
+
   .tab-label {
       display: flex;
       align-items: center;
@@ -1695,6 +1726,12 @@
           flex-wrap: wrap;
       }
 
+      /* Ряд кнопок переносится: отступ Element Plus между соседними кнопками
+         сдвигал бы перенесённую кнопку от края - расстояние даёт gap */
+      .tab-header .header-actions .el-button {
+          margin-left: 0;
+      }
+
       .event-tabs :deep(.el-tabs__content) {
           padding: 12px;
       }
@@ -1785,7 +1822,8 @@
           width: 100%;
       }
 
-      .tab-header .header-actions .el-button {
+      .tab-header .header-actions .el-button,
+      .tab-header .header-actions .obs-password {
           flex: 1 1 auto;
           margin-left: 0;
       }

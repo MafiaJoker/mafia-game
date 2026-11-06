@@ -367,6 +367,27 @@ const votingDialogVisible = ref(false)
 // Состояние модального окна ночи
 const nightDialogVisible = ref(false)
 
+// Открытое окно «Ночь» - ночь и для эфира: плашка мероприятия глушит микрофон
+// и играет музыку. Переход к ЛХ и «Продолжить» окно закрывают - это утро.
+// Отметки уходят по очереди: DELETE, обогнавший свой PUT, оставил бы
+// микрофон заглушённым на весь день
+let nightMark = Promise.resolve()
+
+const markNight = async (started) => {
+  try {
+    await (started ? apiService.startGameNight(props.gameId) : apiService.finishGameNight(props.gameId))
+  } catch (error) {
+    console.error('Failed to mark night:', error)
+    ElMessage.warning(started
+      ? 'Не удалось отметить ночь - на трансляции останется микрофон'
+      : 'Не удалось отметить утро - микрофон трансляции включится со следующим кругом')
+  }
+}
+
+watch(nightDialogVisible, (visible) => {
+  nightMark = nightMark.then(() => markNight(visible))
+})
+
 // Состояние модального окна лучшего хода
 const bestMoveDialogVisible = ref(false)
 

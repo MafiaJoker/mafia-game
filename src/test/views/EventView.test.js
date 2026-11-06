@@ -13,6 +13,7 @@ import EventPlayers from '@/components/events/EventPlayers.vue'
 import EventResults from '@/components/events/EventResults.vue'
 import { useAuthStore } from '@/stores/auth'
 import { apiService } from '@/services/api'
+import { parseSoundParams } from '@/composables/useBroadcastSound.js'
 
 vi.mock('@/services/api', () => ({
   apiService: {
@@ -191,9 +192,11 @@ describe('EventView: загрузка и вкладки', () => {
 
     const player = await mountEvent({ roles: ['player'] })
     expect(obsButtons(player)).toEqual([])
+    expect(player.find('.obs-password').exists()).toBe(false)
 
     const judge = await mountEvent({ roles: ['game_master'] })
     expect(obsButtons(judge)).toEqual(['Ссылка на OBS', 'Копировать ссылку на OBS', 'Копировать ссылку на OBS'])
+    expect(judge.find('.obs-password').exists()).toBe(true)
   })
 
   it('мероприятие не загрузилось - говорит об этом и возвращает к списку', async () => {
@@ -322,5 +325,60 @@ describe('EventView: навигация', () => {
     expect(button(wrapper, 'Рассадка')).toBeDefined()
     expect(button(wrapper, 'Копировать текст')).toBeDefined()
     expect(button(wrapper, 'Сгенерировать рассадку')).toBeUndefined()
+  })
+})
+
+// Звук плашки мероприятия (#132): пароль сервера WebSocket в OBS уходит в
+// ссылку после #, хранится только на этом устройстве
+describe('EventView: ссылка на плашку мероприятия со звуком', () => {
+  const PASSWORD_KEY = 'event_obs_password'
+  let writeText
+
+  const oneTableEvent = () => ({ ...eventDetail(), tables: [eventDetail().tables[0]] })
+
+  const passwordInput = (wrapper) => wrapper.find('.obs-password input')
+
+  const copiedLink = async (wrapper) => {
+    await button(wrapper, 'Ссылка на OBS').trigger('click')
+    await flushPromises()
+    return new URL(writeText.mock.calls.at(-1)[0])
+  }
+
+  beforeEach(() => {
+    apiService.getEvent.mockImplementation(async () => oneTableEvent())
+    writeText = vi.fn().mockResolvedValue()
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+  })
+
+  afterEach(() => {
+    localStorage.getItem.mockReset()
+  })
+
+  it('без пароля - ссылка как раньше: плашка молчит', async () => {
+    const wrapper = await mountEvent()
+
+    const link = await copiedLink(wrapper)
+
+    expect(link.toString()).toBe(`${window.location.origin}/event/${EVENT_ID}/dies?table=1`)
+  })
+
+  it('пароль уходит в ссылку после # и запоминается на устройстве', async () => {
+    const wrapper = await mountEvent()
+
+    await passwordInput(wrapper).setValue(' S3cr&t пароль ')
+    const link = await copiedLink(wrapper)
+
+    expect(link.search).toBe('?table=1')
+    // Плашка читает фрагмент своим разбором: пароль доезжает целым, без пробелов по краям
+    expect(parseSoundParams(link.hash)).toEqual({ password: 'S3cr&t пароль', mics: [] })
+    expect(localStorage.setItem).toHaveBeenCalledWith(PASSWORD_KEY, ' S3cr&t пароль ')
+  })
+
+  it('сохранённый на устройстве пароль подставляется в поле и в ссылку', async () => {
+    localStorage.getItem.mockImplementation((key) => (key === PASSWORD_KEY ? 'from-device' : null))
+    const wrapper = await mountEvent()
+
+    expect(passwordInput(wrapper).element.value).toBe('from-device')
+    expect(parseSoundParams((await copiedLink(wrapper)).hash).password).toBe('from-device')
   })
 })

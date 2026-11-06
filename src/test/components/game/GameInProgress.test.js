@@ -20,7 +20,9 @@ vi.mock('@/services/api.js', () => ({
     patchGamePhase: vi.fn(),
     addGamePhaseSilentBox: vi.fn(),
     deleteGamePhaseSilentBox: vi.fn(),
-    finishGameBroadcast: vi.fn()
+    finishGameBroadcast: vi.fn(),
+    startGameNight: vi.fn(),
+    finishGameNight: vi.fn()
   }
 }))
 
@@ -892,5 +894,79 @@ describe('GameInProgress: тост об убитом ночью', () => {
     wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
 
     expect(wrapper.findComponent(NightActionsDialog).props('showKilledToast')).toBe(false)
+  })
+})
+
+// Окно «Ночь» - ночь и для эфира: плашка мероприятия глушит микрофон и играет
+// музыку (#132). Отметку ставит сервер по ручкам ночи, вести игру они не мешают
+describe('GameInProgress: отметка ночи для звука трансляции', () => {
+  const nightDialog = (wrapper) => wrapper.findComponent(NightActionsDialog)
+
+  it('«Ночь» отмечает начало ночи, «Продолжить» - утро', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    await wrapper.find('.header-right button').trigger('click')
+    await flushPromises()
+
+    expect(apiService.startGameNight).toHaveBeenCalledWith(GAME_ID)
+    expect(apiService.finishGameNight).not.toHaveBeenCalled()
+
+    await nightDialog(wrapper).findAll('.el-dialog__footer button').at(-1).trigger('click')
+    await flushPromises()
+
+    expect(apiService.finishGameNight).toHaveBeenCalledWith(GAME_ID)
+    expect(apiService.createGamePhase).toHaveBeenCalledTimes(1)
+  })
+
+  it('переход к ЛХ - уже утро: микрофон нужен на окне ЛХ', async () => {
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 1 }))
+
+    nightDialog(wrapper).vm.$emit('update:modelValue', true)
+    await flushPromises()
+    nightDialog(wrapper).vm.$emit('show-best-move')
+    await flushPromises()
+
+    expect(apiService.finishGameNight).toHaveBeenCalledWith(GAME_ID)
+    expect(wrapper.findComponent(BestMoveDialog).props('modelValue')).toBe(true)
+  })
+
+  it('утро уходит только после ответа на ночь: обогнав её, оно оставило бы микрофон заглушённым', async () => {
+    let answerNight
+    apiService.startGameNight.mockReturnValueOnce(new Promise((resolve) => { answerNight = resolve }))
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+
+    nightDialog(wrapper).vm.$emit('update:modelValue', true)
+    await flushPromises()
+    nightDialog(wrapper).vm.$emit('update:modelValue', false)
+    await flushPromises()
+
+    expect(apiService.finishGameNight).not.toHaveBeenCalled()
+
+    answerNight()
+    await flushPromises()
+
+    expect(apiService.finishGameNight).toHaveBeenCalledWith(GAME_ID)
+  })
+
+  it('сбой отметки - только предупреждение: ночь и новый круг идут как обычно', async () => {
+    const warning = vi.spyOn(ElMessage, 'warning').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    apiService.startGameNight.mockRejectedValueOnce(new Error('Network Error'))
+    apiService.finishGameNight.mockRejectedValueOnce(new Error('Network Error'))
+    wrapper = await mountGame(gameState({ result: 'in_progress', phase_id: 2 }))
+    apiService.createGamePhase.mockResolvedValue(gameState({ result: 'in_progress', phase_id: 3 }))
+
+    await wrapper.find('.header-right button').trigger('click')
+    await flushPromises()
+
+    expect(nightDialog(wrapper).props('modelValue')).toBe(true)
+    expect(warning).toHaveBeenLastCalledWith('Не удалось отметить ночь - на трансляции останется микрофон')
+
+    await nightDialog(wrapper).findAll('.el-dialog__footer button').at(-1).trigger('click')
+    await flushPromises()
+
+    expect(warning).toHaveBeenLastCalledWith('Не удалось отметить утро - микрофон трансляции включится со следующим кругом')
+    expect(dayLabel(wrapper)).toBe('День 3')
+    warning.mockRestore()
   })
 })
